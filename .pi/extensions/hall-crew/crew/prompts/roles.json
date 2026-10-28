@@ -1,0 +1,58 @@
+{
+  "lead": {
+    "prompt": "lead.md",
+    "tools": [],
+    "thinking": "medium",
+    "commTools": ["comm_notify", "comm_notify_all", "crew_assign", "comm_request", "comm_reply"],
+    "discipline": "Integrate work, delegate through ordinary Crew Comm, and report acceptance."
+  },
+  "architect": {
+    "prompt": "architect.md",
+    "tools": ["read", "grep", "find", "ls"],
+    "thinking": "high",
+    "commTools": ["comm_notify", "comm_request", "comm_reply"],
+    "discipline": "Define bounded interfaces, constraints, and consequential tradeoffs."
+  },
+  "advisor": {
+    "prompt": "advisor.md",
+    "tools": ["read", "grep", "find", "ls"],
+    "thinking": "low",
+    "commTools": ["comm_notify", "comm_request", "comm_reply"],
+    "discipline": "Verify assumptions and report evidence, uncertainty, and risks."
+  },
+  "developer": {
+    "prompt": "developer.md",
+    "tools": ["read", "grep", "find", "ls", "bash", "edit", "write"],
+    "thinking": "medium",
+    "commTools": ["comm_notify", "comm_request", "comm_reply"],
+    "discipline": "Implement bounded changes with focused tests and evidence."
+  },
+  "integrator": {
+    "prompt": "integrator.md",
+    "tools": ["read", "grep", "find", "ls", "bash", "edit", "write"],
+    "thinking": "low",
+    "commTools": ["comm_notify", "comm_request", "comm_reply"],
+    "discipline": "Mechanically reconcile completed bounded changes, run the acceptance suite, and report a candidate integration."
+  },
+  "reviewer": {
+    "prompt": "reviewer.md",
+    "tools": [
+      "read",
+      "grep",
+      "find",
+      "ls",
+      "bash",
+      "github_pull_request_view",
+      "github_pull_request_files",
+      "github_pull_request_checks",
+      "github_pull_request_review_threads",
+      "github_pull_request_review_start",
+      "github_pull_request_review_inline_comment",
+      "github_pull_request_review_submit",
+      "github_pull_request_comment"
+    ],
+    "thinking": "medium",
+    "commTools": ["comm_notify", "comm_request", "comm_reply"],
+    "discipline": "Independently verify bounded work, report evidence to the assigned recipient, and submit review findings only when authorized."
+  }
+}

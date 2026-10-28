@@ -1,0 +1,10 @@
+.claude/
+**/__pycache__
+node_modules/
+
+# Track reloadable project-local Pi extensions, not generated runtime state
+!.pi/extensions/
+!.pi/extensions/**
+
+.pi/runtime/
+.pi/fabric/
