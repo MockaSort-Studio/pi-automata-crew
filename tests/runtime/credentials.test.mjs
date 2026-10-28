@@ -58,7 +58,7 @@ test("a missing token is a warning that says how to create and store one", () =>
   assert.match(warnings[0], /HALL_GITHUB_TOKEN is not set/);
   assert.match(warnings[0], /https:\/\/github\.com\/settings\/personal-access-tokens\/new/);
   assert.match(warnings[0], /fine-grained/);
-  assert.match(warnings[0], /scripts\/setup-github-token\.sh/);
+  assert.match(warnings[0], /export HALL_GITHUB_TOKEN/);
 });
 
 test("suites with no credential need nothing", () => {

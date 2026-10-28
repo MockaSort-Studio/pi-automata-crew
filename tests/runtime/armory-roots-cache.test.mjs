@@ -17,7 +17,7 @@ test("the cache identity is one pinned substituter and signing key", () => {
 test("a missing cache turns an opaque Nix failure into an actionable reason", async () => {
   const nixError = Object.assign(new Error("Command failed: nix build"), { stderr: "error: x\n  Reason: platform mismatch\n" });
   const explained = await explainMissingCache(nixError, { configured: async () => false });
-  assert.match(explained.message, /Armory cache not configured \(run scripts\/setup-env\.sh\); Reason: platform mismatch/);
+  assert.match(explained.message, /Armory cache not configured; configure Nix and the Armory cache first\. Reason: platform mismatch/);
 });
 
 test("with the cache configured the original error passes through", async () => {

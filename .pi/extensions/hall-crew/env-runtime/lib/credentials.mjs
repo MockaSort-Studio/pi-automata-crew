@@ -18,7 +18,7 @@ export function checkLaunchCredentials({ suiteIds, environment = process.env }) 
     if (!environment[name])
       warnings.push(
         `${name} is not set, so operations that need it will fail. Create ${binding.mint.advice} at ${binding.mint.url}, ` +
-          `store it with scripts/setup-github-token.sh (or export ${name}), and restart Pi.`,
+          `export ${name}, and restart Pi.`,
       );
   }
   return { status, warnings };

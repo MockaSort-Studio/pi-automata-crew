@@ -44,7 +44,7 @@ export async function explainMissingCache(error, { configured = cacheConfigured 
   if (await configured().catch(() => true)) return error;
   const lines = [error?.stderr, error?.message].flatMap((text) => String(text ?? "").split("\n"));
   const reason = lines.find((line) => /Reason:/.test(line))?.trim() ?? lines.find((line) => line.trim())?.trim() ?? "unknown";
-  return new Error(`Armory cache not configured (run scripts/setup-env.sh); ${reason}`);
+  return new Error(`Armory cache not configured; configure Nix and the Armory cache first. ${reason}`);
 }
 
 // Fetch by store path: no flake evaluation, and `nix copy` asks the cache directly, so the

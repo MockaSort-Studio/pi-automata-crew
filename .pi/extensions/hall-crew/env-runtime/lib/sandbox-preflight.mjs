@@ -35,7 +35,7 @@ function verifyNix(binary = nixBinary()) {
   const result = spawnSync(binary, ["--version"], { stdio: "ignore" });
   if (!result.error && result.status === 0) return;
   throw new Error(
-    "Gondolin sandbox requires Nix for Armory suites; run scripts/setup-env.sh (installs Nix and the Armory cache; one password prompt).",
+    "Gondolin sandbox requires Nix and the Armory cache for guest suites; configure them first.",
   );
 }
 

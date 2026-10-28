@@ -148,7 +148,7 @@ test("auto falls back to the host with the missing-cache hint when suites cannot
       resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
       resolveArmoryCatalog: async () => ({ release: "https://example.test/artifacts.json" }),
       realizeArmorySuites: async () => Promise.reject(new Error("Reason: platform mismatch")),
-      explainMissingCache: async (error) => new Error(`Armory cache not configured (run scripts/setup-env.sh); ${error.message}`),
+      explainMissingCache: async (error) => new Error(`Armory cache not configured; configure Nix and the Armory cache first. ${error.message}`),
       runtimeFor: () => ({
         launchCrew: async (agents) => {
           launched = agents;
@@ -160,7 +160,7 @@ test("auto falls back to the host with the missing-cache hint when suites cannot
     assert.equal(launched[0].sandbox, undefined);
     const { environmentResolution } = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
     assert.equal(environmentResolution.microvm, "none");
-    assert.match(environmentResolution.fallbackReason, /Armory cache not configured \(run scripts\/setup-env\.sh\)/);
+    assert.match(environmentResolution.fallbackReason, /Armory cache not configured; configure Nix and the Armory cache first\./);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
