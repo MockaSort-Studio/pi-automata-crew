@@ -1,8 +1,23 @@
 {
+  "name": "@pi-automata/crew",
+  "version": "0.0.0-alpha.0",
   "private": true,
   "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      ".pi/extensions/hall-crew/crew/index.ts",
+      ".pi/extensions/hall-crew/crew-runtime/index.ts",
+      ".pi/extensions/web/index.ts"
+    ],
+    "skills": [
+      ".pi/skills"
+    ]
+  },
   "scripts": {
-    "test": "node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs && bash tests/pi/test-extension-load.sh",
+    "test": "node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/pi/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs && bash tests/pi/test-extension-load.sh",
     "format": "prettier --write .pi/extensions tests docs README.md CONTRIBUTING.md",
     "format:check": "prettier --check .pi/extensions tests docs README.md CONTRIBUTING.md"
   },
