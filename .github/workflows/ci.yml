@@ -16,7 +16,13 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # Crew workers run this suite from inside a worker; set their identity variables so every CI
+      # run proves the suite does not depend on, or break under, an inherited worker environment.
       - run: npm test
         env:
           HALL_SKIP_GONDOLIN_LIVE_TESTS: "1"
+          PI_SDK_ACTOR_ID: ci-worker-probe
+          PI_CREW_WORKER_CONFIG: /nonexistent/worker.json
+          PI_CREW_COMM_TOKEN: ci-probe-token
+          PI_SESSION_ID: ci-probe-session
       - run: npm run format:check

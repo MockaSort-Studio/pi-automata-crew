@@ -146,7 +146,10 @@ export class CommController {
     // A worker authenticates only with its own minted token, never another
     // actor's: this is what stops one Crew member registering as another.
     const expectedToken = isObserver ? this.#tokens.get("main") : this.#tokens.get(actorId);
-    if (expectedToken !== authToken) throw new Error("Comm authentication required");
+    // Auth on (Main has a token) means every actor needs its own: an actor with no minted
+    // token must not match a socket that sends none.
+    if (expectedToken !== authToken || (this.#tokens.get("main") && !expectedToken))
+      throw new Error("Comm authentication required");
     if (!this.#actors.has(actorId) && !isObserver) throw new Error("Actor is not authorized");
     if (knownNamespace && namespace !== knownNamespace) throw new Error("Cross-Crew namespace access is forbidden");
     if (this.#connections.has(actorId)) throw new Error("Actor already connected");

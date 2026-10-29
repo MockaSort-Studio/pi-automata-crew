@@ -117,3 +117,16 @@ test("Runtime mints a distinct token per spawned actor, so one worker's config c
     await runtime.stop();
   }
 });
+
+test("with Comm auth on, an actor registered without a token cannot connect without credentials", async () => {
+  const comm = new CommController({ authToken: "main-token" });
+  comm.registerActor("legacy-actor", { role: "developer" });
+  const port = await comm.start();
+  const socket = await open(port);
+  try {
+    assert.match((await register(socket, { actorId: "legacy-actor" })).error.message, /authentication/i);
+  } finally {
+    socket.close();
+    await comm.stop();
+  }
+});
