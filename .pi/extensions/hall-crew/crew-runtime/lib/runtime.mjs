@@ -4,7 +4,7 @@ import { resolveBundles } from "./tool-bundles.mjs";
 import { connectLifecycle } from "./lifecycle-client.mjs";
 import { reapOrphans, recordOwner, removeOwner } from "./lifecycle-registry.mjs";
 import { preserveEvidence, waitReadyOrExit } from "./crew-launch.mjs";
-import { MainComm } from "./main-comm.mjs";
+import { MainComm, registerActorToken } from "./main-comm.mjs";
 import { dispatchRoots } from "./root-dispatch.mjs";
 import { startServer, stopProcess } from "./server-process.mjs";
 
@@ -127,7 +127,9 @@ export class Runtime extends MainComm {
     await this.#ensureLifecycle();
     const bundle = resolveBundles(this.cwd, bundles);
     const id = actorId ?? randomUUID();
-    if (this.comm) await this.comm.registerActor(id);
+    // Each actor gets its own token, minted once and reused for this process's
+    // lifetime -- never the shared commAuthToken, which only ever authenticates Main.
+    const token = this.comm ? await registerActorToken(this.comm, this.actorTokens, id) : undefined;
     // The worker claims its own mailbox after its authenticated Comm socket connects. Main
     // must not claim a worker mailbox on its behalf.
     return this.#lifecycle.spawn({
@@ -140,9 +142,7 @@ export class Runtime extends MainComm {
       extensionPaths: [...new Set([...extensionPaths, ...bundle.extensionPaths])],
       comm:
         comm ??
-        (this.commUrl
-          ? { url: this.commUrl, actorId: id, namespace: agent.namespace, authToken: this.commAuthToken }
-          : undefined),
+        (this.commUrl ? { url: this.commUrl, actorId: id, namespace: agent.namespace, authToken: token } : undefined),
     });
   }
 

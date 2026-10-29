@@ -14,7 +14,7 @@ function dispatchCommRequest(controller, socket, state, request) {
   }
   if (method === "comm.register_actor") {
     if (state.actorId !== "main") throw new Error("Only Main may register actors");
-    controller.registerActor(params.actorId, { role: params.role });
+    controller.registerActor(params.actorId, { role: params.role, token: params.token });
     return { registered: params.actorId };
   }
   if (method === "comm.ready") {

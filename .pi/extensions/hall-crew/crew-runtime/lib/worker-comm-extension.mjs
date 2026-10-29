@@ -69,7 +69,9 @@ export default function workerCommExtension(pi) {
   if (!config.comm) return;
   const ensureCommConnected = () => {
     commReady ??= (async () => {
-      comm = await connectComm(config.comm);
+      // The token never travels through worker.json (see lifecycle-controller.mjs):
+      // it lives only in this process's environment, set by worker.mjs's spawn.
+      comm = await connectComm({ ...config.comm, authToken: process.env.PI_CREW_COMM_TOKEN });
       await comm.ready(config.comm.namespace);
       comm.onDelivery((message) => {
         // A kickoff is a shared manifest, not an assignment. Retain it as

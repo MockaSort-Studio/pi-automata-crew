@@ -59,6 +59,11 @@ export class LifecycleController {
       await runGit(this.cwd, ["worktree", "add", "--detach", worktree, "HEAD"]);
       worktreeAdded = true;
       await syncWorkingTree(this.cwd, root, worktree);
+      // The Comm token travels to the worker only through its process
+      // environment (PI_CREW_COMM_TOKEN below), never through worker.json: that
+      // file is copied verbatim into .pi/runtime/archive on teardown
+      // (preserveEvidence), so anything written there is retained evidence.
+      const commWithoutToken = config.comm ? { ...config.comm, authToken: undefined } : config.comm;
       await writeFile(
         configFile,
         JSON.stringify({
@@ -70,7 +75,7 @@ export class LifecycleController {
           tools: config.tools,
           commTools: config.commTools,
           extensionPaths: config.extensionPaths,
-          comm: config.comm,
+          comm: commWithoutToken,
           delivery: config.delivery,
           resident: config.resident,
           initialTurn: config.initialTurn,
@@ -92,7 +97,13 @@ export class LifecycleController {
         cwd: worktree,
         detached: true,
         stdio: "ignore",
-        env: { ...hostEnv, PI_SDK_ACTOR_ID: id },
+        // The live token only ever exists in this env var, inherited by worker.mjs
+        // and, in turn, by the Pi child process it spawns -- never written to disk.
+        env: {
+          ...hostEnv,
+          PI_SDK_ACTOR_ID: id,
+          ...(config.comm?.authToken ? { PI_CREW_COMM_TOKEN: config.comm.authToken } : {}),
+        },
       });
       await new Promise((resolve, reject) => {
         child.once("spawn", resolve);

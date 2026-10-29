@@ -77,7 +77,12 @@ test("Runtime briefs only the Lead and never releases members on its own", async
   const got = {};
   for (const { handle } of plan) {
     got[handle] = [];
-    workers[handle] = await connectComm({ ...comm, actorId: id(handle), namespace: ns });
+    workers[handle] = await connectComm({
+      url: comm.url,
+      actorId: id(handle),
+      namespace: ns,
+      authToken: comm.actorTokens[id(handle)],
+    });
     workers[handle].onDelivery((m) => (got[handle].push(m), workers[handle].acknowledge(m.id)));
   }
   t.after(async () => {

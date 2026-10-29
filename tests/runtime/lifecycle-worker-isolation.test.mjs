@@ -50,3 +50,32 @@ test("a spawned worker's environment carries no host .pi/runtime discovery varia
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+// Per-actor Comm token confidentiality: worker.json (and anything copied
+// from it into .pi/runtime/archive) is retained evidence, so the live
+// token must never land there -- only in the worker's own process
+// environment (see lifecycle-controller.mjs, worker.mjs, worker-comm-extension.mjs).
+test("the Comm token reaches the worker's process environment but never its worker.json or archive", async () => {
+  const cwd = gitRepo();
+  const controller = new LifecycleController({ cwd, workerModule: stubWorker });
+  const token = "super-secret-comm-token-value";
+  try {
+    const agent = await controller.spawn({
+      actorId: "token-check",
+      name: "token-check",
+      task: "DUMP_ENV",
+      comm: { url: "ws://127.0.0.1:1", actorId: "token-check", authToken: token },
+    });
+    await once(agent.child, "exit");
+    const configPath = join(cwd, ".pi", "runtime", "runs", agent.id, "worker.json");
+    const configText = readFileSync(configPath, "utf8");
+    assert.doesNotMatch(configText, new RegExp(token), "the token must never be written to worker.json");
+    const env = JSON.parse(readFileSync(join(agent.worktree, "env.json"), "utf8"));
+    assert.equal(env.PI_CREW_COMM_TOKEN, token, "the token still reaches the worker process itself");
+    await controller.shutdown();
+    const archiveText = readFileSync(join(cwd, ".pi", "runtime", "archive", agent.id, "worker.json"), "utf8");
+    assert.doesNotMatch(archiveText, new RegExp(token), "the token must never be preserved in archived evidence");
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});

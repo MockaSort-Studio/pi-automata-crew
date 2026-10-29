@@ -16,6 +16,13 @@ export class CommController {
   #assigned = new Set();
   #actors = new Set(["main"]);
   #access = new CommAccess();
+  // Per-actor Comm credentials: actorId -> token. "main" always holds the
+  // constructor's authToken; every other actor's token is set only via
+  // registerActor(), called only by an already-authenticated Main (see
+  // comm-controller-dispatch.mjs's "Only Main may register actors" guard).
+  // An observer socket (TUI/monitor) authenticates with Main's own token,
+  // since it is Main's own tooling, not a distinct Crew actor.
+  #tokens;
   #pendingReplies = new Map();
   #ready = new ReadyBarrier();
   #actorRoles = new Map();
@@ -26,10 +33,9 @@ export class CommController {
   });
   // Staggered broadcast avoids simultaneous worker startup collisions.
   #broadcastStaggerMs;
-  #authToken;
   constructor({ broadcastStaggerMs = 250, authToken } = {}) {
     this.#broadcastStaggerMs = broadcastStaggerMs;
-    this.#authToken = authToken;
+    this.#tokens = new Map([["main", authToken]]);
   }
   async start(port = 0) {
     this.#server = new WebSocketServer({ port });
@@ -45,10 +51,11 @@ export class CommController {
       new Promise((resolve) => setTimeout(resolve, 2_000)),
     ]);
   }
-  registerActor(actorId, { role } = {}) {
+  registerActor(actorId, { role, token } = {}) {
     if (!actorId || actorId === "main") throw new Error("Cannot register reserved actor");
     this.#actors.add(actorId);
     if (role) this.#actorRoles.set(actorId, role);
+    if (token) this.#tokens.set(actorId, token);
     this.#mailbox.queue(actorId);
     this.#record("actor_registered", { actorId, role });
   }
@@ -133,10 +140,13 @@ export class CommController {
   injectHuman = ({ to, body, author, externalId }) =>
     this.emit("human:github-discussion", to, { message: body, author, externalId }, true);
   registerConnection(actorId, socket, namespace, authToken) {
-    if (this.#authToken && authToken !== this.#authToken) throw new Error("Comm authentication required");
     if (actorId === "main" && this.#connections.has("main")) throw new Error("Main is already connected");
     const knownNamespace = this.#access.namespaceOf(actorId);
     const isObserver = actorId === `observer-${namespace}` && namespace;
+    // A worker authenticates only with its own minted token, never another
+    // actor's: this is what stops one Crew member registering as another.
+    const expectedToken = isObserver ? this.#tokens.get("main") : this.#tokens.get(actorId);
+    if (expectedToken !== authToken) throw new Error("Comm authentication required");
     if (!this.#actors.has(actorId) && !isObserver) throw new Error("Actor is not authorized");
     if (knownNamespace && namespace !== knownNamespace) throw new Error("Cross-Crew namespace access is forbidden");
     if (this.#connections.has(actorId)) throw new Error("Actor already connected");
