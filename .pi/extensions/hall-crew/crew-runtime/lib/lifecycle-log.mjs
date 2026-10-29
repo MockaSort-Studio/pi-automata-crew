@@ -51,7 +51,7 @@ function indexFor(path) {
 }
 
 // A repeated eventId is a no-op: the original event is returned and nothing is written.
-export function appendLifecycleEvent(cwd, runId, { eventId, actor, from, to, reason, retryOf, pid }) {
+export function appendLifecycleEvent(cwd, runId, { eventId, actor, from, to, reason, retryOf, pid, owner }) {
   if (!eventId || !actor) throw new Error("appendLifecycleEvent requires eventId and actor");
   const path = lifecycleLogPath(cwd, runId);
   const index = indexFor(path);
@@ -66,6 +66,7 @@ export function appendLifecycleEvent(cwd, runId, { eventId, actor, from, to, rea
     reason: reason ?? null,
     ...(retryOf !== undefined ? { retryOf } : {}),
     ...(pid !== undefined ? { pid } : {}),
+    ...(owner !== undefined ? { owner } : {}),
     at: new Date().toISOString(),
   };
   const line = `${JSON.stringify(event)}\n`;
@@ -92,6 +93,7 @@ export function replayLifecycleState(events) {
     attempt.status = event.to;
     if (event.retryOf !== undefined) attempt.retryOf = event.retryOf;
     if (event.pid !== undefined) attempt.pid = event.pid;
+    if (event.owner !== undefined) attempt.owner = event.owner;
     attempts.set(event.actor, attempt);
   }
   return attempts;
@@ -118,8 +120,21 @@ function isWorkerAlive(pid, actor) {
   }
 }
 
-// Every non-terminal attempt, across all runs, whose worker is gone: the owner_lost facts that
-// Lifecycle startup recovery must record.
+// Is the Lifecycle server that owns an attempt still running? Only signal 0, deliberately: a reused
+// pid makes this answer "alive", which merely skips recovery, whereas a false "dead" would let one
+// server reclaim the workers of another that is still running in the same directory.
+function isOwnerAlive(owner) {
+  if (!owner) return false;
+  try {
+    process.kill(owner, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+
+// Every non-terminal attempt, across all runs, whose worker is gone and whose owning Lifecycle server
+// is gone too: the owner_lost facts that Lifecycle startup recovery must record.
 export function findOwnerLostAttempts(cwd) {
   const lost = [];
   let names = [];
@@ -131,7 +146,8 @@ export function findOwnerLostAttempts(cwd) {
   for (const name of names.filter((item) => item.endsWith(".jsonl"))) {
     const runId = name.slice(0, -".jsonl".length);
     for (const attempt of replayLifecycleState(readLifecycleEvents(cwd, runId)).values()) {
-      if (RECOVERED_STATUSES.has(attempt.status) || isWorkerAlive(attempt.pid, attempt.actor)) continue;
+      if (RECOVERED_STATUSES.has(attempt.status) || isOwnerAlive(attempt.owner)) continue;
+      if (isWorkerAlive(attempt.pid, attempt.actor)) continue;
       lost.push({ runId, actor: attempt.actor, from: attempt.status });
     }
   }

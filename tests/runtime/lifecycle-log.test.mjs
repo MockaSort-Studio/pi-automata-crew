@@ -47,6 +47,30 @@ test("the duplicate index stays correct when another writer appends to the same 
     assert.equal(readLifecycleEvents(cwd, runId).length, 3);
   }));
 
+test("an attempt owned by a live Lifecycle server is never recovered by another server", () =>
+  withTempCwd((cwd) => {
+    const deadWorker = 999_999;
+    // Same dead worker pid, different owners: a live owner means its own server will record the exit.
+    appendLifecycleEvent(cwd, "run-own", {
+      eventId: "o1",
+      actor: "mine",
+      to: "running",
+      pid: deadWorker,
+      owner: process.pid,
+    });
+    appendLifecycleEvent(cwd, "run-own", {
+      eventId: "o2",
+      actor: "theirs",
+      to: "running",
+      pid: deadWorker,
+      owner: 999_998,
+    });
+    assert.deepEqual(
+      findOwnerLostAttempts(cwd).map((attempt) => attempt.actor),
+      ["theirs"],
+    );
+  }));
+
 test("a live worker with a very long command line is still recognised as alive", () =>
   withTempCwd(async (cwd) => {
     // The actor id sits at the end of a command line far longer than any terminal width.

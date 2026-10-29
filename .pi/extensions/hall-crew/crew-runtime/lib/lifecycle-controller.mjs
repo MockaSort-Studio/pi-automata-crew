@@ -125,6 +125,8 @@ export class LifecycleController {
         reason: config.retryOf ? "retry" : "spawned",
         retryOf: config.retryOf,
         pid: child.pid,
+        // Recovery may only act on attempts whose owning server is gone.
+        owner: process.pid,
       });
       this.#agents.set(id, agent);
       // Durable-first and synchronous, so no other "exit" listener can see the new status before it

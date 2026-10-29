@@ -409,5 +409,9 @@ test("launchCrew starts isolated agents and Runtime stop removes them", async ()
   ]);
   assert.equal((await runtime.list()).length, 2);
   const cleanup = await runtime.stop();
-  assert.equal(cleanup.removals.filter((item) => item.removed).length, 2);
+  assert.equal(
+    cleanup.removals.filter((item) => item.removed).length,
+    2,
+    `a worker was not removed: ${JSON.stringify(cleanup.removals)}`,
+  );
 });
