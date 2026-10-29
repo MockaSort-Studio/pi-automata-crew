@@ -43,7 +43,7 @@ test("with a session attached every Main delivery starts a turn and stays replya
   const request = await worker.emit({ to: "main", payload: { q: 2 }, replyRequired: true });
   await new Promise((resolve) => setTimeout(resolve, 30));
   assert.equal(sent.length, 2);
-  assert.ok(sent.every(({ options }) => options.triggerTurn && options.deliverAs === "followUp"));
+  assert.ok(sent.every(({ options }) => options.triggerTurn && options.deliverAs === "steer"));
   assert.equal(await runtime.receive("main"), null);
   const replies = [];
   worker.onDelivery((message) => replies.push(message));

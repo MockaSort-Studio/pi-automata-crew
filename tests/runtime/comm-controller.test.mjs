@@ -329,7 +329,7 @@ test("Runtime wires typed terminal state to one Main follow-up", async () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(sent.length, 1);
     assert.equal(sent[0].message.customType, "crew-terminal");
-    assert.deepEqual(sent[0].options, { triggerTurn: true, deliverAs: "followUp" });
+    assert.deepEqual(sent[0].options, { triggerTurn: true, deliverAs: "steer" });
     worker.close();
   } finally {
     await runtime.stop();

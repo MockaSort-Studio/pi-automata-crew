@@ -42,7 +42,7 @@ export function createCrewTerminalNotifier(sendMessage) {
     if (run.notified || !terminal(snapshot)) return false;
     run.notified = true;
     Promise.resolve(
-      sendMessage(terminalMessage(namespace, nodesOf(snapshot)), { triggerTurn: true, deliverAs: "followUp" }),
+      sendMessage(terminalMessage(namespace, nodesOf(snapshot)), { triggerTurn: true, deliverAs: "steer" }),
     ).catch(() => {});
     return true;
   }

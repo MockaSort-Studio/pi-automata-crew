@@ -22,7 +22,7 @@ test("notifies Main once only after a nonempty typed run becomes terminal", asyn
     display: true,
     details: { namespace: "run-1", counts: { complete: 1, blocked: 1, failed: 0 } },
   });
-  assert.deepEqual(sent[0].options, { triggerTurn: true, deliverAs: "followUp" });
+  assert.deepEqual(sent[0].options, { triggerTurn: true, deliverAs: "steer" });
 });
 
 test("partial and empty runs never notify, and runs are independent", () => {
