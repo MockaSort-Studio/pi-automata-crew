@@ -62,7 +62,12 @@ async function crew(t) {
   const received = {};
   for (const { handle } of members) {
     received[handle] = [];
-    workers[handle] = await connectComm({ ...comm, actorId: id(handle), namespace });
+    workers[handle] = await connectComm({
+      url: comm.url,
+      actorId: id(handle),
+      namespace,
+      authToken: comm.actorTokens[id(handle)],
+    });
     workers[handle].onDelivery((message) => {
       received[handle].push(message);
       workers[handle].acknowledge(message.id);
