@@ -1,10 +1,5 @@
-import {
-  RealFSProvider,
-  ShadowProvider,
-  VM,
-  createHttpHooks,
-  createShadowPathPredicate,
-} from "@earendil-works/gondolin";
+import { appendFileSync, readFileSync } from "node:fs";
+import { RealFSProvider, ShadowProvider, VM, createShadowPathPredicate } from "@earendil-works/gondolin";
 import {
   createBashTool,
   createEditTool,
@@ -29,6 +24,7 @@ import { readWorkerArmoryConfig } from "./worker-armory-config.mjs";
 import { consumeCredentialLease, revokeCredentialLease } from "./credentials.mjs";
 import { lazyGuest, registerArmoryWorkerProxies } from "./guest-suite.mjs";
 import { chooseVmm } from "./guest-vmm.mjs";
+import { createGuestNetwork } from "./guest-network.mjs";
 
 // A resident worker's own new_session call fires session_shutdown -> reload ->
 // session_start again in this process, re-invoking this factory with a fresh `pi`.
@@ -47,6 +43,14 @@ const IDLE_MS = Number(process.env.HALL_VM_IDLE_MS ?? 20_000);
 let idleTimer;
 let inflight = 0;
 let warmSuites;
+
+function logDeniedHost(host) {
+  try {
+    const { logFile } = JSON.parse(readFileSync(process.env.PI_CREW_WORKER_CONFIG, "utf8"));
+    if (typeof logFile === "string")
+      appendFileSync(logFile, `${JSON.stringify({ at: new Date().toISOString(), type: "network_denied", host })}\n`);
+  } catch {}
+}
 
 async function releaseVm() {
   clearTimeout(idleTimer);
@@ -83,9 +87,10 @@ async function startVm(localCwd) {
   );
   // Every guest starts deny-all. The host passes only the union of its granted
   // suites' host allowlists; credentials remain separately bound to their hosts.
-  const network = createHttpHooks({
+  const network = createGuestNetwork({
     allowedHosts: armory.network?.allowedHosts ?? [],
     secrets,
+    onDenied: logDeniedHost,
   });
   secretManager = network.secretManager;
   const created = await VM.create({

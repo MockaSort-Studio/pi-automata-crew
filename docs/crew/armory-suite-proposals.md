@@ -88,13 +88,11 @@ Status: `[x]` done, `[ ]` todo.
 
 ### Network control
 
-- [ ] **N1. Default-deny egress for every worker.** Measured: a default guest reaches the open web
-      (200 from example.com); `allowedHosts` blocks it (403). The allowlist is the union of its suites'
-      `allowedHosts`. Applies to `bash` too.
-- [ ] **N2. A test** that a worker cannot reach a host outside its allowlist, with and without a
-      credential (not measured with the credential attached; our code sets no global policy today).
-- [ ] **N3. Open-web roles are an explicit grant** (a researcher, a web-fetch suite), never the default.
-- [ ] **N4. Log denied requests** in worker events (host only), so a blocked step is diagnosable.
+- [x] **N1. Default-deny egress for every Gondolin worker.** The allowlist is the union of granted
+      suites' `allowedHosts`; an empty grant is deny-all and applies to guest `bash` too.
+- [x] **N2. Test denied hosts** with and without a credential placeholder.
+- [x] **N3. Open-web access is an explicit suite grant.** No role receives it by default.
+- [x] **N4. Log denied requests** as bounded host-only worker events, once per host (20 hosts per VM).
 
 ### `bash` policy
 
