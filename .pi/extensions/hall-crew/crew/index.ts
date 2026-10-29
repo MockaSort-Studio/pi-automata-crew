@@ -6,6 +6,7 @@ import { registerCrewMonitor } from "./lib/monitor.ts";
 import { launchPreparedCrew, prepareCrew, queuedMessage } from "./lib/startup.mjs";
 import { registerCrewObservability } from "./lib/observability.mjs";
 import { registerRosterTools } from "./lib/roster-tools.ts";
+import { registerSkillTrace } from "./lib/skill-trace.ts";
 import { runtimeFor } from "../crew-runtime/lib/shared-runtime.mjs";
 import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
 
@@ -50,6 +51,7 @@ export default function crewExtension(pi: ExtensionAPI) {
   const attachTerminalNotifier = registerTerminalNotifierSession(pi, runtimeFor);
   registerCrewObservability(pi, CONFIG_DIR_NAME);
   registerRosterTools(pi);
+  registerSkillTrace(pi);
   const monitor = registerCrewMonitor(pi);
 
   pi.registerTool({
