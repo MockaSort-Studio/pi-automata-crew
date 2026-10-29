@@ -68,9 +68,9 @@ Status: `[x]` done, `[ ]` todo.
 
 ### Suites
 
-- [ ] **S1. CI run inspection** (typed; extends the GitHub suite). `github_workflow_runs_list`,
-      `github_run_view`, `github_run_failed_log` (failed steps, bounded tail). No new closure; needs
-      `actions:read`.
+- [x] **S1. CI run inspection** (typed; extends the GitHub suite). `github_workflow_runs_list`,
+      `github_workflow_run_view`, `github_workflow_run_failed_log` (failed steps, bounded tail). Shipped in
+      `collaboration/pi-github-tools` 0.1.7; no new closure.
 - [ ] **S2. `ci/workflow-lint`** (typed; actionlint, about 5 MB). `workflow_lint`, structured findings.
 - [ ] **S3. `ci/workflow-run`** (typed; `act` in host mode, about 19 MB, size exception). `workflow_run`
       returns per-step status and a bounded failed-step tail, full log to a workspace file; drops the
@@ -80,6 +80,17 @@ Status: `[x]` done, `[ ]` todo.
       ecosystem, which is what lets a developer drop `bash`. Design risk to settle first: a worker with
       `edit` could rewrite a task and run it, so task definitions must come from the base commit or be
       approved, not read from the worktree.
+- [ ] **S9. `testing/node-test`** (typed; one suite per test technology, built when a role needs it).
+      `run_tests({ scope, timeoutMs })` runs a fixed binary with fixed arguments (`node --test` on
+      validated paths), with the worker identity variables stripped and the network denied, and returns
+      counts, failing test names, a bounded excerpt per failure, and the duration: about 100 tokens
+      instead of the roughly 10k a full run prints. Decision: not one configurable runner. The value is
+      the structured result, and parsing needs the technology, so a generic runner would carry every
+      parser and every closure and would take a free-form command (`bash` in disguise). `dev/tasks`
+      (S4) stays the generic alternative and is deferred for its trust problem. A second runner
+      (`testing/pytest`, `testing/ctest`, `testing/bazel`) keeps the operation name `run_tests`, so a
+      role's grant changes only the suite name; extract shared code when the second one exists, not
+      before. It covers `node --test` only: the relocated-load shell test still needs `bash` and `pi`.
 - [ ] **S5. `dev/format`** (prettier, about 3 MB, bundled). First decide what `format:check` is for: it
       fails on 57 files and CI does not run it. Format once and enforce it, or drop the gate. Then build.
 - [ ] **S6. `dev/yaml`** (`yq`) and **S7. `dev/json`** (`jq`). Typed or on `PATH` only on a
