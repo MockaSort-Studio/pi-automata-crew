@@ -38,6 +38,28 @@ test("owner shutdown archives a live worker before removing its run directory", 
   }
 });
 
+// A worker that dies (or closes the pipe) before reading its token must not take the Lifecycle server
+// down: an unhandled EPIPE on the pipe is an uncaught exception in the server process.
+test("a worker that closes the token pipe unread does not crash the Lifecycle server", async () => {
+  const cwd = gitRepo();
+  const controller = new LifecycleController({ cwd, workerModule: stubWorker });
+  try {
+    // Larger than a pipe buffer, so the write is still pending when the worker closes its end.
+    const authToken = "x".repeat(300_000);
+    const agent = await controller.spawn({
+      actorId: "closes-fd",
+      name: "closes-fd",
+      task: "CLOSE_TOKEN_FD",
+      comm: { url: "ws://127.0.0.1:1", actorId: "closes-fd", authToken },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal((await controller.list()).length, 1, "the server survived and still tracks the worker");
+    await controller.remove(agent.id);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("a spawned worker's environment carries no host .pi/runtime discovery variable", async () => {
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });

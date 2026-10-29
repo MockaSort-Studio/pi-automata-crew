@@ -1,7 +1,7 @@
 // Minimal stand-in for worker.mjs used by lifecycle status tests. Never
 // spawns a real `pi` process; only exercises LifecycleController's process
 // lifecycle (spawn/kill/exit) cheaply and deterministically.
-import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const configPath = resolve(process.argv[2]);
@@ -15,6 +15,11 @@ if (config.task === "DUMP_ENV") writeFileSync(join(config.cwd, "env.json"), JSON
 // Reads the one-shot Comm token pipe on fd 3, the way worker.mjs does.
 if (config.task === "DUMP_TOKEN")
   writeFileSync(join(config.cwd, "token.json"), JSON.stringify({ fd3: readFileSync(3, "utf8"), env: process.env }));
+// A worker that closes the token pipe without reading it, like one that dies at startup.
+if (config.task === "CLOSE_TOKEN_FD") {
+  closeSync(3);
+  setInterval(() => {}, 1_000);
+}
 if (config.task === "DUMP_SANDBOX")
   writeFileSync(join(config.cwd, "sandbox.json"), JSON.stringify(config.sandbox ?? null));
 if (config.task === "TURN") {
@@ -24,4 +29,5 @@ if (config.task === "TURN") {
   );
 }
 // Let Lifecycle attach its process observers before the simulated worker exits.
-if (config.task !== "SLEEP" && config.task !== "FAIL") setTimeout(() => process.exit(0), 10);
+if (config.task !== "SLEEP" && config.task !== "FAIL" && config.task !== "CLOSE_TOKEN_FD")
+  setTimeout(() => process.exit(0), 10);

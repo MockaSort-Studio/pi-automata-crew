@@ -96,6 +96,8 @@ const child = spawn("pi", args, {
   stdio: ["pipe", "pipe", "pipe", "pipe", "pipe"],
   env: { ...process.env, PI_CREW_WORKER_CONFIG: configPath, PI_CREW_COMM_TOKEN_FD: "4" },
 });
+// A Pi that dies before reading these pipes must not crash this worker with an unhandled EPIPE.
+for (const pipe of [child.stdio[3], child.stdio[4]]) pipe.on("error", () => {});
 child.stdio[3].end(serializeLease(credentialLease));
 // fd 4 carries only this worker's Comm token to the Pi extension that connects to Comm.
 child.stdio[4].end(commToken);

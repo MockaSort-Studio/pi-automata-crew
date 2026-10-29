@@ -95,7 +95,9 @@ export class LifecycleController {
         stdio: ["ignore", "ignore", "ignore", "pipe"],
         env: { ...hostEnv, PI_SDK_ACTOR_ID: id, PI_CREW_COMM_TOKEN_FD: "3" },
       });
-      // fd 3 is a one-shot private channel: written once, then closed.
+      // fd 3 is a one-shot private channel: written once, then closed. A worker that dies before
+      // reading it closes the other end; the resulting EPIPE must not become an uncaught exception.
+      child.stdio[3].on("error", () => {});
       child.stdio[3].end(config.comm?.authToken ?? "");
       await new Promise((resolve, reject) => {
         child.once("spawn", resolve);
