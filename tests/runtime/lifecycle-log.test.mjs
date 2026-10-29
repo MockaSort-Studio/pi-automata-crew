@@ -47,6 +47,21 @@ test("the duplicate index stays correct when another writer appends to the same 
     assert.equal(readLifecycleEvents(cwd, runId).length, 3);
   }));
 
+test("a live worker with a very long command line is still recognised as alive", () =>
+  withTempCwd(async (cwd) => {
+    // The actor id sits at the end of a command line far longer than any terminal width.
+    const padding = "x".repeat(600);
+    const worker = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)", padding, "runs/long-actor"], {
+      stdio: "ignore",
+    });
+    try {
+      appendLifecycleEvent(cwd, "run-long", { eventId: "l1", actor: "long-actor", to: "running", pid: worker.pid });
+      assert.deepEqual(findOwnerLostAttempts(cwd), []);
+    } finally {
+      worker.kill("SIGKILL");
+    }
+  }));
+
 test("a live process that reuses a dead worker's pid is not mistaken for that worker", () =>
   withTempCwd(async (cwd) => {
     const stranger = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });

@@ -102,7 +102,8 @@ const RECOVERED_STATUSES = new Set(["completed", "failed", "removed", "owner_los
 
 // A pid proves nothing on its own, because the OS reuses them. The live process must also be this
 // actor's worker: its command line carries the actor's run directory. If `ps` is unavailable the
-// signal-0 check stands alone.
+// signal-0 check stands alone. `-ww` matters: on Linux `ps` truncates a piped command line, and a
+// live worker misread as dead would have its worktree reclaimed by another Lifecycle server.
 function isWorkerAlive(pid, actor) {
   if (!pid) return false;
   try {
@@ -111,7 +112,7 @@ function isWorkerAlive(pid, actor) {
     if (error.code !== "EPERM") return false;
   }
   try {
-    return execFileSync("ps", ["-p", String(pid), "-o", "command="], { encoding: "utf8" }).includes(actor);
+    return execFileSync("ps", ["-ww", "-p", String(pid), "-o", "command="], { encoding: "utf8" }).includes(actor);
   } catch (error) {
     return error.code === "ENOENT";
   }
