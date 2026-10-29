@@ -7,6 +7,8 @@ import { launchPreparedCrew, prepareCrew, queuedMessage } from "./lib/startup.mj
 import { registerCrewObservability } from "./lib/observability.mjs";
 import { registerRosterTools } from "./lib/roster-tools.ts";
 import { registerSkillTrace } from "./lib/skill-trace.ts";
+import { assemblyCardData } from "./lib/crew-assembly-card.mjs";
+import { CREW_ASSEMBLED_ENTRY, registerCrewAssemblyCard } from "./lib/crew-assembly-card.ts";
 import { runtimeFor } from "../crew-runtime/lib/shared-runtime.mjs";
 import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
 
@@ -52,6 +54,7 @@ export default function crewExtension(pi: ExtensionAPI) {
   registerCrewObservability(pi, CONFIG_DIR_NAME);
   registerRosterTools(pi);
   registerSkillTrace(pi);
+  registerCrewAssemblyCard(pi);
   const monitor = registerCrewMonitor(pi);
 
   pi.registerTool({
@@ -105,6 +108,9 @@ export default function crewExtension(pi: ExtensionAPI) {
         }
       }
       const prepared = await prepareCrew(pi, input, { ...ctx, signal }, CONFIG_DIR_NAME);
+      // This records the selected party even if runtime launch later fails. It is TUI-only, never a
+      // sendMessage: it must not steer Main or enter model context.
+      pi.appendEntry(CREW_ASSEMBLED_ENTRY, assemblyCardData(prepared, input));
       monitor.activate(ctx, prepared.rosterFile);
       const launched = await launchPreparedCrew(ctx.cwd, prepared);
       const warnings = launched.warnings?.length

@@ -20,6 +20,15 @@ test("crew extension wires terminal notifications through Main session flow", ()
   assert.match(source, /attachTerminalNotifier\(ctx\)/);
 });
 
+test("Crew assembly preview is a TUI-only entry before runtime launch, not a Main message", () => {
+  assert.match(source, /registerCrewAssemblyCard\(pi\)/);
+  assert.match(source, /pi\.appendEntry\(CREW_ASSEMBLED_ENTRY, assemblyCardData\(prepared, input\)\)/);
+  assert.ok(
+    source.indexOf("pi.appendEntry(CREW_ASSEMBLED_ENTRY") < source.indexOf("launchPreparedCrew(ctx.cwd, prepared)"),
+  );
+  assert.doesNotMatch(source, /sendMessage\([^)]*CREW_ASSEMBLED_ENTRY/);
+});
+
 test("crew extension calls all tool registration functions", () => {
   assert.doesNotMatch(source, /registerCommunicationTools\(pi\)/);
   assert.match(source, /registerRosterTools\(pi\)/);
