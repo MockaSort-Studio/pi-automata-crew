@@ -8,7 +8,6 @@ import { registerCrewObservability } from "./lib/observability.mjs";
 import { registerRosterTools } from "./lib/roster-tools.ts";
 import { runtimeFor } from "../crew-runtime/lib/shared-runtime.mjs";
 import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
-import { installCrewDispatchArming } from "./lib/dispatch-arming.mjs";
 
 const output = (value, text = JSON.stringify(value)) => ({
   content: [{ type: "text", text }],
@@ -49,7 +48,6 @@ const parameters = Type.Object({
 
 export default function crewExtension(pi: ExtensionAPI) {
   const attachTerminalNotifier = registerTerminalNotifierSession(pi, runtimeFor);
-  installCrewDispatchArming(pi);
   registerCrewObservability(pi, CONFIG_DIR_NAME);
   registerRosterTools(pi);
   const monitor = registerCrewMonitor(pi);

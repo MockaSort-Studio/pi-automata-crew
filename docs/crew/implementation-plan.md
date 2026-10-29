@@ -17,7 +17,7 @@ a failed launch does this itself (`preserveEvidence`).
 
 1. [x] **Implement explicit dispatch.** `start_crew` creates a ready run only;
        Main explicitly delivers its first task through Comm. Remove duplicated
-       automatic kickoff/direct-prompt paths and apply the contract in dispatch arming,
+       automatic kickoff/direct-prompt paths and apply the contract in the `engineering-execution` skill,
        worker startup, terminal follow-ups, and tests. See
        [dispatch-control-plane-design.md](dispatch-control-plane-design.md).
 2. [x] **Support leadless control.** Provide Main-to-member/all delivery and

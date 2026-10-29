@@ -68,6 +68,14 @@ test("Bollo can perform a read-only security review with no implicit suite grant
 test("rejects an assignment operation outside a role's capabilities", () =>
   assert.throws(() => assemble("snowball", "advisor", "", { systemOperations: ["edit"] }), /outside/));
 
+test("the developer prompt carries the Crew working rules and no stale Lead or Discussion wording", () => {
+  const { instructions } = roleModule({ role: "developer", override: {} });
+  assert.match(instructions, /crew\/<your handle>/);
+  assert.match(instructions, /never push/);
+  assert.match(instructions, /commit sha/);
+  assert.doesNotMatch(instructions, /Lead|Discussion/);
+});
+
 test("developer has bounded implementation authority", () => {
   const result = roleModule({ role: "developer", override: {} });
   for (const tool of ["read", "edit", "write", "bash"]) assert.ok(result.tools.includes(tool));
