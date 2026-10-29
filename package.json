@@ -8,7 +8,8 @@
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.87.1",
-    "prettier": "^3.5.3"
+    "prettier": "^3.5.3",
+    "yaml": "^2.9.1"
   },
   "dependencies": {
     "@earendil-works/gondolin": "0.12.0",

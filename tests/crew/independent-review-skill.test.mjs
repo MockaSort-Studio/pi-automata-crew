@@ -11,18 +11,15 @@ test("the reviewer role invokes the project independent-runtime-review skill", (
   const skill = readFileSync(skillPath, "utf8");
   const reviewer = readFileSync(reviewerPath, "utf8");
   const securitySkill = readFileSync(securitySkillPath, "utf8");
-  assert.match(skill, /^---\nname: independent-runtime-review\ndescription: .+\n/m);
   assert.match(skill, /worker launch failure/);
   assert.match(skill, /network, credential/);
   assert.match(skill, /would regress/);
   assert.match(reviewer, /independent-runtime-review/);
   const iteration = readFileSync(iterationSkillPath, "utf8");
   assert.match(reviewer, /post-iteration-review/);
-  assert.match(iteration, /^---\nname: post-iteration-review\n/m);
   for (const section of ["Over-engineering", "Dead code and tests", "Weak spots", "Vulnerabilities"])
     assert.match(iteration, new RegExp(section));
   assert.match(reviewer, /security-boundary-review/);
-  assert.match(securitySkill, /^---\nname: security-boundary-review\ndescription: .+\n/m);
   assert.match(securitySkill, /deny-by-default/);
   assert.match(securitySkill, /credential cannot broaden/);
 });

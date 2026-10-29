@@ -1,6 +1,6 @@
 ---
 name: security-boundary-review
-description: Independently review Pi Crew security boundaries: grants, credentials, network egress, Gondolin isolation, lifecycle ownership, and supply chain. Use for Bollo security-review assignments.
+description: Independently review Pi Crew security boundaries (grants, credentials, network egress, Gondolin isolation, lifecycle ownership, supply chain). Use for Bollo security-review assignments.
 allowed-tools: read grep find ls bash
 ---
 
