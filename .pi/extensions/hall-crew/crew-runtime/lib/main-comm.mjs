@@ -82,10 +82,9 @@ export class MainComm {
       await this.comm.registerPlan(plan.namespace, plan.members ?? []);
       await this.observeTerminalState(plan.namespace);
     }
-    // actorTokens is a snapshot for test/dev convenience (e.g. connecting a bare
-    // test socket as a given worker actor); production workers get their token
-    // directly from Runtime.spawn(), never by reading this return value.
-    return { url: this.commUrl, authToken: this.commAuthToken, actorTokens: Object.fromEntries(this.actorTokens) };
+    // Only Main's connection info leaves here: it is written to the roster and returned to the
+    // model. Worker tokens stay in `this.actorTokens` and reach each worker only via its environment.
+    return { url: this.commUrl, authToken: this.commAuthToken };
   }
 
   memberId(runId, handle) {

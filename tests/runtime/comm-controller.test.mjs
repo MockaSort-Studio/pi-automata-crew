@@ -322,7 +322,7 @@ test("Runtime wires typed terminal state to one Main follow-up", async () => {
       url: comm.url,
       actorId: `${namespace}-${handle}`,
       namespace,
-      authToken: comm.actorTokens[`${namespace}-${handle}`],
+      authToken: runtime.actorTokens.get(`${namespace}-${handle}`),
     });
     await worker.lifecycleUpdate(namespace, "running");
     await worker.lifecycleUpdate(namespace, "complete");

@@ -81,7 +81,7 @@ test("Runtime briefs only the Lead and never releases members on its own", async
       url: comm.url,
       actorId: id(handle),
       namespace: ns,
-      authToken: comm.actorTokens[id(handle)],
+      authToken: runtime.actorTokens.get(id(handle)),
     });
     workers[handle].onDelivery((m) => (got[handle].push(m), workers[handle].acknowledge(m.id)));
   }

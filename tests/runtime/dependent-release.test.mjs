@@ -66,7 +66,7 @@ async function crew(t) {
       url: comm.url,
       actorId: id(handle),
       namespace,
-      authToken: comm.actorTokens[id(handle)],
+      authToken: runtime.actorTokens.get(id(handle)),
     });
     workers[handle].onDelivery((message) => {
       received[handle].push(message);

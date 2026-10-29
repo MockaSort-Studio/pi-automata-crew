@@ -130,3 +130,17 @@ test("with Comm auth on, an actor registered without a token cannot connect with
     await comm.stop();
   }
 });
+
+test("the Comm connection info that launch writes to the roster and returns to the model carries no worker token", async () => {
+  const { Runtime } = await import("../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs");
+  const runtime = new Runtime(process.cwd());
+  const actor = `roster-${randomUUID()}-a`;
+  try {
+    const info = await runtime.startComm([actor]);
+    const workerToken = runtime.actorTokens.get(actor);
+    assert.ok(workerToken);
+    assert.ok(!JSON.stringify(info).includes(workerToken), "worker token leaked into the roster-bound comm info");
+  } finally {
+    await runtime.stop();
+  }
+});
