@@ -1,23 +1,47 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { createFilteredNixStoreProvider, createGondolinNixLayer } from "../../.pi/extensions/hall-crew/env-runtime/lib/gondolin-nix-layer.mjs";
+import {
+  createFilteredNixStoreProvider,
+  createGondolinNixLayer,
+} from "../../.pi/extensions/hall-crew/env-runtime/lib/gondolin-nix-layer.mjs";
 
 const allowed = "/nix/store/0123456789abcdefghijklmnopqrstuv-gh-2.101.0";
 const hidden = "vutsrqponmlkjihgfedcba9876543210-secret-1";
 
 function backend() {
   const calls = [];
-  const value = (method) => (...args) => { calls.push([method, ...args]); return method === "readdirSync" ? [allowed.slice(11), hidden] : method === "readlinkSync" || method === "realpathSync" ? args[0] : {}; };
+  const value =
+    (method) =>
+    (...args) => {
+      calls.push([method, ...args]);
+      return method === "readdirSync"
+        ? [allowed.slice(11), hidden]
+        : method === "readlinkSync" || method === "realpathSync"
+          ? args[0]
+          : {};
+    };
   return {
-    calls, supportsSymlinks: true, supportsWatch: false,
-    open: value("open"), openSync: value("openSync"), stat: value("stat"), statSync: value("statSync"),
-    lstat: value("lstat"), lstatSync: value("lstatSync"), readdirSync: value("readdirSync"),
-    readlink: value("readlink"), readlinkSync: value("readlinkSync"), realpath: value("realpath"), realpathSync: value("realpathSync"),
-    access: value("access"), accessSync: value("accessSync"),
+    calls,
+    supportsSymlinks: true,
+    supportsWatch: false,
+    open: value("open"),
+    openSync: value("openSync"),
+    stat: value("stat"),
+    statSync: value("statSync"),
+    lstat: value("lstat"),
+    lstatSync: value("lstatSync"),
+    readdirSync: value("readdirSync"),
+    readlink: value("readlink"),
+    readlinkSync: value("readlinkSync"),
+    realpath: value("realpath"),
+    realpathSync: value("realpathSync"),
+    access: value("access"),
+    accessSync: value("accessSync"),
   };
 }
 
-const denied = (fn) => assert.throws(fn, (error) => error?.code === "ENOENT" && error.message === "Nix store entry is unavailable");
+const denied = (fn) =>
+  assert.throws(fn, (error) => error?.code === "ENOENT" && error.message === "Nix store entry is unavailable");
 
 test("Gondolin receives one filtered read-only Nix store mount", () => {
   const mounts = createGondolinNixLayer([allowed], { provider: (selected) => ({ selected, readonly: true }) });
@@ -34,8 +58,12 @@ test("filtered provider hides unrelated entries and rejects traversal", async ()
     () => provider.lstatSync(`${hidden}`),
     () => provider.accessSync(`${hidden}`),
     () => provider.readdirSync(hidden),
-  ]) denied(operation);
-  await assert.rejects(() => provider.open(`${hidden}/bin/x`, "r"), (error) => error?.code === "ENOENT");
+  ])
+    denied(operation);
+  await assert.rejects(
+    () => provider.open(`${hidden}/bin/x`, "r"),
+    (error) => error?.code === "ENOENT",
+  );
   assert.equal(fake.calls.length, 1, "denied paths must not reach the host backend");
 });
 

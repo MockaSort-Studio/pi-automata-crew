@@ -75,7 +75,10 @@ test("dispatchRoots delivers only root tasks, idempotently and once", async (t) 
   const { runtime, worker } = await setup(t);
   const got = [];
   worker.onDelivery((m) => got.push(m));
-  await assert.rejects(runtime.dispatchRoots("22222222-2222-2222-2222-222222222222", "k"), /Unknown Crew dispatch plan/);
+  await assert.rejects(
+    runtime.dispatchRoots("22222222-2222-2222-2222-222222222222", "k"),
+    /Unknown Crew dispatch plan/,
+  );
   const first = await runtime.dispatchRoots(runId, "k");
   assert.equal(first.recipients.length, 1);
   assert.deepEqual(await runtime.dispatchRoots(runId, "k"), first);

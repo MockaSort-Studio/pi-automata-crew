@@ -11,7 +11,10 @@ import { closeTerminalRosterDiscussions } from "./roster-discussion-close.mjs";
 // genuinely intentional stop.
 const workerStatusForRoster = (before: any, removalStatus: string) => {
   const typed = { complete: "completed", blocked: "removed", failed: "failed" }[before?.lifecycleStatus];
-  return typed ?? (before?.found && (before.status === "completed" || before.status === "failed") ? before.status : removalStatus);
+  return (
+    typed ??
+    (before?.found && (before.status === "completed" || before.status === "failed") ? before.status : removalStatus)
+  );
 };
 
 const closeDiscussionsFor = (crewLaunch: string, rosterLifecycleUpdates: any[], terminalizedRosters: string[]) =>

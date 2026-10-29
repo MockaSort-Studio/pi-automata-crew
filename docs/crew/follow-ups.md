@@ -20,13 +20,13 @@ below are historical notes, not a second backlog.
 ## Remaining runtime hardening
 
 - Historical unresolved item (canonical plan): Repair the canonical `start_crew` dispatch contract before further live
-      canaries. A recent leadless Gondolin canary accepted a generated kickoff
-      payload but its worker exited before session/event evidence existed;
-      `runtime_send_message` has no `all` recipient and lead-only broadcast
-      cannot task a leadless Crew. Define one supported post-launch task path,
-      make kickoff opt-in/explicit according to the final protocol, and add an
-      E2E test proving delivery, worker registration, terminal cleanup, and
-      TUI roster retirement. Preserve failure logs before any cleanup.
+  canaries. A recent leadless Gondolin canary accepted a generated kickoff
+  payload but its worker exited before session/event evidence existed;
+  `runtime_send_message` has no `all` recipient and lead-only broadcast
+  cannot task a leadless Crew. Define one supported post-launch task path,
+  make kickoff opt-in/explicit according to the final protocol, and add an
+  E2E test proving delivery, worker registration, terminal cleanup, and
+  TUI roster retirement. Preserve failure logs before any cleanup.
 
 - [x] Audit context and persona assembly after the SDK port. The "obsolete Claude
       consultation overlay" was already fully removed prior to this session (commit
@@ -42,24 +42,24 @@ below are historical notes, not a second backlog.
 - [x] Run a concurrent two-Crew cleanup probe; verify no worker, worktree, owner record,
       launcher, or RPC process remains after the idle window.
 - Historical unresolved item (canonical plan): Harden partial Crew launch failure: bound Comm/Lifecycle startup and RPC calls; on
-      lifecycle-auth mismatch invalidate stale Runtime clients and clean partial processes;
-      terminalize the roster and remove the monitor footer on every error/cancellation.
-      Add a regression test for this exact zero-worker `launching` failure.
+  lifecycle-auth mismatch invalidate stale Runtime clients and clean partial processes;
+  terminalize the roster and remove the monitor footer on every error/cancellation.
+  Add a regression test for this exact zero-worker `launching` failure.
 - Historical unresolved item (canonical plan): Make the GitHub Discussion adapter strictly on-demand. `start_crew` must not create
-      or attach it by default; attach a view adapter only after explicit user request and
-      only after workers have registered.
+  or attach it by default; attach a view adapter only after explicit user request and
+  only after workers have registered.
 - Historical unresolved item (canonical plan): Add no-lead dependency release. Start independent roots, retain dependent members in
-      resumable `waiting`, and have Runtime release them by a typed lifecycle snapshot only
-      when every declared dependency is `complete`; terminal dependency failure/block must
-      escalate the dependent terminally. `dependsOn` is currently ledger/visibility data,
-      not a scheduler.
+  resumable `waiting`, and have Runtime release them by a typed lifecycle snapshot only
+  when every declared dependency is `complete`; terminal dependency failure/block must
+  escalate the dependent terminally. `dependsOn` is currently ledger/visibility data,
+  not a scheduler.
 - Historical unresolved item (canonical plan): Expose a Main-side correlated Comm reply tool. Workers can issue `comm_request` and
-      `runtime_receive_message` returns the request ID, but `runtime_send_message` cannot
-      set `replyTo`; Main currently cannot satisfy such requests through the typed Runtime
-      tool surface.
+  `runtime_receive_message` returns the request ID, but `runtime_send_message` cannot
+  set `replyTo`; Main currently cannot satisfy such requests through the typed Runtime
+  tool surface.
 - Historical unresolved item (canonical plan): Add a blocked-work retry protocol. `blocked` is terminal and cannot be resumed: export
-      the worker patch and evidence, remove the terminal worker, then dispatch a fresh actor
-      with the newly granted authority/configuration and an explicit retry link.
+  the worker patch and evidence, remove the terminal worker, then dispatch a fresh actor
+  with the newly granted authority/configuration and an explicit retry link.
 - [x] Make Gondolin preflight verify the selected backend executable and guest assets, not
       merely that the Node package imports. `sandbox-preflight.mjs` now checks the real
       QEMU binary for the host architecture and downloads/verifies guest assets into the Pi
@@ -389,24 +389,24 @@ below are historical notes, not a second backlog.
       reported `272k` model window; no files were modified. The Crew was kept
       alive for dashboard inspection before deliberate cleanup.
 - Historical unresolved item (canonical plan): Remove now-unused raw-envelope observer APIs (`Runtime.observeRawComm`,
-      `comm.observe_raw`, `RawObserverSockets`, and raw-envelope-to-ledger
-      tests). They have no production consumer after lifecycle updates became
-      the sole state writer; retain no diagnostic API without an explicit
-      purpose.
+  `comm.observe_raw`, `RawObserverSockets`, and raw-envelope-to-ledger
+  tests). They have no production consumer after lifecycle updates became
+  the sole state writer; retain no diagnostic API without an explicit
+  purpose.
 - Historical unresolved item (canonical plan): Remaining staged-migration step, not implemented here: today
-      `registerPlan()` is idempotent per namespace but has no explicit replay
-      contract for a Comm server that outlives Main's own process across a
-      later reconnect (e.g. a Lifecycle server surviving Main and the TUI
-      reattaching later needing the same snapshot mid-run) -- in practice this
-      already works today because `comm-server.mjs` is spawned once per Crew
-      run and stays up for that run's lifetime, so a later `comm.state_snapshot`
-      call always reaches the same live owner; this is a documented
-      assumption, not yet a tested guarantee, and would need its own
-      dedicated multi-reconnect test if the process-per-run assumption is
-      ever relaxed. Also out of scope here: benchmarking
-      `comm.observe_state`'s per-envelope compact-update push against a
-      large plan (tens of nodes) -- deferred with the existing benchmark
-      work below, not rejected.
+  `registerPlan()` is idempotent per namespace but has no explicit replay
+  contract for a Comm server that outlives Main's own process across a
+  later reconnect (e.g. a Lifecycle server surviving Main and the TUI
+  reattaching later needing the same snapshot mid-run) -- in practice this
+  already works today because `comm-server.mjs` is spawned once per Crew
+  run and stays up for that run's lifetime, so a later `comm.state_snapshot`
+  call always reaches the same live owner; this is a documented
+  assumption, not yet a tested guarantee, and would need its own
+  dedicated multi-reconnect test if the process-per-run assumption is
+  ever relaxed. Also out of scope here: benchmarking
+  `comm.observe_state`'s per-envelope compact-update push against a
+  large plan (tens of nodes) -- deferred with the existing benchmark
+  work below, not rejected.
 
 ## Evidence and performance work
 
@@ -415,17 +415,17 @@ below are historical notes, not a second backlog.
       already cover what's needed; an ordered per-turn sequence is not something we
       currently have a use for.
 - Historical unresolved item (canonical plan): Establish an untouched baseline, then run an A/B quality gate before changing prompt
-      or context policy. Deferred, not rejected: this is worth having once Crew itself is
-      stable. Building a formal evaluation harness on top of a system still finding and
-      fixing collision/telemetry/dashboard bugs (this session) would be premature -- revisit
-      once the runtime hardening backlog is genuinely quiet.
+  or context policy. Deferred, not rejected: this is worth having once Crew itself is
+  stable. Building a formal evaluation harness on top of a system still finding and
+  fixing collision/telemetry/dashboard bugs (this session) would be premature -- revisit
+  once the runtime hardening backlog is genuinely quiet.
 - Historical unresolved item (canonical plan): Run three controlled serial-versus-Crew benchmark rounds and publish median/range;
-      the current single pilot is not a performance decision. Same deferral as above.
+  the current single pilot is not a performance decision. Same deferral as above.
 
 ## Deferred product work
 
 - Historical unresolved item (canonical plan): Define the Hall CLI state-model port: Project progression, Issue closure, dependency
-      management, and associated GitHub adapter contracts.
+  management, and associated GitHub adapter contracts.
 - [x] Add explicit `PASS | BLOCKED | FAIL` outcomes and terminalize unattended blocked runs
       without falsely accepting work.
 - [x] Implement the optional GitHub Discussion CommAdapter; base worker capabilities
@@ -434,19 +434,19 @@ below are historical notes, not a second backlog.
 ## Lifecycle state-management follow-up
 
 - Historical unresolved item (canonical plan): Make lifecycle disposition mechanically disciplined: require a structured escalation
-      reason for terminal `blocked`, reject ordinary implementation/test friction as
-      `blocked`, and use resumable `waiting` for expected dependencies or input. Ensure an
-      active worker cannot keep executing after a terminal update without an explicit Main
-      intervention, and record the reason in the typed snapshot for auditability.
+  reason for terminal `blocked`, reject ordinary implementation/test friction as
+  `blocked`, and use resumable `waiting` for expected dependencies or input. Ensure an
+  active worker cannot keep executing after a terminal update without an explicit Main
+  intervention, and record the reason in the typed snapshot for auditability.
 - Historical unresolved item (canonical plan): Add workload-aware Crew model selection. Select model and thinking from task risk,
-      boundedness, required edits, and test/integration scope; cap/reassign agents whose
-      turn or error budget signals a retry loop. Record the selection rationale and outcome
-      so future dispatches can tune the policy instead of treating model choice as static.
+  boundedness, required edits, and test/integration scope; cap/reassign agents whose
+  turn or error budget signals a retry loop. Record the selection rationale and outcome
+  so future dispatches can tune the policy instead of treating model choice as static.
 - Historical unresolved item (canonical plan): Replace the shared Comm credential with launch-scoped, actor- and namespace-bound
-      capabilities; Main retains an admin credential and observers get read-only run-scoped
-      credentials. Reject replay, impersonation, and absent server-owned namespace binding.
+  capabilities; Main retains an admin credential and observers get read-only run-scoped
+  credentials. Reject replay, impersonation, and absent server-owned namespace binding.
 - Historical unresolved item (canonical plan): Paginate GitHub Discussion replies independently of top-level comments and add a
-      deterministic second-page reply fixture, preserving bounded transcript behavior.
+  deterministic second-page reply fixture, preserving bounded transcript behavior.
 - Historical unresolved item (canonical plan): Make the broad Node test command deterministic and bounded: identify lingering
-      sockets/processes or excessive serial work so a complete suite can finish within the
-      CI timeout while preserving its real integration coverage.
+  sockets/processes or excessive serial work so a complete suite can finish within the
+  CI timeout while preserving its real integration coverage.

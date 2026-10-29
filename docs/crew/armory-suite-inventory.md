@@ -19,21 +19,21 @@ The host Pi worker never imports a suite or runs its binary.
 
 ## Suites
 
-| Suite | Tools | Closure | Notes |
-| --- | --- | --- | --- |
+| Suite                           | Tools                                                            | Closure                                     | Notes                                                                                        |
+| ------------------------------- | ---------------------------------------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `collaboration/pi-github-tools` | repository, issues, pull requests, discussions, projects, labels | 39 MB aarch64 / 42 MB x86_64, 2 store paths | Static `gh`; the credential is `HALL_GITHUB_TOKEN`, seen by the guest only as a placeholder. |
 
 ## Status
 
-| Capability | Status |
-| --- | --- |
-| Per-worker `actor.tools` profile and suite grants | Implemented |
-| Locked Nix suite build, cache, verified fetch | Implemented (Ubuntu and macOS fetch-only CI) |
-| Guest runner (`describe` / `invoke`) and per-worker proxy registration | Implemented |
-| Crew end-to-end guest suite invocation | Implemented and live-verified |
-| Host npm/package cache for Env | Rejected |
-| VM snapshot cache | Deferred |
-| Terraform suite | Deferred |
-| Further suites | [armory-suite-proposals.md](armory-suite-proposals.md) |
+| Capability                                                             | Status                                                 |
+| ---------------------------------------------------------------------- | ------------------------------------------------------ |
+| Per-worker `actor.tools` profile and suite grants                      | Implemented                                            |
+| Locked Nix suite build, cache, verified fetch                          | Implemented (Ubuntu and macOS fetch-only CI)           |
+| Guest runner (`describe` / `invoke`) and per-worker proxy registration | Implemented                                            |
+| Crew end-to-end guest suite invocation                                 | Implemented and live-verified                          |
+| Host npm/package cache for Env                                         | Rejected                                               |
+| VM snapshot cache                                                      | Deferred                                               |
+| Terraform suite                                                        | Deferred                                               |
+| Further suites                                                         | [armory-suite-proposals.md](armory-suite-proposals.md) |
 
 See `microvm-armory-design.md` for the canonical model.

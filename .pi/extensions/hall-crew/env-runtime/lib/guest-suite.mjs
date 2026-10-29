@@ -6,7 +6,12 @@ const validName = (value) => typeof value === "string" && value.length > 0;
 
 function assertRunner(rootPath, operations) {
   if (!STORE_PATH.test(rootPath)) throw new Error("Guest suite runner requires a Nix store output path");
-  if (!Array.isArray(operations) || !operations.length || new Set(operations).size !== operations.length || !operations.every(validName))
+  if (
+    !Array.isArray(operations) ||
+    !operations.length ||
+    new Set(operations).size !== operations.length ||
+    !operations.every(validName)
+  )
     throw new Error("Guest suite runner requires unique approved operations");
   return `${rootPath}/bin/armory-suite`;
 }

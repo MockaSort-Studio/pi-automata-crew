@@ -25,13 +25,13 @@ The live Saga 2 design makes GitHub the durable, developer-visible continuity la
 
 Public registration: `.pi/extensions/github/index.ts:32-36,72-83`. Implementation: `.pi/extensions/github/lib/issues/index.ts:5-18,48-74`.
 
-| Operation | Current behavior | Fitness |
-|---|---|---|
-| List | `github_issues_list` supports state, labels, milestone, and an explicit limit; returns parsed JSON. | Fit for bounded reads. |
-| View | `github_issue_view` returns number, title, body, labels, milestone, state, and URL. | Fit. |
-| Create | `github_issue_create` requires `bodyFile`, with optional labels and milestone; returns URL and parsed number. | Fit, but file-backed body is a deliberate contract constraint and retries can duplicate. |
-| Update | `github_issue_update` accepts title, body, milestone, or arbitrary state text. Truthy fields cannot be cleared. | **State is broken:** `open`/`closed` emits `gh issue edit --state`, absent from installed `gh 2.97.0`; other state strings are silently omitted while other edits proceed. |
-| Comment | `github_issue_comment` posts inline text and returns an acknowledgement, not the comment URL. | Fit for this run; retry is non-idempotent. |
+| Operation | Current behavior                                                                                                | Fitness                                                                                                                                                                    |
+| --------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| List      | `github_issues_list` supports state, labels, milestone, and an explicit limit; returns parsed JSON.             | Fit for bounded reads.                                                                                                                                                     |
+| View      | `github_issue_view` returns number, title, body, labels, milestone, state, and URL.                             | Fit.                                                                                                                                                                       |
+| Create    | `github_issue_create` requires `bodyFile`, with optional labels and milestone; returns URL and parsed number.   | Fit, but file-backed body is a deliberate contract constraint and retries can duplicate.                                                                                   |
+| Update    | `github_issue_update` accepts title, body, milestone, or arbitrary state text. Truthy fields cannot be cleared. | **State is broken:** `open`/`closed` emits `gh issue edit --state`, absent from installed `gh 2.97.0`; other state strings are silently omitted while other edits proceed. |
+| Comment   | `github_issue_comment` posts inline text and returns an acknowledgement, not the comment URL.                   | Fit for this run; retry is non-idempotent.                                                                                                                                 |
 
 The adapter must use the CLI's close/reopen commands or another supported API for state. The current schema must also reject unsupported state values and empty updates.
 
@@ -39,13 +39,13 @@ The adapter must use the CLI's close/reopen commands or another supported API fo
 
 Public registration: `.pi/extensions/github/index.ts:59-70,84-86`. Implementation: `.pi/extensions/github/lib/labels/index.ts:3-34` and `.pi/extensions/github/lib/issues/index.ts:76-79`.
 
-| Operation | Current behavior | Fitness |
-|---|---|---|
-| Add to Issue | Batch add through comma-joined `gh issue edit --add-label`; rereads the Issue. | Fit; empty arrays are not schema-rejected. |
-| Remove from Issue | Removes one named label and rereads the Issue. | Fit. |
-| List repository labels | Returns name, color, and description. | Description says “all,” but no limit is passed; current CLI default caps the result. |
-| Create | Calls `gh label create --force`. | Operationally an upsert, not strict create; useful retry behavior with surprising overwrite semantics. |
-| Update | Supports color and/or description. | Schema permits neither field, leaving a CLI-level no-op/error. No rename or delete tool exists. |
+| Operation              | Current behavior                                                               | Fitness                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Add to Issue           | Batch add through comma-joined `gh issue edit --add-label`; rereads the Issue. | Fit; empty arrays are not schema-rejected.                                                             |
+| Remove from Issue      | Removes one named label and rereads the Issue.                                 | Fit.                                                                                                   |
+| List repository labels | Returns name, color, and description.                                          | Description says “all,” but no limit is passed; current CLI default caps the result.                   |
+| Create                 | Calls `gh label create --force`.                                               | Operationally an upsert, not strict create; useful retry behavior with surprising overwrite semantics. |
+| Update                 | Supports color and/or description.                                             | Schema permits neither field, leaving a CLI-level no-op/error. No rename or delete tool exists.        |
 
 ### Dependencies
 
@@ -71,11 +71,11 @@ The operations exist, but the list contract is not dependable for programmatic c
 
 Public registration: `.pi/extensions/github/index.ts:46-55`. Implementation: `.pi/extensions/github/lib/projects/index.ts:4-48`.
 
-| Operation | Current behavior | Fitness |
-|---|---|---|
-| Fields/options | `github_project_fields` resolves current field and single-select option IDs live. | Avoids stale local mirrors; field-list uses the CLI default cap. |
-| Item add | `github_project_item_add` adds an Issue/PR URL. | Exists; returns raw JSON text and has no normalized retry semantics. |
-| Item find | `github_project_item_find` scans at most 500 items and matches only `content.number`. | **Unsafe identity:** repository and content type are ignored, so same-number Issues/PRs can collide; truncation is indistinguishable from absence. |
+| Operation        | Current behavior                                                                                | Fitness                                                                                                                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Fields/options   | `github_project_fields` resolves current field and single-select option IDs live.               | Avoids stale local mirrors; field-list uses the CLI default cap.                                                                                                               |
+| Item add         | `github_project_item_add` adds an Issue/PR URL.                                                 | Exists; returns raw JSON text and has no normalized retry semantics.                                                                                                           |
+| Item find        | `github_project_item_find` scans at most 500 items and matches only `content.number`.           | **Unsafe identity:** repository and content type are ignored, so same-number Issues/PRs can collide; truncation is indistinguishable from absence.                             |
 | Status/field set | `github_project_field_set` resolves IDs live and invokes `item-edit --single-select-option-id`. | Status works only because it is a named single-select field. No dedicated status tool, non-single-select mutation, item removal, or post-write structured confirmation exists. |
 
 Live ID resolution is the right state-source boundary. Repository-qualified item identity is mandatory before general workflow acceptance.
@@ -92,13 +92,13 @@ See `.pi/extensions/github/index.ts:22-30`. Create, comment, and update helpers 
 
 Crew writes instead use `.pi/extensions/hall-crew/crew/lib/communication-tools.ts:5-10`:
 
-| Wrapper | Governance added |
-|---|---|
-| `crew_kickoff` | Requires run roster, sender, signature, substantive body; rejects a second kickoff when the roster already has a Discussion. |
-| `crew_post` | Posts a signed-format finding/review to the roster's canonical Discussion. |
-| `crew_tell` | Resolves a roster recipient and posts a directed mention. |
-| `crew_ask` | Resolves a roster recipient and posts a directed `[QUESTION]`. |
-| `crew_broadcast` | Posts a `[BROADCAST]` and returns the run topic for mesh publication. |
+| Wrapper          | Governance added                                                                                                             |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `crew_kickoff`   | Requires run roster, sender, signature, substantive body; rejects a second kickoff when the roster already has a Discussion. |
+| `crew_post`      | Posts a signed-format finding/review to the roster's canonical Discussion.                                                   |
+| `crew_tell`      | Resolves a roster recipient and posts a directed mention.                                                                    |
+| `crew_ask`       | Resolves a roster recipient and posts a directed `[QUESTION]`.                                                               |
+| `crew_broadcast` | Posts a `[BROADCAST]` and returns the run topic for mesh publication.                                                        |
 
 `.pi/extensions/hall-crew/crew/lib/comm.mjs:26-51` verifies only the caller-supplied `from` against roster names, rejects URL-only/non-substantive content, length-checks the caller-supplied signature, and performs GraphQL writes. It does not bind sender identity to the executing actor, prevent duplicate comments, make kickoff check/create atomic, or protect the raw delete tool. This is sufficient cooperative provenance for KR #358, not a security boundary.
 

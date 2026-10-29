@@ -42,8 +42,7 @@ test("reviewer has review-only authority", () => {
   const result = assemble("snowball", "reviewer", "", {
     systemOperations: ["read", "grep", "find", "ls", "bash"],
   });
-  for (const tool of ["read", "grep", "find", "ls", "bash"])
-    assert.ok(result.tools.includes(tool));
+  for (const tool of ["read", "grep", "find", "ls", "bash"]) assert.ok(result.tools.includes(tool));
   for (const tool of ["edit", "write"]) assert.ok(!result.tools.includes(tool));
   assert.match(result.instructions, /REQUEST_CHANGES/);
 });

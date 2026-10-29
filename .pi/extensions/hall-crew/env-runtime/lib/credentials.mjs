@@ -38,7 +38,8 @@ export function leaseFromEnvironment(bindings, env = process.env) {
   return { id: randomUUID(), credentials };
 }
 
-export const serializeLease = (lease) => JSON.stringify({ id: lease.id, credentials: Object.fromEntries(lease.credentials) });
+export const serializeLease = (lease) =>
+  JSON.stringify({ id: lease.id, credentials: Object.fromEntries(lease.credentials) });
 
 export function consumeCredentialLease(fd = 3) {
   let lease;
@@ -54,7 +55,11 @@ export function consumeCredentialLease(fd = 3) {
     throw new Error("Invalid worker credential lease.");
   const credentials = new Map();
   for (const [name, entry] of Object.entries(lease.credentials)) {
-    if (typeof entry?.value !== "string" || !Array.isArray(entry.hosts) || !entry.hosts.every((host) => typeof host === "string"))
+    if (
+      typeof entry?.value !== "string" ||
+      !Array.isArray(entry.hosts) ||
+      !entry.hosts.every((host) => typeof host === "string")
+    )
       throw new Error("Invalid worker credential lease.");
     credentials.set(name, entry);
   }

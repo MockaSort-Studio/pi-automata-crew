@@ -1,4 +1,10 @@
-import { RealFSProvider, ShadowProvider, VM, createHttpHooks, createShadowPathPredicate } from "@earendil-works/gondolin";
+import {
+  RealFSProvider,
+  ShadowProvider,
+  VM,
+  createHttpHooks,
+  createShadowPathPredicate,
+} from "@earendil-works/gondolin";
 import {
   createBashTool,
   createEditTool,
@@ -127,7 +133,9 @@ export default function gondolinWorkerExtension(pi) {
       // The suite's tools are described by the guest once; the proxies then reach whichever
       // VM is current, so releasing and re-booting the VM never re-registers anything.
       if (armory.suites.length) {
-        warmSuites = (await registerArmoryWorkerProxies(pi, { config: armory, guest: lazyGuest(() => ensureVm(localCwd)) })).warm;
+        warmSuites = (
+          await registerArmoryWorkerProxies(pi, { config: armory, guest: lazyGuest(() => ensureVm(localCwd)) })
+        ).warm;
         armIdleRelease();
       }
     } catch (error) {

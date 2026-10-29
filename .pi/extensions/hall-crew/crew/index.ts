@@ -21,9 +21,7 @@ const assignmentFields = {
   authority: Type.Optional(Type.Record(Type.String(), Type.Union([Type.String(), Type.Boolean()]))),
   acceptanceCriteria: Type.Optional(Type.Array(Type.String())),
   tools: Type.Optional(
-    Type.Array(
-      Type.Object({ suite: Type.String(), operations: Type.Array(Type.String(), { minItems: 1 }) }),
-    ),
+    Type.Array(Type.Object({ suite: Type.String(), operations: Type.Array(Type.String(), { minItems: 1 }) })),
   ),
 };
 const initialMember = Type.Object({
@@ -109,7 +107,9 @@ export default function crewExtension(pi: ExtensionAPI) {
       const prepared = await prepareCrew(pi, input, { ...ctx, signal }, CONFIG_DIR_NAME);
       monitor.activate(ctx, prepared.rosterFile);
       const launched = await launchPreparedCrew(ctx.cwd, prepared);
-      const warnings = launched.warnings?.length ? `\n\nWarnings:\n${launched.warnings.map((line: string) => `- ${line}`).join("\n")}` : "";
+      const warnings = launched.warnings?.length
+        ? `\n\nWarnings:\n${launched.warnings.map((line: string) => `- ${line}`).join("\n")}`
+        : "";
       return output({ ...prepared, ...launched, launchRequired: false }, `${queuedMessage(prepared)}${warnings}`);
     },
   });

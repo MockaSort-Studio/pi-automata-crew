@@ -42,7 +42,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     counts.set(key, ordinal + 1);
     // Only a Lead receives its coordination assignment at session startup.
     // Specialists wait for a directed task after the manifest kickoff.
-    const assembled = assemble(member.name, member.role, member.role === "lead" ? member.task ?? "" : "", {
+    const assembled = assemble(member.name, member.role, member.role === "lead" ? (member.task ?? "") : "", {
       ...member,
       systemOperations: grants.system,
       runtimeTools: pi.getAllTools(),
@@ -65,7 +65,9 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       throw new Error(`Crew member ${own} has an invalid dependsOn reference.`);
     // The Lead is the entry point that hands out the others' work, so it cannot wait on them.
     if (actors[index].role === "lead" && dependsOn.length)
-      throw new Error(`The Lead ${own} cannot depend on other members: it assigns their work and integrates their results.`);
+      throw new Error(
+        `The Lead ${own} cannot depend on other members: it assigns their work and integrates their results.`,
+      );
   });
   const directory = actors.map((actor) => `- ${actor.handle} (${actor.role})`).join("\n");
   const agents = actors.map((actor) => ({

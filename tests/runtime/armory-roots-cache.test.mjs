@@ -1,6 +1,11 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { armoryRoot, armoryRootsDir, explainMissingCache, guestNixSystem } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-nix.mjs";
+import {
+  armoryRoot,
+  armoryRootsDir,
+  explainMissingCache,
+  guestNixSystem,
+} from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-nix.mjs";
 import { armoryCache } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-artifacts.mjs";
 
 test("roots are keyed by suite and system, never by revision, so a new revision replaces the old root", () => {
@@ -15,9 +20,14 @@ test("the cache identity is one pinned substituter and signing key", () => {
 });
 
 test("a missing cache turns an opaque Nix failure into an actionable reason", async () => {
-  const nixError = Object.assign(new Error("Command failed: nix build"), { stderr: "error: x\n  Reason: platform mismatch\n" });
+  const nixError = Object.assign(new Error("Command failed: nix build"), {
+    stderr: "error: x\n  Reason: platform mismatch\n",
+  });
   const explained = await explainMissingCache(nixError, { configured: async () => false });
-  assert.match(explained.message, /Armory cache not configured; configure Nix and the Armory cache first\. Reason: platform mismatch/);
+  assert.match(
+    explained.message,
+    /Armory cache not configured; configure Nix and the Armory cache first\. Reason: platform mismatch/,
+  );
 });
 
 test("with the cache configured the original error passes through", async () => {
@@ -27,7 +37,10 @@ test("with the cache configured the original error passes through", async () => 
 
 test("if configuration cannot be read, the original error is kept", async () => {
   const error = new Error("boom");
-  assert.equal(await explainMissingCache(error, { configured: async () => Promise.reject(new Error("no nix")) }), error);
+  assert.equal(
+    await explainMissingCache(error, { configured: async () => Promise.reject(new Error("no nix")) }),
+    error,
+  );
 });
 
 test("the guest system follows the host architecture", () => {

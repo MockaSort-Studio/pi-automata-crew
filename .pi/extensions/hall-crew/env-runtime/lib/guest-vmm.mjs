@@ -18,7 +18,8 @@ export function chooseVmm({
   resolve = (name) => require.resolve(`${name}/package.json`),
 } = {}) {
   if (env.HALL_VMM) {
-    if (!["qemu", "krun"].includes(env.HALL_VMM)) throw new Error(`HALL_VMM must be "qemu" or "krun", not "${env.HALL_VMM}"`);
+    if (!["qemu", "krun"].includes(env.HALL_VMM))
+      throw new Error(`HALL_VMM must be "qemu" or "krun", not "${env.HALL_VMM}"`);
     return env.HALL_VMM;
   }
   const runner = KRUN_RUNNERS[`${platform}-${arch}`];

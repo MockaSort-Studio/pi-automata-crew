@@ -48,7 +48,11 @@ test("a member is refused until every prerequisite is complete, then accepted", 
   const comm = broker();
   assert.throws(() => comm.assign(lead, ns, "developer-b-00"), /must wait for developer-a-00 to complete/);
   comm.assign(lead, ns, "developer-a-00");
-  assert.throws(() => comm.assign(lead, ns, "developer-b-00"), /must wait for developer-a-00/, "assigned but not complete is still unmet");
+  assert.throws(
+    () => comm.assign(lead, ns, "developer-b-00"),
+    /must wait for developer-a-00/,
+    "assigned but not complete is still unmet",
+  );
   progress(comm, "developer-a-00", "running");
   progress(comm, "developer-a-00", "complete");
   assert.equal(comm.assign(lead, ns, "developer-b-00").accepted, true);
@@ -64,7 +68,11 @@ test("a member blocked by a failed prerequisite cannot be assigned", () => {
 
 test("Runtime briefs only the Lead and never releases members on its own", async (t) => {
   const runtime = new Runtime(process.cwd());
-  const comm = await runtime.startComm(plan.map((m) => ({ actorId: id(m.handle), role: m.handle.split("-")[0] })), [], { namespace: ns, members: plan });
+  const comm = await runtime.startComm(
+    plan.map((m) => ({ actorId: id(m.handle), role: m.handle.split("-")[0] })),
+    [],
+    { namespace: ns, members: plan },
+  );
   const workers = {};
   const got = {};
   for (const { handle } of plan) {
@@ -78,12 +86,18 @@ test("Runtime briefs only the Lead and never releases members on its own", async
   });
   const result = await runtime.dispatchRoots(runId, "lead-led");
   assert.equal(result.leadLed, true);
-  assert.deepEqual(result.recipients.map((r) => r.to), ["lead-old-major-00"]);
+  assert.deepEqual(
+    result.recipients.map((r) => r.to),
+    ["lead-old-major-00"],
+  );
   assert.deepEqual(result.held, ["developer-a-00", "developer-b-00"]);
   await new Promise((r) => setTimeout(r, 60));
   const briefing = got["lead-old-major-00"][0].payload;
   assert.equal(briefing.task, "Deliver the feature");
-  assert.deepEqual(briefing.members.map((m) => m.handle), ["developer-a-00", "developer-b-00"]);
+  assert.deepEqual(
+    briefing.members.map((m) => m.handle),
+    ["developer-a-00", "developer-b-00"],
+  );
   assert.match(briefing.instructions, /crew_assign/);
   assert.deepEqual([got["developer-a-00"].length, got["developer-b-00"].length], [0, 0]);
 
@@ -92,9 +106,15 @@ test("Runtime briefs only the Lead and never releases members on its own", async
   await workers["developer-a-00"].lifecycleUpdate(ns, "running");
   await workers["developer-a-00"].lifecycleUpdate(ns, "complete");
   await new Promise((r) => setTimeout(r, 60));
-  assert.deepEqual(got["developer-a-00"].map((m) => m.payload.task), ["Build A"]);
+  assert.deepEqual(
+    got["developer-a-00"].map((m) => m.payload.task),
+    ["Build A"],
+  );
   assert.equal(got["developer-b-00"].length, 0, "no automatic release in a Lead-led Crew");
   await workers["lead-old-major-00"].assign({ namespace: ns, to: "developer-b-00", note: "use A's output" });
   await new Promise((r) => setTimeout(r, 60));
-  assert.deepEqual(got["developer-b-00"].map((m) => [m.from, m.payload.task, m.payload.note]), [[lead, "Build B after A", "use A's output"]]);
+  assert.deepEqual(
+    got["developer-b-00"].map((m) => [m.from, m.payload.task, m.payload.note]),
+    [[lead, "Build B after A", "use A's output"]],
+  );
 });

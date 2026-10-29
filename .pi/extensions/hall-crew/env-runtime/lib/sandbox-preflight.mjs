@@ -34,9 +34,7 @@ function verifyQemuImage(binary = "qemu-img") {
 function verifyNix(binary = nixBinary()) {
   const result = spawnSync(binary, ["--version"], { stdio: "ignore" });
   if (!result.error && result.status === 0) return;
-  throw new Error(
-    "Gondolin sandbox requires Nix and the Armory cache for guest suites; configure them first.",
-  );
+  throw new Error("Gondolin sandbox requires Nix and the Armory cache for guest suites; configure them first.");
 }
 
 // The checks spawn several processes (about 110 ms) and a Crew spawns its workers one

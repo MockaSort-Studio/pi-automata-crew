@@ -16,7 +16,7 @@ The remaining determinism gaps are:
    after authenticated worker readiness. A worker can exit before connection while
    the roster is still marked `started`.
 2. Main has direct `Runtime.send(to, payload)` and `Runtime.broadcast(namespace,
-   payload)` methods, but the exposed Main tool accepts only one exact recipient.
+payload)` methods, but the exposed Main tool accepts only one exact recipient.
    The literal recipient `all` is invalid. Agent request correlation exists in the
    broker but Main has no typed `replyTo` surface.
 3. Agent all-recipient broadcast is role-tool gated, while Main broadcast is not.
@@ -49,12 +49,12 @@ health, or resource-disposition lifecycle states.
 
 ## Authority and routing
 
-| Sender | Allowed recipients | Operations |
-| --- | --- | --- |
-| Main | one member, all run members, a request origin | notify, request, reply, dispatch |
-| Lead | one member, Main, all run members | notify, request, reply, broadcast |
-| Specialist | one member or Main | notify, request, reply |
-| Leadless specialist | one member or Main | notify, request, reply; never all |
+| Sender              | Allowed recipients                            | Operations                        |
+| ------------------- | --------------------------------------------- | --------------------------------- |
+| Main                | one member, all run members, a request origin | notify, request, reply, dispatch  |
+| Lead                | one member, Main, all run members             | notify, request, reply, broadcast |
+| Specialist          | one member or Main                            | notify, request, reply            |
+| Leadless specialist | one member or Main                            | notify, request, reply; never all |
 
 `all` is an API selector, never an actor ID. Main broadcast excludes Main by
 default. Lead broadcast may include Main only when explicitly requested. Every

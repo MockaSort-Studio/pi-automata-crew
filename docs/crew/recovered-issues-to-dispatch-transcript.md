@@ -9,14 +9,14 @@ for later analysis; it is not a design specification.
 Assistant recovered these relevant issues:
 
 1. RPC workers acknowledge a delivery before its Pi turn settles, so a later
-delivery can replace reply context and make `comm_reply` fail.
+   delivery can replace reply context and make `comm_reply` fail.
 2. Durable run records can remain `started` after workers are cleaned up.
 3. Internal observers receive adapter projections rather than raw Comm
-envelopes, preventing dependency-ledger observation.
+   envelopes, preventing dependency-ledger observation.
 4. The controller is at the file-size ceiling and needs a separate seam before
-ledger work.
+   ledger work.
 5. Dependency waiting/release is still prompt convention; no DAG/state ledger
-or end-to-end dependency test exists.
+   or end-to-end dependency test exists.
 6. RPC observability lacks complete bounded operational metrics.
 
 ## Initial, flawed party proposal

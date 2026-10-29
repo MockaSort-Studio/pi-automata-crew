@@ -7,7 +7,10 @@ const manifest = () => ({
   extension: "github",
   package: { name: "@mockasort-studio/pi-github-tools", version: "0.1.2", integrity: "sha512-test" },
   native: { closure: ".", output: "guest" },
-  network: { allowedHosts: ["api.github.com"], credentials: [{ environment: "GITHUB_TOKEN", hosts: ["api.github.com"] }] },
+  network: {
+    allowedHosts: ["api.github.com"],
+    credentials: [{ environment: "GITHUB_TOKEN", hosts: ["api.github.com"] }],
+  },
   tools: ["github_issue_view", "github_pull_request_view"],
 });
 
@@ -26,12 +29,28 @@ test("an undeclared operation is refused", () => {
 });
 
 test("a wrong format, a missing output, or a malformed tool list is refused", () => {
-  assert.throws(() => validateArmorySuite({ ...manifest(), format: "other" }), /Unsupported Armory suite manifest format/);
-  assert.throws(() => validateArmorySuite({ ...manifest(), native: { closure: "." } }), /native Nix output is required/);
+  assert.throws(
+    () => validateArmorySuite({ ...manifest(), format: "other" }),
+    /Unsupported Armory suite manifest format/,
+  );
+  assert.throws(
+    () => validateArmorySuite({ ...manifest(), native: { closure: "." } }),
+    /native Nix output is required/,
+  );
   assert.throws(() => validateArmorySuite({ ...manifest(), tools: ["ok", ""] }), /invalid tool allowlist/);
 });
 
 test("a malformed network policy is refused", () => {
-  assert.throws(() => validateArmorySuite({ ...manifest(), network: { allowedHosts: "api.github.com" } }), /network policy is invalid/);
-  assert.throws(() => validateArmorySuite({ ...manifest(), network: { allowedHosts: [], credentials: [{ environment: "", hosts: [] }] } }), /credential policy is invalid/);
+  assert.throws(
+    () => validateArmorySuite({ ...manifest(), network: { allowedHosts: "api.github.com" } }),
+    /network policy is invalid/,
+  );
+  assert.throws(
+    () =>
+      validateArmorySuite({
+        ...manifest(),
+        network: { allowedHosts: [], credentials: [{ environment: "", hosts: [] }] },
+      }),
+    /credential policy is invalid/,
+  );
 });

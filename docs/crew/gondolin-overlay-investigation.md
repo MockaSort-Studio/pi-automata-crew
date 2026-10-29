@@ -34,7 +34,7 @@ An overlayfs spike confirmed:
 
 The public Gondolin VM/sandbox API exposes one root disk (`/dev/vda`) and its
 root format/mode. It does not expose a supported API for attaching multiple
-qcow2 suite disks. Therefore Gondolin supports a *linear* root backing chain:
+qcow2 suite disks. Therefore Gondolin supports a _linear_ root backing chain:
 
 ```text
 base checkpoint -> profile checkpoint -> worker COW overlay
@@ -57,7 +57,7 @@ Use a generic sealed root checkpoint only for base guest preparation. Keep
 suite layers external/read-only and recreate their filtered mount on resume.
 
 If startup measurements later justify hydrated profiles, cache complete
-content-addressed *suite-set* root checkpoints, never actor images:
+content-addressed _suite-set_ root checkpoints, never actor images:
 
 ```text
 platform + base version + ordered suite output identities

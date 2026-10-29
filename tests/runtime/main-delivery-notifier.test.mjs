@@ -9,16 +9,29 @@ const namespace = `crew-${runId}`;
 const actorId = `${namespace}-developer-snowball-00`;
 
 test("message text names the sender, reply path, bounds untrusted payload, and carries no dispatch protocol", () => {
-  const message = mainDeliveryMessage({ id: "m1", from: actorId, kind: "request", replyRequired: true, payload: "x".repeat(5000) });
+  const message = mainDeliveryMessage({
+    id: "m1",
+    from: actorId,
+    kind: "request",
+    replyRequired: true,
+    payload: "x".repeat(5000),
+  });
   assert.match(message.content, /from developer-snowball-00/);
   assert.match(message.content, /runtime_reply_message with messageId m1/);
   assert.match(message.content, /truncated/);
-  assert.doesNotMatch(message.content, /DISPATCH PROTOCOL/, "the protocol belongs to user dispatch requests, not to worker messages");
+  assert.doesNotMatch(
+    message.content,
+    /DISPATCH PROTOCOL/,
+    "the protocol belongs to user dispatch requests, not to worker messages",
+  );
 });
 
 test("with a session attached every Main delivery starts a turn and stays replyable", async (t) => {
   const runtime = new Runtime(process.cwd());
-  const comm = await runtime.startComm([actorId], [], { namespace, members: [{ handle: "developer-snowball-00", dependsOn: [], task: "" }] });
+  const comm = await runtime.startComm([actorId], [], {
+    namespace,
+    members: [{ handle: "developer-snowball-00", dependsOn: [], task: "" }],
+  });
   const worker = await connectComm({ ...comm, actorId, namespace });
   t.after(async () => {
     worker.close();

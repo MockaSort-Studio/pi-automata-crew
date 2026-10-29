@@ -4,7 +4,9 @@
 // so this only ever acts on `ready`.
 export function createDependentRelease({ members, released = [], send, onError = () => {} }) {
   const done = new Set(released);
-  const pending = new Map(members.filter((member) => member.dependsOn?.length).map((member) => [member.handle, member]));
+  const pending = new Map(
+    members.filter((member) => member.dependsOn?.length).map((member) => [member.handle, member]),
+  );
 
   async function observe(nodes) {
     const ready = nodes.filter((node) => node.status === "ready" && pending.has(node.handle) && !done.has(node.handle));

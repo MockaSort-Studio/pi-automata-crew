@@ -43,7 +43,8 @@ async function cacheConfigured() {
 export async function explainMissingCache(error, { configured = cacheConfigured } = {}) {
   if (await configured().catch(() => true)) return error;
   const lines = [error?.stderr, error?.message].flatMap((text) => String(text ?? "").split("\n"));
-  const reason = lines.find((line) => /Reason:/.test(line))?.trim() ?? lines.find((line) => line.trim())?.trim() ?? "unknown";
+  const reason =
+    lines.find((line) => /Reason:/.test(line))?.trim() ?? lines.find((line) => line.trim())?.trim() ?? "unknown";
   return new Error(`Armory cache not configured; configure Nix and the Armory cache first. ${reason}`);
 }
 
@@ -66,16 +67,24 @@ export async function fetchPublishedClosure({ artifact, cache, gcRoot, execute =
 }
 
 function catalogEntry(catalog, suite) {
-  if (catalog?.format !== "hall.armory/v1" || !Array.isArray(catalog.lockers)) throw new Error("Unsupported Armory catalog format");
+  if (catalog?.format !== "hall.armory/v1" || !Array.isArray(catalog.lockers))
+    throw new Error("Unsupported Armory catalog format");
   const [locker, extension] = String(suite).split("/");
-  const entry = catalog.lockers.find((item) => item.name === locker)?.suites?.find((item) => item.extension === extension);
+  const entry = catalog.lockers
+    .find((item) => item.name === locker)
+    ?.suites?.find((item) => item.extension === extension);
   if (!entry?.manifest) throw new Error(`Armory suite is not cataloged: ${suite}`);
   return entry;
 }
 
 // Fetches one suite's published closure for this guest system. A suite the release does not
 // carry for this system is an error the caller degrades from.
-export async function acquireNixGuestSuite({ catalog, request, readSuite = readCatalogSuite, fetchPublished = fetchPublishedClosure }) {
+export async function acquireNixGuestSuite({
+  catalog,
+  request,
+  readSuite = readCatalogSuite,
+  fetchPublished = fetchPublishedClosure,
+}) {
   if (!request?.suite) throw new Error("Nix guest suite request requires a suite");
   const entry = catalogEntry(catalog.catalog, request.suite);
   const suite = validateArmorySuite(await readSuite(catalog, entry.manifest), request.tools);
@@ -83,20 +92,32 @@ export async function acquireNixGuestSuite({ catalog, request, readSuite = readC
   const published = catalog.artifacts?.[request.suite]?.[system];
   if (!published) throw new Error(`The Armory release has no ${system} artifact for ${request.suite}`);
   const artifact = await fetchPublished({ artifact: published, cache: armoryCache, gcRoot: armoryRoot(request.suite) });
-  return { suite: request.suite, tools: suite.tools, network: suite.network, rootPath: artifact.rootPath, paths: artifact.paths };
+  return {
+    suite: request.suite,
+    tools: suite.tools,
+    network: suite.network,
+    rootPath: artifact.rootPath,
+    paths: artifact.paths,
+  };
 }
 
 export async function resolveNixGuestSuiteRequests({ catalog, requests, readSuite = readCatalogSuite }) {
   if (!Array.isArray(requests)) throw new Error("Nix guest suite requests must be an array");
   const grouped = new Map();
   for (const request of requests) {
-    if (!request?.suite || !Array.isArray(request.tools) || request.tools.some((tool) => typeof tool !== "string" || !tool))
+    if (
+      !request?.suite ||
+      !Array.isArray(request.tools) ||
+      request.tools.some((tool) => typeof tool !== "string" || !tool)
+    )
       throw new Error("Nix guest suite requests require a suite and operations");
     grouped.set(request.suite, new Set([...(grouped.get(request.suite) ?? []), ...request.tools]));
   }
   return Promise.all(
     [...grouped].map(async ([suite, tools]) => {
-      const manifest = validateArmorySuite(await readSuite(catalog, catalogEntry(catalog.catalog, suite).manifest), [...tools]);
+      const manifest = validateArmorySuite(await readSuite(catalog, catalogEntry(catalog.catalog, suite).manifest), [
+        ...tools,
+      ]);
       return { suite, tools: manifest.tools };
     }),
   );

@@ -1,7 +1,13 @@
 import { createDependentRelease } from "./dependent-release.mjs";
 import { isLead, leadBriefing } from "./lead-briefing.mjs";
 
-const rootTask = (runId, member, extra = {}) => ({ kind: "task", phase: "assignment", runId, task: member.task, ...extra });
+const rootTask = (runId, member, extra = {}) => ({
+  kind: "task",
+  phase: "assignment",
+  runId,
+  task: member.task,
+  ...extra,
+});
 
 // A Lead receives the briefing and hands out the rest; without one, the Crew's roots start and
 // the Runtime releases each dependent when its prerequisites complete. `releaseDependents`
@@ -15,7 +21,13 @@ export async function dispatchRoots({ runId, members, send, releaseDependents })
       ...(await send(member.handle, lead ? leadBriefing(runId, lead, members) : rootTask(runId, member))),
     })),
   );
-  if (lead) return { dispatched: true, recipients, held: members.filter((m) => m !== lead).map((m) => m.handle), leadLed: true };
+  if (lead)
+    return {
+      dispatched: true,
+      recipients,
+      held: members.filter((m) => m !== lead).map((m) => m.handle),
+      leadLed: true,
+    };
   const release = createDependentRelease({
     members,
     released: initial.map((member) => member.handle),

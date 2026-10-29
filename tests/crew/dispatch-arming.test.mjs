@@ -1,6 +1,9 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { installCrewDispatchArming, isCrewDispatchRequest } from "../../.pi/extensions/hall-crew/crew/lib/dispatch-arming.mjs";
+import {
+  installCrewDispatchArming,
+  isCrewDispatchRequest,
+} from "../../.pi/extensions/hall-crew/crew/lib/dispatch-arming.mjs";
 
 test("dispatch detection is bounded to an explicit dispatch token", () => {
   assert.equal(isCrewDispatchRequest("dispatch"), true);

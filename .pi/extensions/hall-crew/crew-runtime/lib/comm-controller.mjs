@@ -195,6 +195,7 @@ export class CommController {
     this.#record("message_delivered", deliveryMetrics(message));
     this.#deliver(socket, message);
   }
-  #deliver = (socket, message) => socket.send(JSON.stringify({ jsonrpc: "2.0", method: "comm.deliver", params: message }));
+  #deliver = (socket, message) =>
+    socket.send(JSON.stringify({ jsonrpc: "2.0", method: "comm.deliver", params: message }));
   #record = (type, details) => this.#observation.record(type, details);
 }

@@ -22,16 +22,16 @@ tokens (+1.7%), $0.0160 versus $0.0164, identical turns and tool calls. **Not a 
 
 ## Where a worker's memory goes (footprint)
 
-| Part | Size |
-| --- | --- |
-| Shared per Crew: comm + lifecycle servers | 41-67 MB |
-| `worker.mjs` | 17 MB |
-| Pi, host worker | 117 MB |
-| Pi, sandboxed worker, VM up (libkrun run) | 167 MB |
-| Pi, sandboxed worker, VM released | about 113 MB, the same as a host Pi |
-| VM, libkrun: idle / after a real workload | 55 / 100 MB |
-| VM, QEMU: idle / after a real workload | 151 / 212 MB |
-| Guest RAM allotment (1 GiB, 512 MiB, 256 MiB) | no difference (212-216 MB) |
+| Part                                          | Size                                |
+| --------------------------------------------- | ----------------------------------- |
+| Shared per Crew: comm + lifecycle servers     | 41-67 MB                            |
+| `worker.mjs`                                  | 17 MB                               |
+| Pi, host worker                               | 117 MB                              |
+| Pi, sandboxed worker, VM up (libkrun run)     | 167 MB                              |
+| Pi, sandboxed worker, VM released             | about 113 MB, the same as a host Pi |
+| VM, libkrun: idle / after a real workload     | 55 / 100 MB                         |
+| VM, QEMU: idle / after a real workload        | 151 / 212 MB                        |
+| Guest RAM allotment (1 GiB, 512 MiB, 256 MiB) | no difference (212-216 MB)          |
 
 So an active sandboxed worker (Pi, `worker.mjs` and VM) is about 295 MB with libkrun (about 400
 MB with QEMU), plus its share of the servers (64 MB per Crew); a host worker is about 134 MB;
@@ -46,18 +46,18 @@ virtio devices only. The difference between VMMs is the hypervisor, not the imag
 
 ## What was done
 
-| Finding | Action | Result |
-| --- | --- | --- |
-| Pi auto-discovered the worktree's `.pi` and loaded the whole Crew extension | `--no-approve` (user-level provider auth and explicit `--extension` still load) | Pi 251 to 160 MB RSS, ready 0.95 to 0.61 s |
-| `--no-extensions` looked lighter still | **Rejected**: it drops the user's provider-auth extension, every model call failed | kept `--no-approve` |
-| **QEMU's footprint is twice libkrun's** | `chooseVmm()`: libkrun where Gondolin's prebuilt runner exists (macOS arm64, Linux x64), QEMU fallback, `HALL_VMM` override; QEMU no longer required on libkrun hosts | VM 212 to 100 MB; 4 concurrent boots 3.5 to 2.45 s; real GitHub call 1.28 to 1.0 s |
-| `gh` ran from the mounted closure: 736 ms per call | Suite wrapper copies it to guest tmpfs (hall-armory PR #6) | 93 ms; a GitHub call matches the host's own `gh` |
-| A VM lived as long as its worker | Release after 20 s idle, warm at run start | 3 held Armory workers: 1,874 to 716 MB RSS total |
-| Proxy imported the Gondolin extension through a native `import()` | Merged into the extension | `pi-coding-agent` is dev-only; two failure classes gone |
-| A swallowed `session_start` error left a worker ready but without its tools | Extension ends the worker; a launch fails once any worker exits before ready | under 1 s instead of a 30 s timeout |
-| Preflight re-ran per worker | Reuse a success for 30 s | 110 ms saved per extra worker |
-| Dead code and scattered tiny modules | Removed a second `main`-branch Armory entrypoint and unused modules; merged the Nix helpers (6 files into `armory-nix.mjs`), credentials (3 into `credentials.mjs`), guest runner and proxies (2 into `guest-suite.mjs`) | isolation layer 22 files to 14 while gaining VMM selection, idle release and warm-up |
-| Five core files over the 200-line ceiling | Split along real seams (see the code-compaction pass in the plan) | none over 200 lines |
+| Finding                                                                     | Action                                                                                                                                                                                                                   | Result                                                                               |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Pi auto-discovered the worktree's `.pi` and loaded the whole Crew extension | `--no-approve` (user-level provider auth and explicit `--extension` still load)                                                                                                                                          | Pi 251 to 160 MB RSS, ready 0.95 to 0.61 s                                           |
+| `--no-extensions` looked lighter still                                      | **Rejected**: it drops the user's provider-auth extension, every model call failed                                                                                                                                       | kept `--no-approve`                                                                  |
+| **QEMU's footprint is twice libkrun's**                                     | `chooseVmm()`: libkrun where Gondolin's prebuilt runner exists (macOS arm64, Linux x64), QEMU fallback, `HALL_VMM` override; QEMU no longer required on libkrun hosts                                                    | VM 212 to 100 MB; 4 concurrent boots 3.5 to 2.45 s; real GitHub call 1.28 to 1.0 s   |
+| `gh` ran from the mounted closure: 736 ms per call                          | Suite wrapper copies it to guest tmpfs (hall-armory PR #6)                                                                                                                                                               | 93 ms; a GitHub call matches the host's own `gh`                                     |
+| A VM lived as long as its worker                                            | Release after 20 s idle, warm at run start                                                                                                                                                                               | 3 held Armory workers: 1,874 to 716 MB RSS total                                     |
+| Proxy imported the Gondolin extension through a native `import()`           | Merged into the extension                                                                                                                                                                                                | `pi-coding-agent` is dev-only; two failure classes gone                              |
+| A swallowed `session_start` error left a worker ready but without its tools | Extension ends the worker; a launch fails once any worker exits before ready                                                                                                                                             | under 1 s instead of a 30 s timeout                                                  |
+| Preflight re-ran per worker                                                 | Reuse a success for 30 s                                                                                                                                                                                                 | 110 ms saved per extra worker                                                        |
+| Dead code and scattered tiny modules                                        | Removed a second `main`-branch Armory entrypoint and unused modules; merged the Nix helpers (6 files into `armory-nix.mjs`), credentials (3 into `credentials.mjs`), guest runner and proxies (2 into `guest-suite.mjs`) | isolation layer 22 files to 14 while gaining VMM selection, idle release and warm-up |
+| Five core files over the 200-line ceiling                                   | Split along real seams (see the code-compaction pass in the plan)                                                                                                                                                        | none over 200 lines                                                                  |
 
 Also fixed on the way: a worker built its credential lease as a plain object and then called
 `Map.clear()` on it in its exit handler, which would have thrown.

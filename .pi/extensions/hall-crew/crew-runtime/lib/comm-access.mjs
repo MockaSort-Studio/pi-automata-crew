@@ -15,7 +15,8 @@ export class CommAccess {
     if (from === "main" || to === "main" || from === "human:github-discussion") return;
     const fromNamespace = this.#namespaces.get(from);
     const toNamespace = this.#namespaces.get(to);
-    if (fromNamespace && toNamespace && fromNamespace !== toNamespace) throw new Error("Cross-Crew routing is forbidden");
+    if (fromNamespace && toNamespace && fromNamespace !== toNamespace)
+      throw new Error("Cross-Crew routing is forbidden");
   }
 
   canObserve(actorId, envelope) {

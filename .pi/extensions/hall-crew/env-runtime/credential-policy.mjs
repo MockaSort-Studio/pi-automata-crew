@@ -15,7 +15,8 @@ const policies = new Map([
         source: "environment:HALL_GITHUB_TOKEN",
         mint: {
           url: "https://github.com/settings/personal-access-tokens/new",
-          advice: "a fine-grained token limited to the repositories a Crew needs (read access to Issues, Pull requests, Contents and Metadata unless it must write)",
+          advice:
+            "a fine-grained token limited to the repositories a Crew needs (read access to Issues, Pull requests, Contents and Metadata unless it must write)",
         },
       },
     ],
@@ -27,7 +28,8 @@ export function credentialPolicyForSuites(suites) {
   for (const suite of suites) bindings.push(...(policies.get(suite) ?? []));
   const names = new Set();
   for (const binding of bindings) {
-    if (names.has(binding.guestEnvironment)) throw new Error(`Conflicting credential binding: ${binding.guestEnvironment}`);
+    if (names.has(binding.guestEnvironment))
+      throw new Error(`Conflicting credential binding: ${binding.guestEnvironment}`);
     names.add(binding.guestEnvironment);
   }
   return bindings;

@@ -95,7 +95,14 @@ export class Runtime extends MainComm {
     try {
       for (const agent of agents) launched.push(await this.spawn(agent));
       if (plan?.namespace && agents.every((agent) => agent.resident))
-        await waitReadyOrExit({ comm: this.comm, lifecycle: this.#lifecycle, namespace: plan.namespace, launched, actorIds, timeoutMs: readyTimeoutMs });
+        await waitReadyOrExit({
+          comm: this.comm,
+          lifecycle: this.#lifecycle,
+          namespace: plan.namespace,
+          launched,
+          actorIds,
+          timeoutMs: readyTimeoutMs,
+        });
       return { comm, agents: launched };
     } catch (error) {
       await preserveEvidence(this.cwd, launched);
@@ -106,7 +113,17 @@ export class Runtime extends MainComm {
     }
   }
 
-  async spawn({ actorId, tools = defaultTools, extensionPaths = [], bundles = [], comm, thinking = "off", resident = false, initialTurn = "startup", ...agent }) {
+  async spawn({
+    actorId,
+    tools = defaultTools,
+    extensionPaths = [],
+    bundles = [],
+    comm,
+    thinking = "off",
+    resident = false,
+    initialTurn = "startup",
+    ...agent
+  }) {
     await this.#ensureLifecycle();
     const bundle = resolveBundles(this.cwd, bundles);
     const id = actorId ?? randomUUID();
@@ -121,7 +138,11 @@ export class Runtime extends MainComm {
       initialTurn,
       tools: [...new Set([...tools, ...bundle.tools])],
       extensionPaths: [...new Set([...extensionPaths, ...bundle.extensionPaths])],
-      comm: comm ?? (this.commUrl ? { url: this.commUrl, actorId: id, namespace: agent.namespace, authToken: this.commAuthToken } : undefined),
+      comm:
+        comm ??
+        (this.commUrl
+          ? { url: this.commUrl, actorId: id, namespace: agent.namespace, authToken: this.commAuthToken }
+          : undefined),
     });
   }
 

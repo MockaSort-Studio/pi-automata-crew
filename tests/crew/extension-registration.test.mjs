@@ -26,7 +26,10 @@ test("crew extension calls all tool registration functions", () => {
 });
 
 test("roster tools module exports registration function", () => {
-  const rosterTools = readFileSync(new URL("../../.pi/extensions/hall-crew/crew/lib/roster-tools.ts", import.meta.url), "utf8");
+  const rosterTools = readFileSync(
+    new URL("../../.pi/extensions/hall-crew/crew/lib/roster-tools.ts", import.meta.url),
+    "utf8",
+  );
   assert.match(rosterTools, /export function registerRosterTools/);
   assert.match(rosterTools, /name: "crew_register"/);
   assert.match(rosterTools, /name: "crew_finish_close"/);

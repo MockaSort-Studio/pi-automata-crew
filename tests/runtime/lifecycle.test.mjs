@@ -9,7 +9,8 @@ import WebSocket from "ws";
 import { LifecycleController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-controller.mjs";
 import { connectLifecycle } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-client.mjs";
 
-const serverPath = new URL("../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-server.mjs", import.meta.url).pathname;
+const serverPath = new URL("../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-server.mjs", import.meta.url)
+  .pathname;
 const waitForPort = async (child) => {
   const [data] = await once(child.stdout, "data");
   return JSON.parse(String(data)).port;

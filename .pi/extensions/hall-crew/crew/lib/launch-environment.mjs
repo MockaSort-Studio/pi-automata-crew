@@ -1,6 +1,10 @@
 import { resolveCrewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
 import { resolveArmoryCatalog } from "../../env-runtime/lib/armory-artifacts.mjs";
-import { acquireNixGuestSuites, explainMissingCache, resolveNixGuestSuiteRequests } from "../../env-runtime/lib/armory-nix.mjs";
+import {
+  acquireNixGuestSuites,
+  explainMissingCache,
+  resolveNixGuestSuiteRequests,
+} from "../../env-runtime/lib/armory-nix.mjs";
 import { checkLaunchCredentials } from "../../env-runtime/lib/credentials.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
 import { realizeOrFallback } from "./armory-fallback.mjs";
@@ -35,7 +39,12 @@ export async function resolveLaunchEnvironment(config, dependencies = {}) {
       tools,
       environmentProfile,
       ...(resolution.sandbox && environmentProfile.suites.length
-        ? { armory: { catalog: { release: catalog.release }, requests: environmentProfile.suites.map(({ suite, tools }) => ({ suite, tools })) } }
+        ? {
+            armory: {
+              catalog: { release: catalog.release },
+              requests: environmentProfile.suites.map(({ suite, tools }) => ({ suite, tools })),
+            },
+          }
         : {}),
       ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),
     };

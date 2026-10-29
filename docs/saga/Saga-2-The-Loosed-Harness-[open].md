@@ -76,26 +76,26 @@ is default-deny egress and no `bash` unless a role has an explicit exception.
 
 ### Verification criteria
 
-| # | Criterion | How to prove |
-| --- | --- | --- |
-| 1 | Repository is independently maintainable | README, corrected scripts, CI runs `npm ci` and the deterministic Node suite. |
-| 2 | Guest egress is least privilege | Unlisted hosts are denied with and without credentials; denied host is observable. |
-| 3 | Runtime failure paths are safe | Launch failure retires roster/TUI; real owner-death run leaves no workers, VMs, worktrees, or servers. |
-| 4 | GitHub tooling is bounded | Typed workflow inspection returns structured summaries and bounded failure logs. |
-| 5 | Lifecycle evolution is implementable | State/audit/retry contract defines ownership, transitions, recovery, and evidence retention. |
+| #   | Criterion                                | How to prove                                                                                           |
+| --- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 1   | Repository is independently maintainable | README, corrected scripts, CI runs `npm ci` and the deterministic Node suite.                          |
+| 2   | Guest egress is least privilege          | Unlisted hosts are denied with and without credentials; denied host is observable.                     |
+| 3   | Runtime failure paths are safe           | Launch failure retires roster/TUI; real owner-death run leaves no workers, VMs, worktrees, or servers. |
+| 4   | GitHub tooling is bounded                | Typed workflow inspection returns structured summaries and bounded failure logs.                       |
+| 5   | Lifecycle evolution is implementable     | State/audit/retry contract defines ownership, transitions, recovery, and evidence retention.           |
 
 ---
 
 ## Plan
 
-| Issue | Deliverable | Status |
-| --- | --- | --- |
-| #1 | Functional Pi Crew runtime and tooling alpha | open |
-| #26 | Repository bootstrap, docs, CI, format policy | open |
-| #27 | Default-deny Gondolin egress | open |
-| #28 | Failure-path runtime evidence | open |
-| #14 | Armory GitHub suite audit and workflow inspection | open |
-| #29 | Lifecycle state, audit, and retry specification | open |
+| Issue | Deliverable                                       | Status |
+| ----- | ------------------------------------------------- | ------ |
+| #1    | Functional Pi Crew runtime and tooling alpha      | open   |
+| #26   | Repository bootstrap, docs, CI, format policy     | open   |
+| #27   | Default-deny Gondolin egress                      | open   |
+| #28   | Failure-path runtime evidence                     | open   |
+| #14   | Armory GitHub suite audit and workflow inspection | open   |
+| #29   | Lifecycle state, audit, and retry specification   | open   |
 
 ---
 

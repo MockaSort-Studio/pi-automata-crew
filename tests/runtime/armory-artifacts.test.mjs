@@ -1,6 +1,14 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { armoryCache, fetchArtifactCatalog, pinnedReleaseUrl, readCatalogSuite, referenceFromArtifacts, resolveArmoryCatalog, validateArtifactCatalog } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-artifacts.mjs";
+import {
+  armoryCache,
+  fetchArtifactCatalog,
+  pinnedReleaseUrl,
+  readCatalogSuite,
+  referenceFromArtifacts,
+  resolveArmoryCatalog,
+  validateArtifactCatalog,
+} from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-artifacts.mjs";
 
 const revision = "0123456789abcdef0123456789abcdef01234567";
 const path = (seed) => `/nix/store/${seed.repeat(32).slice(0, 32)}-x`;
@@ -14,16 +22,23 @@ const document = () => ({
     "collaboration/pi-github-tools": {
       manifestPath: "collaboration/github/manifest.json",
       manifest: { format: "hall.armory-suite/v1", tools: ["t"] },
-      systems: { "aarch64-linux": { storePath: path("a"), narHash, closure: [{ path: path("a"), narHash, narSize: 1 }] } },
+      systems: {
+        "aarch64-linux": { storePath: path("a"), narHash, closure: [{ path: path("a"), narHash, narSize: 1 }] },
+      },
     },
   },
 });
-const respond = (body, ok = true, status = 200) => async () => ({ ok, status, json: async () => body });
+const respond =
+  (body, ok = true, status = 200) =>
+  async () => ({ ok, status, json: async () => body });
 
 test("a valid catalog resolves without Nix and exposes embedded manifests and artifacts", async () => {
   const reference = referenceFromArtifacts(validateArtifactCatalog(document()));
   assert.equal(reference.release, pinnedReleaseUrl(revision));
-  assert.deepEqual(await readCatalogSuite(reference, "collaboration/github/manifest.json"), { format: "hall.armory-suite/v1", tools: ["t"] });
+  assert.deepEqual(await readCatalogSuite(reference, "collaboration/github/manifest.json"), {
+    format: "hall.armory-suite/v1",
+    tools: ["t"],
+  });
   assert.ok(reference.artifacts["collaboration/pi-github-tools"]["aarch64-linux"].storePath);
 });
 
@@ -42,11 +57,26 @@ test("malformed catalogs are refused", () => {
     change(doc);
     return () => validateArtifactCatalog(doc);
   };
-  assert.throws(bad((d) => (d.format = "x")), /unsupported format/);
-  assert.throws(bad((d) => (d.revision = "main")), /full git commit/);
-  assert.throws(bad((d) => (d.suites["collaboration/pi-github-tools"].systems["aarch64-linux"].storePath = "/tmp/x")), /bad store path/);
-  assert.throws(bad((d) => (d.suites["collaboration/pi-github-tools"].systems["aarch64-linux"].closure = [])), /omits its root/);
-  assert.throws(bad((d) => (d.suites["collaboration/pi-github-tools"].systems.riscv = {})), /unknown system/);
+  assert.throws(
+    bad((d) => (d.format = "x")),
+    /unsupported format/,
+  );
+  assert.throws(
+    bad((d) => (d.revision = "main")),
+    /full git commit/,
+  );
+  assert.throws(
+    bad((d) => (d.suites["collaboration/pi-github-tools"].systems["aarch64-linux"].storePath = "/tmp/x")),
+    /bad store path/,
+  );
+  assert.throws(
+    bad((d) => (d.suites["collaboration/pi-github-tools"].systems["aarch64-linux"].closure = [])),
+    /omits its root/,
+  );
+  assert.throws(
+    bad((d) => (d.suites["collaboration/pi-github-tools"].systems.riscv = {})),
+    /unknown system/,
+  );
 });
 
 test("an unavailable release is an error the resolver can fall back from", async () => {
@@ -55,7 +85,10 @@ test("an unavailable release is an error the resolver can fall back from", async
 
 test("the release is the only entrypoint: an unreachable one is an error, never a second source", async () => {
   await assert.rejects(resolveArmoryCatalog({ fetchImpl: respond({}, false, 503) }), /HTTP 503/);
-  await assert.rejects(resolveArmoryCatalog({ fetchImpl: async () => Promise.reject(new Error("offline")) }), /offline/);
+  await assert.rejects(
+    resolveArmoryCatalog({ fetchImpl: async () => Promise.reject(new Error("offline")) }),
+    /offline/,
+  );
 });
 
 test("manifests are read only from the release and cannot escape it", () => {

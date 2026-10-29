@@ -18,26 +18,34 @@ const bindings = credentialPolicyForSuites(github);
 
 test("consumes and revokes a credential lease from a private descriptor", () => {
   const path = join(tmpdir(), `credential-lease-${process.pid}`);
-  writeFileSync(path, JSON.stringify({ id: "lease", credentials: { GITHUB_TOKEN: { value: "secret", hosts: ["api.github.com"] } } }));
+  writeFileSync(
+    path,
+    JSON.stringify({ id: "lease", credentials: { GITHUB_TOKEN: { value: "secret", hosts: ["api.github.com"] } } }),
+  );
   const fd = openSync(path, "r");
   try {
     const lease = consumeCredentialLease(fd);
     assert.equal(lease.credentials.get("GITHUB_TOKEN").value, "secret");
     revokeCredentialLease(lease);
     assert.equal(lease.credentials.size, 0);
-  } finally { rmSync(path, { force: true }); }
+  } finally {
+    rmSync(path, { force: true });
+  }
 });
 
 test("standalone use, with no descriptor 3, is tolerated on every platform (ENXIO on macOS)", () => {
   const module = new URL("../../.pi/extensions/hall-crew/env-runtime/lib/credentials.mjs", import.meta.url).href;
   const output = execFileSync(
     process.execPath,
-    ["--input-type=module", "-e", `import { consumeCredentialLease } from "${module}"; const l = consumeCredentialLease(); console.log(JSON.stringify({ id: l.id ?? null, size: l.credentials.size }));`],
+    [
+      "--input-type=module",
+      "-e",
+      `import { consumeCredentialLease } from "${module}"; const l = consumeCredentialLease(); console.log(JSON.stringify({ id: l.id ?? null, size: l.credentials.size }));`,
+    ],
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
   );
   assert.deepEqual(JSON.parse(output), { id: null, size: 0 });
 });
-
 
 test("the dedicated Hall variable satisfies the binding", () => {
   assert.deepEqual(checkLaunchCredentials({ suiteIds: github, environment: { HALL_GITHUB_TOKEN: "x" } }), {
@@ -47,7 +55,10 @@ test("the dedicated Hall variable satisfies the binding", () => {
 });
 
 test("an unrelated GITHUB_TOKEN is never taken, so it cannot leak to workers by accident", () => {
-  const result = checkLaunchCredentials({ suiteIds: github, environment: { GITHUB_TOKEN: "broad-token-for-other-tools" } });
+  const result = checkLaunchCredentials({
+    suiteIds: github,
+    environment: { GITHUB_TOKEN: "broad-token-for-other-tools" },
+  });
   assert.equal(result.status.HALL_GITHUB_TOKEN, "missing");
 });
 
@@ -83,7 +94,10 @@ test("the worker parent leases the credential from the environment and removes t
 
 test("a missing variable leases nothing, and an unknown source is refused", () => {
   assert.equal(leaseFromEnvironment(bindings, {}).credentials.size, 0);
-  assert.throws(() => leaseFromEnvironment([{ source: "keychain:x", guestEnvironment: "T", hosts: [] }], {}), /Unknown credential source/);
+  assert.throws(
+    () => leaseFromEnvironment([{ source: "keychain:x", guestEnvironment: "T", hosts: [] }], {}),
+    /Unknown credential source/,
+  );
 });
 
 test("a lease survives the descriptor channel and can be revoked afterwards (the worker's exit path)", () => {

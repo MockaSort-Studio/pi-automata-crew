@@ -37,7 +37,11 @@ const deliveryPrompt = (message) => {
   const delivery = `Communication delivery: ${JSON.stringify({ from: message.from, payload: message.payload, replyRequired: Boolean(message.replyRequired) })}`;
   return firstDelivery && config.initialTurn === "first-delivery" ? `${config.task}\n\n${delivery}` : delivery;
 };
-const requireComm = () => comm ?? (() => { throw new Error("Crew communication is not ready"); })();
+const requireComm = () =>
+  comm ??
+  (() => {
+    throw new Error("Crew communication is not ready");
+  })();
 const granted = new Set(config.commTools ?? ["comm_notify", "comm_request", "comm_reply"]);
 export default function workerCommExtension(pi) {
   activePi = pi;
@@ -160,9 +164,7 @@ export default function workerCommExtension(pi) {
       description: "Notify every other Crew member (never Main). Lead-only coordination broadcast.",
       parameters: Type.Object({ payload: Type.Unknown() }),
       execute: (_id, input) =>
-        result(
-          requireComm().broadcast({ namespace: config.comm.namespace, payload: input.payload }),
-        ),
+        result(requireComm().broadcast({ namespace: config.comm.namespace, payload: input.payload })),
     });
   if (granted.has("crew_assign"))
     pi.registerTool({
@@ -172,7 +174,13 @@ export default function workerCommExtension(pi) {
         "Lead-only. Send a Crew member its planned task (from the plan Main briefed you with), optionally with a short note. The broker refuses a member whose prerequisites are not complete, one already assigned, or anyone not in the plan.",
       parameters: Type.Object({ to: Type.String(), note: Type.Optional(Type.String()) }),
       execute: (_id, input) =>
-        result(requireComm().assign({ namespace: config.comm.namespace, to: String(input.to).replace(`${config.comm.namespace}-`, ""), note: input.note })),
+        result(
+          requireComm().assign({
+            namespace: config.comm.namespace,
+            to: String(input.to).replace(`${config.comm.namespace}-`, ""),
+            note: input.note,
+          }),
+        ),
     });
   pi.on("agent_settled", () => settledWaiters.splice(0).forEach((resolve) => resolve()));
   pi.on("session_start", () => ensureCommConnected());

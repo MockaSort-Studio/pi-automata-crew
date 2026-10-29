@@ -21,13 +21,13 @@ sized by what the guest lacks, nothing more.
 
 ## Options considered
 
-| Option | Verdict |
-| --- | --- |
-| **A. Nix on the client, CI-built Linux closures in a Cachix binary cache** | **Chosen** |
-| B. CI-built closure tarballs (sha256 in the catalog), no Nix on the client | Deferred; clean second step |
-| C. FlakeHub Cache | Rejected: paid plans only; pulling needs `determinate-nixd login` |
-| D. Local Linux builder on every Mac | Rejected: sudo setup, GBs of disk, slow first build |
-| E. Host-only Crews | Kept as the automatic fallback, not the product |
+| Option                                                                     | Verdict                                                           |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **A. Nix on the client, CI-built Linux closures in a Cachix binary cache** | **Chosen**                                                        |
+| B. CI-built closure tarballs (sha256 in the catalog), no Nix on the client | Deferred; clean second step                                       |
+| C. FlakeHub Cache                                                          | Rejected: paid plans only; pulling needs `determinate-nixd login` |
+| D. Local Linux builder on every Mac                                        | Rejected: sudo setup, GBs of disk, slow first build               |
+| E. Host-only Crews                                                         | Kept as the automatic fallback, not the product                   |
 
 ## Why Nix won (A)
 
@@ -57,14 +57,14 @@ sized by what the guest lacks, nothing more.
 
 ## Bootstrap options researched
 
-| Option | Result |
-| --- | --- |
-| Determinate installer | One command, needs root (creates the `/nix` volume on macOS). Chosen. |
-| `nix-portable` | Rootless and zero-config, but Linux only; explicitly no macOS support. Possible rootless fallback on Linux; not validated with this repo. |
-| FlakeHub Cache | Already trusted by Determinate installs, but paid and needs login. Rejected. |
-| Per-call `--option extra-substituters` | Ignored for untrusted users. Making the user trusted is effectively root equivalence; rejected. |
-| Run Nix inside a Gondolin guest | Would remove host Nix, but is unvalidated (guest Nix availability, network policy, persisting the store to the host). A spike, not a plan. |
-| Tarball artifacts (B) | Removes Nix from the client entirely; see revisit triggers. |
+| Option                                 | Result                                                                                                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Determinate installer                  | One command, needs root (creates the `/nix` volume on macOS). Chosen.                                                                      |
+| `nix-portable`                         | Rootless and zero-config, but Linux only; explicitly no macOS support. Possible rootless fallback on Linux; not validated with this repo.  |
+| FlakeHub Cache                         | Already trusted by Determinate installs, but paid and needs login. Rejected.                                                               |
+| Per-call `--option extra-substituters` | Ignored for untrusted users. Making the user trusted is effectively root equivalence; rejected.                                            |
+| Run Nix inside a Gondolin guest        | Would remove host Nix, but is unvalidated (guest Nix availability, network policy, persisting the store to the host). A spike, not a plan. |
+| Tarball artifacts (B)                  | Removes Nix from the client entirely; see revisit triggers.                                                                                |
 
 macOS cannot avoid one elevated step: the `/nix` volume requires root. The
 practical minimum is therefore one command and one password prompt, which

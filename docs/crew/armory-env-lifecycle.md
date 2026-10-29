@@ -5,14 +5,14 @@
 Crew selects policy. Env builds and runs guest suites. Pi remains the host
 subagent runtime. Armory suite code never runs in host Pi.
 
-| Component | Owns |
-| --- | --- |
-| Crew | `actor.tools`, role/roster policy, dispatch narrowing |
-| Armory | suite catalog, co-located locked Nix flake, operation policy |
-| Nix | suite source/dependency resolution, immutable outputs, artifact cache |
-| Env | guest build/mount, VM lifecycle, guest runner invocation, workspace/network/secrets |
-| Host Pi worker | model session and generic per-session operation proxies |
-| Guest suite | operation implementation, dependencies, native tools, typed runner |
+| Component      | Owns                                                                                |
+| -------------- | ----------------------------------------------------------------------------------- |
+| Crew           | `actor.tools`, role/roster policy, dispatch narrowing                               |
+| Armory         | suite catalog, co-located locked Nix flake, operation policy                        |
+| Nix            | suite source/dependency resolution, immutable outputs, artifact cache               |
+| Env            | guest build/mount, VM lifecycle, guest runner invocation, workspace/network/secrets |
+| Host Pi worker | model session and generic per-session operation proxies                             |
+| Guest suite    | operation implementation, dependencies, native tools, typed runner                  |
 
 No Env npm install, package cache, archive fallback, or copied guest toolchain
 exists. Nix is the one materializer and cache for Armory guest artifacts.

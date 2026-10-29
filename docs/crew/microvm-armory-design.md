@@ -18,11 +18,11 @@ execution-plane code and are never imported as host Pi extensions.
 
 ## Three planes
 
-| Plane | Contains | Must not contain |
-| --- | --- | --- |
-| Crew policy | role/roster grants, task, dependency plan | binaries, suite implementation |
-| Host Pi control plane | Pi subagent, generic proxy, operation schemas | Armory module code, Nix paths, native tools, guest secrets |
-| Guest Env execution plane | suite runner, extension implementation, dependencies, native tools, workspace | Pi process/session/RPC, another worker's data |
+| Plane                     | Contains                                                                      | Must not contain                                           |
+| ------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Crew policy               | role/roster grants, task, dependency plan                                     | binaries, suite implementation                             |
+| Host Pi control plane     | Pi subagent, generic proxy, operation schemas                                 | Armory module code, Nix paths, native tools, guest secrets |
+| Guest Env execution plane | suite runner, extension implementation, dependencies, native tools, workspace | Pi process/session/RPC, another worker's data              |
 
 Pi must know a selected tool's name, description, and input schema so the model
 can call it. That metadata is the only suite information allowed in host Pi.
@@ -40,11 +40,11 @@ role baseline tools + automaton additions - dispatch narrowing
 
 The final set is fixed for that worker lifetime. Crew classifies it as:
 
-| Class | Example | Location |
-| --- | --- | --- |
-| Crew internal | `comm_notify` | host Crew/Comm |
-| Pi built-in | `read`, `bash`, `edit` | generic Env routing to guest |
-| Armory operation | `github_issue_view` | generic Pi proxy to guest suite runner |
+| Class            | Example                | Location                               |
+| ---------------- | ---------------------- | -------------------------------------- |
+| Crew internal    | `comm_notify`          | host Crew/Comm                         |
+| Pi built-in      | `read`, `bash`, `edit` | generic Env routing to guest           |
+| Armory operation | `github_issue_view`    | generic Pi proxy to guest suite runner |
 
 Env resolves approved Armory operations to suites before the worker Pi session
 starts. It builds the guest, asks the guest suite runner for operation

@@ -9,7 +9,9 @@ export function leadBriefing(runId, lead, members) {
     phase: "assignment",
     runId,
     task: lead.task,
-    members: members.filter((member) => member !== lead).map(({ handle, dependsOn, task }) => ({ handle, dependsOn, task })),
+    members: members
+      .filter((member) => member !== lead)
+      .map(({ handle, dependsOn, task }) => ({ handle, dependsOn, task })),
     instructions:
       "You are the Crew Lead. Hand out each member's planned task with crew_assign (one call per member; add a short note only when it helps). " +
       "The broker refuses a member whose prerequisites are not complete, one already assigned, and anyone not in this plan. " +

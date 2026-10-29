@@ -25,7 +25,11 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
         task: "Measure safely",
         members: [
           { name: "old-major", role: "lead" },
-          { name: "snowball", role: "developer", tools: [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }] },
+          {
+            name: "snowball",
+            role: "developer",
+            tools: [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }],
+          },
         ],
       },
       { cwd },
@@ -63,7 +67,9 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
     );
     assert.equal(selected.members[0].handle, "lead-old-major-00");
     assert.equal(config.agents[1].environmentProfile.format, "hall.crew-profile/v1");
-    assert.deepEqual(config.agents[1].suiteGrants, [{ suite: "collaboration/pi-github-tools", tools: ["github_issue_view"] }]);
+    assert.deepEqual(config.agents[1].suiteGrants, [
+      { suite: "collaboration/pi-github-tools", tools: ["github_issue_view"] },
+    ]);
     assert.doesNotMatch(config.agents[0].task, /## CREW INPUT/);
     assert.doesNotMatch(source, /assemble\("old-major"/);
     assert.ok(config.agents[0].commTools.includes("comm_notify_all"));
@@ -226,10 +232,13 @@ test("no role, including a Lead, starts a turn at launch; every task arrives thr
       ".pi",
     );
     const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
-    assert.deepEqual(config.agents.map((agent) => [agent.role, agent.initialTurn, agent.delivery]), [
-      ["lead", "first-delivery", undefined],
-      ["developer", "first-delivery", undefined],
-    ]);
+    assert.deepEqual(
+      config.agents.map((agent) => [agent.role, agent.initialTurn, agent.delivery]),
+      [
+        ["lead", "first-delivery", undefined],
+        ["developer", "first-delivery", undefined],
+      ],
+    );
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -241,7 +250,12 @@ test("a Lead cannot depend on other members: it assigns their work and integrate
     await assert.rejects(
       prepareCrew(
         { getAllTools: () => [] },
-        { members: [{ name: "old-major", role: "lead", dependsOn: ["developer-snowball-00"] }, { name: "snowball", role: "developer" }] },
+        {
+          members: [
+            { name: "old-major", role: "lead", dependsOn: ["developer-snowball-00"] },
+            { name: "snowball", role: "developer" },
+          ],
+        },
         { cwd },
         ".pi",
       ),

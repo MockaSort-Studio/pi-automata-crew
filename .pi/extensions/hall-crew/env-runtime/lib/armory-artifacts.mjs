@@ -64,7 +64,12 @@ export async function resolveArmoryCatalog({ release, fetchImpl, cache } = {}) {
 }
 
 export function readCatalogSuite(reference, manifestPath) {
-  if (typeof manifestPath !== "string" || !manifestPath || manifestPath.startsWith("/") || manifestPath.split("/").includes(".."))
+  if (
+    typeof manifestPath !== "string" ||
+    !manifestPath ||
+    manifestPath.startsWith("/") ||
+    manifestPath.split("/").includes("..")
+  )
     throw new Error("Armory suite manifest path must be a non-escaping relative path");
   const manifest = reference.manifests?.[manifestPath];
   if (!manifest) throw new Error(`Armory suite manifest is not in the release: ${manifestPath}`);

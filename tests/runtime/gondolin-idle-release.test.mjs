@@ -4,7 +4,10 @@ import test from "node:test";
 import { requiredQemuBinary } from "../../.pi/extensions/hall-crew/env-runtime/lib/sandbox-preflight.mjs";
 import { chooseVmm } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-vmm.mjs";
 
-const extension = new URL("../../.pi/extensions/hall-crew/env-runtime/lib/worker-gondolin-extension.mjs", import.meta.url).href;
+const extension = new URL(
+  "../../.pi/extensions/hall-crew/env-runtime/lib/worker-gondolin-extension.mjs",
+  import.meta.url,
+).href;
 const available = {
   qemu: () => spawnSync(requiredQemuBinary(), ["--version"], { stdio: "ignore" }).status === 0,
   krun: () => chooseVmm({ env: {} }) === "krun",
@@ -36,16 +39,27 @@ process.exit(0);
 `;
 
 for (const vmm of ["krun", "qemu"]) {
-  test(`${vmm}: an idle worker releases its VM and boots a fresh one on the next tool call`, { timeout: 120_000 }, (t) => {
-    if (!available[vmm]()) return t.skip(`${vmm} is unavailable here`);
-    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, HALL_VMM: vmm },
-      timeout: 100_000,
-    });
-    assert.equal(result.status, 0, result.stderr);
-    const out = JSON.parse(result.stdout.trim().split("\n").at(-1));
-    assert.deepEqual(out, { first: true, vmmsWhileActive: 1, vmmsAfterIdle: 0, again: true, vmmsAfterReboot: 1, vmmsAfterQuit: 0 });
-  });
+  test(
+    `${vmm}: an idle worker releases its VM and boots a fresh one on the next tool call`,
+    { timeout: 120_000 },
+    (t) => {
+      if (!available[vmm]()) return t.skip(`${vmm} is unavailable here`);
+      const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, HALL_VMM: vmm },
+        timeout: 100_000,
+      });
+      assert.equal(result.status, 0, result.stderr);
+      const out = JSON.parse(result.stdout.trim().split("\n").at(-1));
+      assert.deepEqual(out, {
+        first: true,
+        vmmsWhileActive: 1,
+        vmmsAfterIdle: 0,
+        again: true,
+        vmmsAfterReboot: 1,
+        vmmsAfterQuit: 0,
+      });
+    },
+  );
 }

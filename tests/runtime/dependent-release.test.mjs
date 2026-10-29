@@ -12,9 +12,16 @@ const members = [
 
 test("only ready dependents are sent, each exactly once, and roots are never re-sent", async () => {
   const sent = [];
-  const release = createDependentRelease({ members, released: ["developer-a-00"], send: async (m) => sent.push(m.handle) });
+  const release = createDependentRelease({
+    members,
+    released: ["developer-a-00"],
+    send: async (m) => sent.push(m.handle),
+  });
   assert.deepEqual(release.held(), ["developer-b-00", "developer-c-00"]);
-  await release.observe([{ handle: "developer-a-00", status: "ready" }, { handle: "developer-b-00", status: "waiting" }]);
+  await release.observe([
+    { handle: "developer-a-00", status: "ready" },
+    { handle: "developer-b-00", status: "waiting" },
+  ]);
   assert.deepEqual(sent, []);
   const nodes = [{ handle: "developer-b-00", status: "ready" }];
   await Promise.all([release.observe(nodes), release.observe(nodes)]);
@@ -46,7 +53,11 @@ const id = (handle) => `${namespace}-${handle}`;
 async function crew(t) {
   const runtime = new Runtime(process.cwd());
   const plan = { namespace, members };
-  const comm = await runtime.startComm(members.map((m) => id(m.handle)), [], plan);
+  const comm = await runtime.startComm(
+    members.map((m) => id(m.handle)),
+    [],
+    plan,
+  );
   const workers = {};
   const received = {};
   for (const { handle } of members) {
@@ -70,20 +81,29 @@ test("a dependent receives its task when its prerequisites complete, in order (l
   const result = await runtime.dispatchRoots(runId, "k1");
   assert.deepEqual(result.held, ["developer-b-00", "developer-c-00"]);
   await settle();
-  assert.deepEqual(received["developer-a-00"].map((m) => m.payload.task), ["A"]);
+  assert.deepEqual(
+    received["developer-a-00"].map((m) => m.payload.task),
+    ["A"],
+  );
   assert.deepEqual([received["developer-b-00"].length, received["developer-c-00"].length], [0, 0]);
 
   await workers["developer-a-00"].lifecycleUpdate(namespace, "running");
   await workers["developer-a-00"].lifecycleUpdate(namespace, "complete");
   await settle();
-  assert.deepEqual(received["developer-b-00"].map((m) => m.payload.task), ["B"]);
+  assert.deepEqual(
+    received["developer-b-00"].map((m) => m.payload.task),
+    ["B"],
+  );
   assert.deepEqual(received["developer-b-00"][0].payload.prerequisites, ["developer-a-00"]);
   assert.equal(received["developer-c-00"].length, 0, "the integrator waits for every prerequisite");
 
   await workers["developer-b-00"].lifecycleUpdate(namespace, "running");
   await workers["developer-b-00"].lifecycleUpdate(namespace, "complete");
   await settle();
-  assert.deepEqual(received["developer-c-00"].map((m) => m.payload.task), ["C"]);
+  assert.deepEqual(
+    received["developer-c-00"].map((m) => m.payload.task),
+    ["C"],
+  );
   assert.deepEqual(received["developer-b-00"].length, 1, "released exactly once");
 });
 
@@ -105,5 +125,8 @@ test("a prerequisite that finished before the subscription still releases its de
   await workers["developer-a-00"].lifecycleUpdate(namespace, "complete");
   await runtime.dispatchRoots(runId, "k3");
   await settle();
-  assert.deepEqual(received["developer-b-00"].map((m) => m.payload.task), ["B"]);
+  assert.deepEqual(
+    received["developer-b-00"].map((m) => m.payload.task),
+    ["B"],
+  );
 });

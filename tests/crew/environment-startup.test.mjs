@@ -91,7 +91,15 @@ test("resolved Gondolin groups Crew-granted GitHub operations before worker laun
   try {
     const prepared = await prepareCrew(
       { getAllTools: () => [] },
-      { members: [{ name: "snowball", role: "reviewer", tools: [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }] }] },
+      {
+        members: [
+          {
+            name: "snowball",
+            role: "reviewer",
+            tools: [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }],
+          },
+        ],
+      },
       { cwd },
       ".pi",
     );
@@ -148,7 +156,8 @@ test("auto falls back to the host with the missing-cache hint when suites cannot
       resolveEnvironment: async () => ({ microvm: "gondolin", sandbox: { kind: "gondolin" } }),
       resolveArmoryCatalog: async () => ({ release: "https://example.test/artifacts.json" }),
       realizeArmorySuites: async () => Promise.reject(new Error("Reason: platform mismatch")),
-      explainMissingCache: async (error) => new Error(`Armory cache not configured; configure Nix and the Armory cache first. ${error.message}`),
+      explainMissingCache: async (error) =>
+        new Error(`Armory cache not configured; configure Nix and the Armory cache first. ${error.message}`),
       runtimeFor: () => ({
         launchCrew: async (agents) => {
           launched = agents;
@@ -160,7 +169,10 @@ test("auto falls back to the host with the missing-cache hint when suites cannot
     assert.equal(launched[0].sandbox, undefined);
     const { environmentResolution } = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
     assert.equal(environmentResolution.microvm, "none");
-    assert.match(environmentResolution.fallbackReason, /Armory cache not configured; configure Nix and the Armory cache first\./);
+    assert.match(
+      environmentResolution.fallbackReason,
+      /Armory cache not configured; configure Nix and the Armory cache first\./,
+    );
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -169,7 +181,15 @@ test("auto falls back to the host with the missing-cache hint when suites cannot
 async function launchGithubCrew(cwd) {
   const prepared = await prepareCrew(
     { getAllTools: () => [] },
-    { members: [{ name: "snowball", role: "reviewer", tools: [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }] }] },
+    {
+      members: [
+        {
+          name: "snowball",
+          role: "reviewer",
+          tools: [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }],
+        },
+      ],
+    },
     { cwd },
     ".pi",
   );
@@ -179,7 +199,10 @@ async function launchGithubCrew(cwd) {
     realizeArmorySuites: async () => [],
     resolveArmoryToolSuites: async ({ requests }) => requests,
     runtimeFor: () => ({
-      launchCrew: async (agents) => ({ comm: {}, agents: agents.map((agent) => ({ id: agent.actorId, name: agent.name })) }),
+      launchCrew: async (agents) => ({
+        comm: {},
+        agents: agents.map((agent) => ({ id: agent.actorId, name: agent.name })),
+      }),
       broadcast: async () => {},
     }),
   });

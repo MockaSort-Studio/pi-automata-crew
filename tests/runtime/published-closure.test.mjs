@@ -3,7 +3,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { acquireNixGuestSuite, fetchPublishedClosure, guestNixSystem } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-nix.mjs";
+import {
+  acquireNixGuestSuite,
+  fetchPublishedClosure,
+  guestNixSystem,
+} from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-nix.mjs";
 
 const cache = { substituter: "https://cache.example", publicKey: "k" };
 const root = "/nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-suite";
@@ -14,8 +18,7 @@ const artifact = {
   narHash,
   closure: [root, dep].map((path) => ({ path, narHash, narSize: 1 })),
 };
-const installed = (overrides = {}) =>
-  JSON.stringify({ [root]: { narHash }, [dep]: { narHash }, ...overrides });
+const installed = (overrides = {}) => JSON.stringify({ [root]: { narHash }, [dep]: { narHash }, ...overrides });
 
 function execute(calls, info = installed()) {
   return async (_nix, args) => {
@@ -30,7 +33,10 @@ test("fetches by store path from the cache, verifies the closure, then roots it"
     const calls = [];
     const gcRoot = join(dir, "roots", "suite");
     const result = await fetchPublishedClosure({ artifact, cache, gcRoot, execute: execute(calls) });
-    assert.deepEqual(calls.map((args) => args[0]), ["copy", "path-info", "build"]);
+    assert.deepEqual(
+      calls.map((args) => args[0]),
+      ["copy", "path-info", "build"],
+    );
     assert.deepEqual(calls[0], ["copy", "--from", cache.substituter, root]);
     assert.deepEqual(calls[2], ["build", "--out-link", gcRoot, "--print-out-paths", root]);
     assert.deepEqual(result, { rootPath: root, paths: [root, dep].sort() });
@@ -43,7 +49,12 @@ test("a closure that differs from the catalog is rejected before rooting", async
   const calls = [];
   const extra = "/nix/store/cccccccccccccccccccccccccccccccc-extra";
   await assert.rejects(
-    fetchPublishedClosure({ artifact, cache, gcRoot: "/tmp/x", execute: execute(calls, installed({ [extra]: { narHash } })) }),
+    fetchPublishedClosure({
+      artifact,
+      cache,
+      gcRoot: "/tmp/x",
+      execute: execute(calls, installed({ [extra]: { narHash } })),
+    }),
     /differs from the published/,
   );
   assert.ok(!calls.some((args) => args[0] === "build"));
@@ -52,14 +63,27 @@ test("a closure that differs from the catalog is rejected before rooting", async
 test("content that differs from the promised hash is rejected", async () => {
   const other = `sha256-${"B".repeat(43)}=`;
   await assert.rejects(
-    fetchPublishedClosure({ artifact, cache, gcRoot: "/tmp/x", execute: execute([], installed({ [dep]: { narHash: other } })) }),
+    fetchPublishedClosure({
+      artifact,
+      cache,
+      gcRoot: "/tmp/x",
+      execute: execute([], installed({ [dep]: { narHash: other } })),
+    }),
     /Content of .* differs/,
   );
 });
 
 const catalog = (artifacts) => ({
   flake: "github:MockaSort-Studio/hall-armory/0123456789abcdef0123456789abcdef01234567",
-  catalog: { format: "hall.armory/v1", lockers: [{ name: "collaboration", suites: [{ extension: "pi-github-tools", manifest: "collaboration/github/manifest.json" }] }] },
+  catalog: {
+    format: "hall.armory/v1",
+    lockers: [
+      {
+        name: "collaboration",
+        suites: [{ extension: "pi-github-tools", manifest: "collaboration/github/manifest.json" }],
+      },
+    ],
+  },
   manifests: {
     "collaboration/github/manifest.json": {
       format: "hall.armory-suite/v1",
@@ -102,6 +126,9 @@ test("an unusable published closure is an error, with no flake fallback", async 
 });
 
 test("a suite the release does not carry for this system is an error", async () => {
-  await assert.rejects(acquireNixGuestSuite({ catalog: catalog({ [request.suite]: {} }), request }), /no (aarch64|x86_64)-linux artifact/);
+  await assert.rejects(
+    acquireNixGuestSuite({ catalog: catalog({ [request.suite]: {} }), request }),
+    /no (aarch64|x86_64)-linux artifact/,
+  );
   await assert.rejects(acquireNixGuestSuite({ catalog: catalog(undefined), request }), /no .* artifact/);
 });
