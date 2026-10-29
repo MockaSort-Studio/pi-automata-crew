@@ -12,6 +12,9 @@ if (config.task === "SLEEP") setInterval(() => {}, 1_000);
 // Dumps the worker's own environment so isolation tests can assert which
 // host-discovery variables (if any) a spawned worker actually receives.
 if (config.task === "DUMP_ENV") writeFileSync(join(config.cwd, "env.json"), JSON.stringify(process.env));
+// Reads the one-shot Comm token pipe on fd 3, the way worker.mjs does.
+if (config.task === "DUMP_TOKEN")
+  writeFileSync(join(config.cwd, "token.json"), JSON.stringify({ fd3: readFileSync(3, "utf8"), env: process.env }));
 if (config.task === "DUMP_SANDBOX")
   writeFileSync(join(config.cwd, "sandbox.json"), JSON.stringify(config.sandbox ?? null));
 if (config.task === "TURN") {

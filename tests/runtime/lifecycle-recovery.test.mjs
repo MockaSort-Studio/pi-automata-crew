@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
@@ -10,6 +10,7 @@ import { LifecycleController } from "../../.pi/extensions/hall-crew/crew-runtime
 import { connectLifecycle } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-client.mjs";
 import {
   appendLifecycleEvent,
+  lifecycleLogPath,
   readLifecycleEvents,
 } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-log.mjs";
 
@@ -181,9 +182,42 @@ test("Lifecycle server startup recovers an orphaned worker as owner_lost and arc
     assert.equal(events[1].actor, "orphan");
     assert.equal(events[1].from, "running");
     assert.equal(existsSync(join(cwd, ".pi", "runtime", "archive", "orphan")), true);
+    // Evidence is safe, so the leaked run directory and git worktree registration are reclaimed.
+    assert.equal(existsSync(join(cwd, ".pi", "runtime", "runs", "orphan")), false);
+    assert.doesNotMatch(execFileSync("git", ["worktree", "list"], { cwd, encoding: "utf8" }), /runs\/orphan/);
   } finally {
     if (serverA?.exitCode === null) serverA.kill("SIGKILL");
     if (serverB?.exitCode === null) serverB.kill("SIGKILL");
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+test(
+  "a failed durable write after spawn is counted, never thrown, and the worker's exit is still recorded in memory",
+  {
+    skip: process.getuid?.() === 0 && "root ignores file permissions",
+  },
+  async () => {
+    const cwd = gitRepo();
+    const controller = new LifecycleController({ cwd, workerModule: stubWorker });
+    try {
+      const agent = await controller.spawn({
+        actorId: "unwritable",
+        name: "unwritable",
+        task: "SLEEP",
+        namespace: "crew-run-ro",
+      });
+      // The log becomes unwritable after the spawn fact: an exit write now fails inside a child "exit"
+      // listener, where an exception would crash the whole Lifecycle server.
+      chmodSync(lifecycleLogPath(cwd, "run-ro"), 0o444);
+      process.kill(-agent.pid, "SIGKILL");
+      await once(agent.child, "exit");
+      assert.equal(agent.status, "failed", "the in-memory status still reaches its terminal value");
+      assert.equal(controller.logFailures, 1, "the lost durable write is surfaced");
+      await controller.remove(agent.id);
+      assert.equal(controller.logFailures, 2, "a failed write never blocks removal");
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  },
+);

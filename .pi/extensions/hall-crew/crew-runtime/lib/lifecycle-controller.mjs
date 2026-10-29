@@ -4,12 +4,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { preserveEvidence } from "./crew-launch.mjs";
-import {
-  appendLifecycleEvent,
-  appendLifecycleEventSync,
-  findOwnerLostAttempts,
-  runIdForConfig,
-} from "./lifecycle-log.mjs";
+import { appendLifecycleEvent, findOwnerLostAttempts, runIdForConfig } from "./lifecycle-log.mjs";
 import { resolveModelWindow } from "./model-window.mjs";
 import { summarizeWorkerEvents } from "./worker-metrics.mjs";
 import { syncWorkingTree } from "./worktree-sync.mjs";
@@ -26,7 +21,7 @@ const runGit = (cwd, args) =>
   exec("git", args, { cwd, timeout: GIT_TIMEOUT, killSignal: "SIGKILL", maxBuffer: 64 * 1024 });
 const waitForExit = (child, ms) =>
   new Promise((resolve) => {
-    if (child.exitCode !== null) return resolve(true);
+    if (child.exitCode !== null || child.signalCode !== null) return resolve(true);
     const timer = setTimeout(() => resolve(false), ms);
     child.once("exit", () => {
       clearTimeout(timer);
@@ -39,6 +34,8 @@ export class LifecycleController {
   // Metrics survive remove(): once events.jsonl and the worktree are deleted, this is the only
   // place a worker's final telemetry is still readable.
   #retainedMetrics = new Map();
+  // Durable-log writes that failed after spawn (disk full, permissions); surfaced, never thrown.
+  logFailures = 0;
   constructor({ cwd, workerModule, preflight = preflightWorkerSandbox }) {
     this.cwd = cwd;
     this.workerModule = workerModule;
@@ -59,10 +56,9 @@ export class LifecycleController {
       await runGit(this.cwd, ["worktree", "add", "--detach", worktree, "HEAD"]);
       worktreeAdded = true;
       await syncWorkingTree(this.cwd, root, worktree);
-      // The Comm token travels to the worker only through its process
-      // environment (PI_CREW_COMM_TOKEN below), never through worker.json: that
-      // file is copied verbatim into .pi/runtime/archive on teardown
-      // (preserveEvidence), so anything written there is retained evidence.
+      // The Comm token reaches the worker only through a private pipe (fd 3 below), never through
+      // worker.json (copied verbatim into the archive on teardown) and never through the
+      // environment, which any same-user process can read.
       const commWithoutToken = config.comm ? { ...config.comm, authToken: undefined } : config.comm;
       await writeFile(
         configFile,
@@ -96,22 +92,18 @@ export class LifecycleController {
       child = (await import("node:child_process")).spawn(process.execPath, [this.workerModule, configFile], {
         cwd: worktree,
         detached: true,
-        stdio: "ignore",
-        // The live token only ever exists in this env var, inherited by worker.mjs
-        // and, in turn, by the Pi child process it spawns -- never written to disk.
-        env: {
-          ...hostEnv,
-          PI_SDK_ACTOR_ID: id,
-          ...(config.comm?.authToken ? { PI_CREW_COMM_TOKEN: config.comm.authToken } : {}),
-        },
+        stdio: ["ignore", "ignore", "ignore", "pipe"],
+        env: { ...hostEnv, PI_SDK_ACTOR_ID: id, PI_CREW_COMM_TOKEN_FD: "3" },
       });
+      // fd 3 is a one-shot private channel: written once, then closed.
+      child.stdio[3].end(config.comm?.authToken ?? "");
       await new Promise((resolve, reject) => {
         child.once("spawn", resolve);
         child.once("error", reject);
       });
       // Keep the child handle referenced: Lifecycle owns worker cleanup and
       // must remain alive long enough to observe a natural worker exit.
-      const runId = runIdForConfig(config);
+      const runId = runIdForConfig(config, id);
       const agent = {
         id,
         name: config.name,
@@ -125,7 +117,7 @@ export class LifecycleController {
       Object.defineProperty(agent, "runId", { value: runId });
       // Durable fact first: a crash between this append and the in-memory set
       // below must still leave the spawn recorded on disk.
-      await appendLifecycleEvent(this.cwd, runId, {
+      appendLifecycleEvent(this.cwd, runId, {
         eventId: randomUUID(),
         actor: id,
         from: null,
@@ -135,19 +127,12 @@ export class LifecycleController {
         pid: child.pid,
       });
       this.#agents.set(id, agent);
-      // Synchronous and durable-first: other listeners on this same "exit"
-      // event (waitForExit, a caller's own observers) must never observe
-      // agent.status change before the exit fact is on disk.
+      // Durable-first and synchronous, so no other "exit" listener can see the new status before it
+      // is on disk. A failed write must never throw inside the listener (that would crash this
+      // server and every worker with it), so it is counted and the status still updates.
       const recordExit = (code, signal) => {
         const to = terminalStatus(agent.status, code);
-        appendLifecycleEventSync(this.cwd, runId, {
-          eventId: randomUUID(),
-          actor: id,
-          from: agent.status,
-          to,
-          reason: "exit",
-          pid: agent.pid,
-        });
+        this.#record(runId, { actor: id, from: agent.status, to, reason: "exit", pid: agent.pid });
         agent.status = to;
         agent.exitCode = code;
         agent.signal = signal;
@@ -209,8 +194,7 @@ export class LifecycleController {
   async remove(id) {
     const agent = this.#agents.get(id);
     if (!agent) return { id, removed: false };
-    await appendLifecycleEvent(this.cwd, agent.runId, {
-      eventId: randomUUID(),
+    this.#record(agent.runId, {
       actor: id,
       from: agent.status,
       to: "stopping",
@@ -228,8 +212,7 @@ export class LifecycleController {
     // Snapshot telemetry before the run directory is wiped: this is the last
     // moment events.jsonl exists to summarize.
     await this.#captureMetrics(agent);
-    await runGit(this.cwd, ["worktree", "remove", "--force", agent.worktree]);
-    await rm(join(this.cwd, ".pi", "runtime", "runs", id), { recursive: true, force: true });
+    await this.#reclaim(id, agent.worktree);
     // Terminalize before the record disappears so any observer racing this
     // cleanup (list/inspect) never sees a stale "stopping" or misdiagnosed
     // "failed" state for a worker that was removed on purpose.
@@ -250,15 +233,29 @@ export class LifecycleController {
   // attempt gets its evidence archived and a recorded owner_lost event; it
   // never invents a passed/failed work result.
   async recover() {
-    for (const { runId, actor, from } of await findOwnerLostAttempts(this.cwd)) {
+    for (const { runId, actor, from } of findOwnerLostAttempts(this.cwd)) {
       await preserveEvidence(this.cwd, [{ id: actor }]);
-      await appendLifecycleEvent(this.cwd, runId, {
-        eventId: randomUUID(),
+      this.#record(runId, {
         actor,
         from,
         to: "owner_lost",
         reason: "process not found at Lifecycle restart",
       });
+      // Evidence is archived above, so the leaked worktree and run directory can now be reclaimed.
+      await this.#reclaim(actor, join(this.cwd, ".pi", "runtime", "runs", actor, "worktree")).catch(() => {});
+    }
+  }
+  // After a worker's evidence is safe: drop its worktree registration and run directory.
+  async #reclaim(id, worktree) {
+    await runGit(this.cwd, ["worktree", "remove", "--force", worktree]);
+    await rm(join(this.cwd, ".pi", "runtime", "runs", id), { recursive: true, force: true });
+  }
+  // Best-effort durable record for facts that must never block or crash lifecycle operations.
+  #record(runId, event) {
+    try {
+      appendLifecycleEvent(this.cwd, runId, { eventId: randomUUID(), ...event });
+    } catch {
+      this.logFailures += 1;
     }
   }
 }

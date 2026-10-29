@@ -51,11 +51,10 @@ test("a spawned worker's environment carries no host .pi/runtime discovery varia
   }
 });
 
-// Per-actor Comm token confidentiality: worker.json (and anything copied
-// from it into .pi/runtime/archive) is retained evidence, so the live
-// token must never land there -- only in the worker's own process
-// environment (see lifecycle-controller.mjs, worker.mjs, worker-comm-extension.mjs).
-test("the Comm token reaches the worker's process environment but never its worker.json or archive", async () => {
+// Per-actor Comm token confidentiality: the token reaches the worker only over a private pipe. It is
+// never in worker.json (copied into the archive), nor in the environment (readable by any same-user
+// process).
+test("the Comm token reaches the worker over a private pipe, never its environment, worker.json or archive", async () => {
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   const token = "super-secret-comm-token-value";
@@ -63,15 +62,15 @@ test("the Comm token reaches the worker's process environment but never its work
     const agent = await controller.spawn({
       actorId: "token-check",
       name: "token-check",
-      task: "DUMP_ENV",
+      task: "DUMP_TOKEN",
       comm: { url: "ws://127.0.0.1:1", actorId: "token-check", authToken: token },
     });
     await once(agent.child, "exit");
-    const configPath = join(cwd, ".pi", "runtime", "runs", agent.id, "worker.json");
-    const configText = readFileSync(configPath, "utf8");
+    const dump = JSON.parse(readFileSync(join(agent.worktree, "token.json"), "utf8"));
+    assert.equal(dump.fd3, token, "the worker receives the token on fd 3");
+    assert.doesNotMatch(JSON.stringify(dump.env), new RegExp(token), "the token must not be in the environment");
+    const configText = readFileSync(join(cwd, ".pi", "runtime", "runs", agent.id, "worker.json"), "utf8");
     assert.doesNotMatch(configText, new RegExp(token), "the token must never be written to worker.json");
-    const env = JSON.parse(readFileSync(join(agent.worktree, "env.json"), "utf8"));
-    assert.equal(env.PI_CREW_COMM_TOKEN, token, "the token still reaches the worker process itself");
     await controller.shutdown();
     const archiveText = readFileSync(join(cwd, ".pi", "runtime", "archive", agent.id, "worker.json"), "utf8");
     assert.doesNotMatch(archiveText, new RegExp(token), "the token must never be preserved in archived evidence");

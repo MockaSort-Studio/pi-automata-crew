@@ -1,21 +1,23 @@
 import { strict as assert } from "node:assert";
-import { mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { appendFileSync, mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 import {
   appendLifecycleEvent,
+  findOwnerLostAttempts,
   lifecycleLogPath,
   readLifecycleEvents,
   replayLifecycleState,
   runIdForConfig,
 } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-log.mjs";
 
-const withTempCwd = (run) => {
+const withTempCwd = async (run) => {
   const cwd = mkdtempSync(join(tmpdir(), "lifecycle-log-"));
   try {
-    return run(cwd);
+    return await run(cwd);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -23,9 +25,38 @@ const withTempCwd = (run) => {
 
 test("runIdForConfig derives a run id from a crew-<runId> namespace", () => {
   assert.equal(runIdForConfig({ namespace: "crew-abc-123" }), "abc-123");
-  assert.equal(runIdForConfig({}), "default");
-  assert.equal(runIdForConfig(undefined), "default");
 });
+
+test("spawns without a namespace each get their own run log instead of sharing one", () => {
+  assert.equal(runIdForConfig({}, "actor-1"), "adhoc-actor-1");
+  assert.notEqual(runIdForConfig(undefined, "actor-1"), runIdForConfig(undefined, "actor-2"));
+});
+
+test("the duplicate index stays correct when another writer appends to the same log", () =>
+  withTempCwd((cwd) => {
+    const runId = "run-shared";
+    appendLifecycleEvent(cwd, runId, { eventId: "e1", actor: "a", to: "running" });
+    // Another process appends behind this one's cached index.
+    appendFileSync(
+      lifecycleLogPath(cwd, runId),
+      `${JSON.stringify({ version: 2, eventId: "e2", actor: "b", to: "running" })}\n`,
+    );
+    const third = appendLifecycleEvent(cwd, runId, { eventId: "e3", actor: "c", to: "running" });
+    assert.equal(third.event.version, 3, "versions stay unique and monotonic");
+    assert.equal(appendLifecycleEvent(cwd, runId, { eventId: "e2", actor: "b", to: "x" }).appended, false);
+    assert.equal(readLifecycleEvents(cwd, runId).length, 3);
+  }));
+
+test("a live process that reuses a dead worker's pid is not mistaken for that worker", () =>
+  withTempCwd(async (cwd) => {
+    const stranger = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
+    try {
+      appendLifecycleEvent(cwd, "run-pid", { eventId: "p1", actor: "dead-worker", to: "running", pid: stranger.pid });
+      assert.deepEqual(findOwnerLostAttempts(cwd), [{ runId: "run-pid", actor: "dead-worker", from: "running" }]);
+    } finally {
+      stranger.kill("SIGKILL");
+    }
+  }));
 
 test("appendLifecycleEvent writes one durable JSON line per call with a monotonic version", () =>
   withTempCwd(async (cwd) => {

@@ -1,22 +1,15 @@
-import { mkdir, appendFile, readFile, readdir } from "node:fs/promises";
-import { mkdirSync, appendFileSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-// Durable, append-only Lifecycle log: one JSONL file per run at
-// .pi/runtime/lifecycle/<runId>.jsonl. This module owns only append/read/
-// replay of that file -- no snapshots, no compaction, no query API.
-export const lifecycleLogDir = (cwd) => join(cwd, ".pi", "runtime", "lifecycle");
-export const lifecycleLogPath = (cwd, runId) => join(lifecycleLogDir(cwd), `${runId}.jsonl`);
+// Durable, append-only Lifecycle log: one JSONL file per run at .pi/runtime/lifecycle/<runId>.jsonl.
+// The Lifecycle server is the only writer, appends are small and rare, so everything here is
+// synchronous: an append is on disk before the caller changes any in-memory state.
+const logDir = (cwd) => join(cwd, ".pi", "runtime", "lifecycle");
+export const lifecycleLogPath = (cwd, runId) => join(logDir(cwd), `${runId}.jsonl`);
 
-async function readLines(path) {
-  let text;
-  try {
-    text = await readFile(path, "utf8");
-  } catch (error) {
-    if (error.code === "ENOENT") return [];
-    throw error;
-  }
-  return text
+const parseLines = (text) =>
+  text
     .split("\n")
     .filter(Boolean)
     .map((line) => {
@@ -27,86 +20,45 @@ async function readLines(path) {
       }
     })
     .filter(Boolean);
+
+function readFileOrEmpty(path) {
+  try {
+    return readFileSync(path, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return "";
+    throw error;
+  }
 }
 
-// Serialize writers per log file: appends must never interleave, or a
-// concurrent dedup check could race past a write still in flight.
-const queues = new Map();
-function serialize(path, run) {
-  const prior = queues.get(path) ?? Promise.resolve();
-  const next = prior.then(run, run);
-  queues.set(
-    path,
-    next.catch(() => {}),
-  );
-  return next;
+export const readLifecycleEvents = (cwd, runId) => parseLines(readFileOrEmpty(lifecycleLogPath(cwd, runId)));
+
+// Duplicate detection must not re-read the whole log on every append. The index is rebuilt only
+// when the file's size differs from what this process last wrote (another writer touched it).
+const indexes = new Map();
+function indexFor(path) {
+  let size = 0;
+  try {
+    size = statSync(path).size;
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  const cached = indexes.get(path);
+  if (cached?.size === size) return cached;
+  const events = parseLines(readFileOrEmpty(path));
+  const fresh = { size, byId: new Map(events.map((event) => [event.eventId, event])) };
+  indexes.set(path, fresh);
+  return fresh;
 }
 
-// Appends one worker state-change event before the caller updates its own
-// in-memory state. A repeated eventId is a no-op: the original event is
-// returned, nothing new is written, and the version counter does not move.
-export async function appendLifecycleEvent(cwd, runId, { eventId, actor, from, to, reason, retryOf, pid }) {
+// A repeated eventId is a no-op: the original event is returned and nothing is written.
+export function appendLifecycleEvent(cwd, runId, { eventId, actor, from, to, reason, retryOf, pid }) {
   if (!eventId || !actor) throw new Error("appendLifecycleEvent requires eventId and actor");
   const path = lifecycleLogPath(cwd, runId);
-  return serialize(path, async () => {
-    const events = await readLines(path);
-    const existing = events.find((event) => event.eventId === eventId);
-    if (existing) return { event: existing, appended: false };
-    const event = {
-      version: events.length + 1,
-      eventId,
-      actor,
-      from: from ?? null,
-      to,
-      reason: reason ?? null,
-      ...(retryOf !== undefined ? { retryOf } : {}),
-      ...(pid !== undefined ? { pid } : {}),
-      at: new Date().toISOString(),
-    };
-    await mkdir(dirname(path), { recursive: true });
-    await appendFile(path, `${JSON.stringify(event)}\n`);
-    return { event, appended: true };
-  });
-}
-
-export async function readLifecycleEvents(cwd, runId) {
-  return readLines(lifecycleLogPath(cwd, runId));
-}
-
-function readLinesSync(path) {
-  let text;
-  try {
-    text = readFileSync(path, "utf8");
-  } catch (error) {
-    if (error.code === "ENOENT") return [];
-    throw error;
-  }
-  return text
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      try {
-        return JSON.parse(line);
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
-}
-
-// A synchronous twin of appendLifecycleEvent for the one call site
-// (a child process "exit" event) that races other listeners on the same
-// event: an async append there could let an observer see stale in-memory
-// status before the durable write actually lands. Lifecycle event volume is
-// low enough that blocking IO here is an acceptable, deterministic trade.
-export function appendLifecycleEventSync(cwd, runId, { eventId, actor, from, to, reason, retryOf, pid }) {
-  if (!eventId || !actor) throw new Error("appendLifecycleEventSync requires eventId and actor");
-  const path = lifecycleLogPath(cwd, runId);
-  const events = readLinesSync(path);
-  const existing = events.find((event) => event.eventId === eventId);
+  const index = indexFor(path);
+  const existing = index.byId.get(eventId);
   if (existing) return { event: existing, appended: false };
   const event = {
-    version: events.length + 1,
+    version: index.byId.size + 1,
     eventId,
     actor,
     from: from ?? null,
@@ -116,56 +68,22 @@ export function appendLifecycleEventSync(cwd, runId, { eventId, actor, from, to,
     ...(pid !== undefined ? { pid } : {}),
     at: new Date().toISOString(),
   };
+  const line = `${JSON.stringify(event)}\n`;
   mkdirSync(dirname(path), { recursive: true });
-  appendFileSync(path, `${JSON.stringify(event)}\n`);
+  appendFileSync(path, line);
+  index.size += Buffer.byteLength(line);
+  index.byId.set(eventId, event);
   return { event, appended: true };
 }
 
-export async function listLifecycleRunIds(cwd) {
-  const names = await readdir(lifecycleLogDir(cwd)).catch((error) => {
-    if (error.code === "ENOENT") return [];
-    throw error;
-  });
-  return names.filter((name) => name.endsWith(".jsonl")).map((name) => name.slice(0, -".jsonl".length));
-}
+// The run a Lifecycle event belongs to: "crew-<runId>" namespaces map to their run. A spawn with no
+// namespace gets a log of its own, so unrelated ad hoc spawns never share a run.
+export const runIdForConfig = (config, actorId) =>
+  config?.namespace ? config.namespace.replace(/^crew-/, "") : `adhoc-${actorId}`;
 
-// Rebuilds each attempt's last known durable status from the ordered log.
-// An attempt is keyed by actor id; a retry is a different actor id linked
-// by retryOf, so replay never folds a retry's events into the attempt it
-// retried.
-// The run a Lifecycle event belongs to: config.namespace is "crew-<runId>"
-// when a worker launches under a Crew run; fall back to a single shared log
-// for ad hoc spawns that carry no namespace (e.g. direct controller tests).
-export const runIdForConfig = (config) => (config?.namespace ? config.namespace.replace(/^crew-/, "") : "default");
-
-// Durable statuses that never need owner-death recovery: the attempt already
-// reached a terminal fact or was already recovered once.
-const RECOVERED_STATUSES = new Set(["completed", "failed", "removed", "owner_lost"]);
-const isProcessAlive = (pid) => {
-  if (!pid) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error.code === "EPERM";
-  }
-};
-
-// Every non-terminal attempt across every run whose process is confirmed
-// gone: the owner_lost fact Lifecycle startup recovery must record.
-export async function findOwnerLostAttempts(cwd) {
-  const lost = [];
-  for (const runId of await listLifecycleRunIds(cwd)) {
-    const attempts = replayLifecycleState(await readLifecycleEvents(cwd, runId));
-    for (const attempt of attempts.values()) {
-      if (RECOVERED_STATUSES.has(attempt.status)) continue;
-      if (isProcessAlive(attempt.pid)) continue;
-      lost.push({ runId, actor: attempt.actor, from: attempt.status });
-    }
-  }
-  return lost;
-}
-
+// Rebuilds each attempt's last known durable status from the ordered log. An attempt is keyed by
+// actor id; a retry is a different actor id linked by retryOf, so replay never folds a retry's
+// events into the attempt it retried.
 export function replayLifecycleState(events) {
   const attempts = new Map();
   for (const event of events) {
@@ -177,4 +95,44 @@ export function replayLifecycleState(events) {
     attempts.set(event.actor, attempt);
   }
   return attempts;
+}
+
+// Statuses that never need owner-death recovery: already terminal or already recovered once.
+const RECOVERED_STATUSES = new Set(["completed", "failed", "removed", "owner_lost"]);
+
+// A pid proves nothing on its own, because the OS reuses them. The live process must also be this
+// actor's worker: its command line carries the actor's run directory. If `ps` is unavailable the
+// signal-0 check stands alone.
+function isWorkerAlive(pid, actor) {
+  if (!pid) return false;
+  try {
+    process.kill(pid, 0);
+  } catch (error) {
+    if (error.code !== "EPERM") return false;
+  }
+  try {
+    return execFileSync("ps", ["-p", String(pid), "-o", "command="], { encoding: "utf8" }).includes(actor);
+  } catch (error) {
+    return error.code === "ENOENT";
+  }
+}
+
+// Every non-terminal attempt, across all runs, whose worker is gone: the owner_lost facts that
+// Lifecycle startup recovery must record.
+export function findOwnerLostAttempts(cwd) {
+  const lost = [];
+  let names = [];
+  try {
+    names = readdirSync(logDir(cwd));
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  for (const name of names.filter((item) => item.endsWith(".jsonl"))) {
+    const runId = name.slice(0, -".jsonl".length);
+    for (const attempt of replayLifecycleState(readLifecycleEvents(cwd, runId)).values()) {
+      if (RECOVERED_STATUSES.has(attempt.status) || isWorkerAlive(attempt.pid, attempt.actor)) continue;
+      lost.push({ runId, actor: attempt.actor, from: attempt.status });
+    }
+  }
+  return lost;
 }
