@@ -37,8 +37,7 @@ Items 1-3 are implemented and unit/integration tested; their live proof is item 
 - [x] Lead-led dispatch: Main briefs the Lead, which assigns members with broker-validated `crew_assign` (`lead-led-dispatch.test.mjs`). Superseded text follows:
       Lead-run activation: Main sends the task to the Lead; Lead dispatches
       validated roots through the broker (not built; Main currently sends directly).
-- [ ] Verify roster `done` + TUI entry retirement on launch failure. Open: `launchPreparedCrew` sets
-      `status: "done"` and `launchError`, but no test asserts it.
+- [x] Verify roster `done` + TUI entry retirement on launch failure (`environment-startup.test.mjs`).
 - [x] Stop the Comm/Lifecycle servers when a launch rolls back and no other Crew
       uses them (`main-comm.test.mjs`).
 - [x] Main tool registration verified after a restart (`runtime_dispatch`, `runtime_acknowledge_message`,
@@ -86,18 +85,16 @@ remains. Runtime tools are exposed by
 
 ## 3. Canonical release evidence
 
-9. [~] **Run canonical `start_crew` E2E.** Done live: normal path (delivery, registration, lifecycle,
-   cleanup). Unit-tested only: partial-launch failure. Owner death: Lifecycle (watcher) and now Comm
-   (`comm-server-owner-death.test.mjs`) exit when Main dies; not run through a real `start_crew`. Scope: Prove exact initial-task delivery,
-   worker registration, typed lifecycle progression, terminal cleanup, and TUI
-   retirement for normal, partial-launch-failure, and owner-death paths.
+9. [x] **Run canonical `start_crew` E2E.** Normal path live; partial-launch failure and owner death are covered by
+       `start-crew-owner-death.test.mjs`, which drives Pi's real model to tool-call path with an offline mock provider, kills the
+       owner, and asserts Comm, Lifecycle and the worker exit and the evidence is archived. Original scope: Prove exact
+       initial-task delivery, worker registration, typed lifecycle progression, terminal cleanup, and TUI retirement.
 10. [x] **Run canonical two-worker Gondolin E2E** (live, repeatedly): guest-proxy registration, shared
         closure identity, distinct VMs and workspaces, no residual VM or worker process. Scope was: Prove guest-proxy registration,
         shared immutable closure identity, distinct VM/workspaces, Main isolation, and
         no residual worker, worktree, Comm/Lifecycle, QEMU, roster, or TUI state.
-11. [~] **Bound CI validation.** The suite is deterministic (453 pass over three runs) at about 19 s.
-    Open: CI (`ci.yml`) runs only the plugin and hook checks, not the Node suite; add it (needs `npm ci`;
-    Gondolin and Nix tests already skip when unavailable).
+11. [x] **Bound CI validation.** `.github/workflows/ci.yml` runs `npm ci`, `npm test` (deterministic, about 16 s, live VM tests
+        skipped via `HALL_SKIP_GONDOLIN_LIVE_TESTS`) and the format check.
 
 ## 4. Armory GitHub acceptance
 
