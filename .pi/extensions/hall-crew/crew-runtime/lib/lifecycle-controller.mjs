@@ -4,6 +4,12 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { preserveEvidence } from "./crew-launch.mjs";
+import {
+  appendLifecycleEvent,
+  appendLifecycleEventSync,
+  findOwnerLostAttempts,
+  runIdForConfig,
+} from "./lifecycle-log.mjs";
 import { resolveModelWindow } from "./model-window.mjs";
 import { summarizeWorkerEvents } from "./worker-metrics.mjs";
 import { syncWorkingTree } from "./worktree-sync.mjs";
@@ -94,6 +100,7 @@ export class LifecycleController {
       });
       // Keep the child handle referenced: Lifecycle owns worker cleanup and
       // must remain alive long enough to observe a natural worker exit.
+      const runId = runIdForConfig(config);
       const agent = {
         id,
         name: config.name,
@@ -104,9 +111,33 @@ export class LifecycleController {
         namespace: config.namespace,
       };
       Object.defineProperty(agent, "child", { value: child });
+      Object.defineProperty(agent, "runId", { value: runId });
+      // Durable fact first: a crash between this append and the in-memory set
+      // below must still leave the spawn recorded on disk.
+      await appendLifecycleEvent(this.cwd, runId, {
+        eventId: randomUUID(),
+        actor: id,
+        from: null,
+        to: "running",
+        reason: config.retryOf ? "retry" : "spawned",
+        retryOf: config.retryOf,
+        pid: child.pid,
+      });
       this.#agents.set(id, agent);
+      // Synchronous and durable-first: other listeners on this same "exit"
+      // event (waitForExit, a caller's own observers) must never observe
+      // agent.status change before the exit fact is on disk.
       const recordExit = (code, signal) => {
-        agent.status = terminalStatus(agent.status, code);
+        const to = terminalStatus(agent.status, code);
+        appendLifecycleEventSync(this.cwd, runId, {
+          eventId: randomUUID(),
+          actor: id,
+          from: agent.status,
+          to,
+          reason: "exit",
+          pid: agent.pid,
+        });
+        agent.status = to;
         agent.exitCode = code;
         agent.signal = signal;
       };
@@ -167,6 +198,14 @@ export class LifecycleController {
   async remove(id) {
     const agent = this.#agents.get(id);
     if (!agent) return { id, removed: false };
+    await appendLifecycleEvent(this.cwd, agent.runId, {
+      eventId: randomUUID(),
+      actor: id,
+      from: agent.status,
+      to: "stopping",
+      reason: "remove requested",
+      pid: agent.pid,
+    });
     agent.status = "stopping";
     try {
       process.kill(-agent.pid, "SIGTERM");
@@ -193,5 +232,22 @@ export class LifecycleController {
     // removing its worktree, exactly as launch rollback does.
     await preserveEvidence(this.cwd, agents);
     return Promise.allSettled(agents.map((agent) => this.remove(agent.id)));
+  }
+  // Runs once at Lifecycle server startup: replay every run's durable log to
+  // find attempts that never reached a terminal fact and whose process is
+  // now gone (the prior Lifecycle server died with them live). Each such
+  // attempt gets its evidence archived and a recorded owner_lost event; it
+  // never invents a passed/failed work result.
+  async recover() {
+    for (const { runId, actor, from } of await findOwnerLostAttempts(this.cwd)) {
+      await preserveEvidence(this.cwd, [{ id: actor }]);
+      await appendLifecycleEvent(this.cwd, runId, {
+        eventId: randomUUID(),
+        actor,
+        from,
+        to: "owner_lost",
+        reason: "process not found at Lifecycle restart",
+      });
+    }
   }
 }
