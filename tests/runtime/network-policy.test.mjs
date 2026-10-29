@@ -20,3 +20,12 @@ test("a suite host allowlist permits only the granted host", async () => {
   assert.equal(await httpHooks.isIpAllowed(externalRequest("api.github.com")), true);
   assert.equal(await httpHooks.isIpAllowed(externalRequest("example.com")), false);
 });
+
+test("a credential does not widen the guest host allowlist", async () => {
+  const { httpHooks } = createHttpHooks({
+    allowedHosts: ["api.github.com"],
+    secrets: { GITHUB_TOKEN: { value: "secret", hosts: ["api.github.com"] } },
+  });
+  assert.equal(await httpHooks.isIpAllowed(externalRequest("api.github.com")), true);
+  assert.equal(await httpHooks.isIpAllowed(externalRequest("example.com")), false);
+});
