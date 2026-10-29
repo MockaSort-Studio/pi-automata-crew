@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { launchPreparedCrew, prepareCrew } from "../../.pi/extensions/hall-crew/crew/lib/startup.mjs";
+import { activeRosterEntries } from "../../.pi/extensions/hall-crew/crew/lib/monitor-active-rosters.mjs";
+import { crewMonitorView } from "../../.pi/extensions/hall-crew/crew/lib/monitor-state.mjs";
 
 const pi = { getAllTools: () => [] };
 const prepare = (cwd, environment) =>
@@ -142,6 +144,33 @@ test("explicit Gondolin rejects before Runtime can create a worker", async () =>
       /QEMU absent/,
     );
     assert.equal(runtimeCalled, false);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("a failed launch becomes terminal and retires from the monitor's active roster set", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  try {
+    const prepared = await prepare(cwd, { microvm: "none" });
+    await assert.rejects(
+      launchPreparedCrew(cwd, prepared, {
+        resolveEnvironment: async () => ({ microvm: "none" }),
+        runtimeFor: () => ({ launchCrew: async () => Promise.reject(new Error("worker exited before ready")) }),
+      }),
+      /worker exited before ready/,
+    );
+    const roster = JSON.parse(readFileSync(join(cwd, prepared.rosterFile), "utf8"));
+    assert.equal(roster.status, "done");
+    assert.match(roster.launchError, /worker exited before ready/);
+    assert.equal(crewMonitorView(roster), null);
+    assert.deepEqual(
+      activeRosterEntries(
+        [{ path: prepared.rosterFile, roster, mtimeMs: Date.now() }],
+        new Set(["queued", "launching", "started", "closing"]),
+      ),
+      [],
+    );
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

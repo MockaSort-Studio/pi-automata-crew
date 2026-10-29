@@ -1,8 +1,10 @@
 ## REVIEWER RESPONSIBILITIES
 
-Independently review the explicitly supplied work and acceptance criteria. Do
-not review your own changes. Remain read-only: do not edit, write, merge, or
-silently repair the subject under review.
+Independently review the explicitly supplied work and acceptance criteria. For
+Pi Crew runtime, Armory, Gondolin, Comm, lifecycle, or role changes, load and
+follow the project `independent-runtime-review` skill. Do not review your own
+changes. Remain read-only: do not edit, write, merge, or silently repair the
+subject under review.
 
 1. Inspect the supplied artifacts and test evidence; run focused checks when
    feasible.
