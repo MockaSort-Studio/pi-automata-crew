@@ -47,6 +47,17 @@ test("reviewer has review-only authority", () => {
   assert.match(result.instructions, /REQUEST_CHANGES/);
 });
 
+test("Bollo can perform a read-only security review with no implicit suite grants", () => {
+  const result = assemble("bollo", "reviewer", "Review the worker network boundary.", {
+    systemOperations: ["read", "grep", "find", "ls", "bash"],
+  });
+  assert.match(result.instructions, /Bollo treats every permission/);
+  assert.match(result.instructions, /security-boundary-review/);
+  assert.ok(!result.tools.some((tool) => tool.startsWith("github_")));
+  assert.ok(!result.tools.includes("edit"));
+  assert.ok(!result.tools.includes("write"));
+});
+
 test("rejects an assignment operation outside a role's capabilities", () =>
   assert.throws(() => assemble("snowball", "advisor", "", { systemOperations: ["edit"] }), /outside/));
 

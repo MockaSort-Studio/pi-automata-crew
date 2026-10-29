@@ -53,29 +53,32 @@ remains. Runtime tools are exposed by
 
 ## 2. Lifecycle state redesign
 
-4. [~] **Specify separate state domains.** Done: work state (Comm state owner, `lifecycle-state.mjs`)
-   and process state (Lifecycle controller) are separate, and `inspect` reports both
-   (`processStatus`, `lifecycleStatus`). Open: a written spec of the machines. Original scope: Do not use one status for everything:
-   model _work_ state, process/VM _health_, and resource _disposition_ separately.
-   Define the Crew and member state machines, legal transitions, terminal outcomes,
-   ownership, and persisted fields.
+4. [x] **Specify separate state domains.** Work state (Comm state owner, `lifecycle-state.mjs`)
+       and process state (Lifecycle controller) are separate, and `inspect` reports both
+       (`processStatus`, `lifecycleStatus`). The written contract is
+       [lifecycle-state-contract.md](lifecycle-state-contract.md). Original scope: Do not use one status for everything:
+       model _work_ state, process/VM _health_, and resource _disposition_ separately.
+       Define the Crew and member state machines, legal transitions, terminal outcomes,
+       ownership, and persisted fields.
 5. [ ] **Make the lifecycle service authoritative and durable.** Not built: state is in memory, with a
        durable owner registry only. The service owns
        versioned state plus an append-only transition/audit record. Workers request
        transitions; Main performs administrative transitions; the TUI is query-only.
        Define idempotency, reconnect/replay, stale-writer rejection, and crash recovery.
-6. [~] **Define operational semantics.** Done: explicit registration, readiness, waiting, terminal
-   results, and process death kept apart from work outcome. Open: the written definition. Original scope: Model explicit registration, readiness,
-   active work, waiting-for-dependency/input, terminal work result, cleanup, and
-   archived evidence. A terminal work result stops further execution; process death
-   is health evidence, not an assumed work outcome.
-7. [~] **Define dependency and recovery semantics.** Done: dependents release on success and block on
-   failure (`dependent-release`, ledger propagation); evidence is archived before cleanup. Open: retry as
-   a new linked attempt. Original scope: Release dependents only after
-   required successful results; propagate failure/block deterministically. For a
-   retry, preserve patch/log/configuration evidence, clean the old resource, and
-   create a new member attempt linked to the prior terminal result with explicit
-   authority.
+6. [x] **Define operational semantics.** Explicit registration, readiness, waiting, terminal
+       results, process health, resource disposition, and process death separate from work outcome are
+       defined in [lifecycle-state-contract.md](lifecycle-state-contract.md). Original scope: Model explicit registration, readiness,
+       active work, waiting-for-dependency/input, terminal work result, cleanup, and
+       archived evidence. A terminal work result stops further execution; process death
+       is health evidence, not an assumed work outcome.
+7. [x] **Define dependency and recovery semantics.** Dependents release on success and block on
+       failure (`dependent-release`, ledger propagation); evidence is archived before cleanup. Linked retry,
+       stale-writer, recovery, and replay semantics are defined in
+       [lifecycle-state-contract.md](lifecycle-state-contract.md). Original scope: Release dependents only after
+       required successful results; propagate failure/block deterministically. For a
+       retry, preserve patch/log/configuration evidence, clean the old resource, and
+       create a new member attempt linked to the prior terminal result with explicit
+       authority.
 8. [ ] **Implement and prove the redesign.** Depends on 5 and the retry part of 7. Original scope: Replace raw-envelope lifecycle writers,
        migrate roster/TUI projections, and cover transitions, duplicate messages,
        disconnect/reconnect, worker/owner death, cleanup races, dependency release, and

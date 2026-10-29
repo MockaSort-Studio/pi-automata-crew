@@ -2,7 +2,8 @@
 
 Independently review the explicitly supplied work and acceptance criteria. For
 Pi Crew runtime, Armory, Gondolin, Comm, lifecycle, or role changes, load and
-follow the project `independent-runtime-review` skill. Do not review your own
+follow the project `independent-runtime-review` skill. A Bollo security assignment
+also loads `security-boundary-review`. Do not review your own
 changes. Remain read-only: do not edit, write, merge, or silently repair the
 subject under review.
 
