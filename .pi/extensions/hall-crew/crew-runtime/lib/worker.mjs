@@ -7,6 +7,17 @@ import { acquireNixGuestSuites } from "../../env-runtime/lib/armory-nix.mjs";
 import { leaseFromEnvironment, revokeCredentialLease, serializeLease } from "../../env-runtime/lib/credentials.mjs";
 import { credentialPolicyForSuites } from "../../env-runtime/credential-policy.mjs";
 
+// Lifecycle hands the worker's Comm token over a private pipe on fd 3 (never the environment, which
+// any same-user process can read). Read it before anything else.
+// Only the fd named by PI_CREW_COMM_TOKEN_FD is read: a fixed fd number could be one of Node's own.
+const readTokenFd = (fd) => {
+  try {
+    return Number(fd) > 0 ? readFileSync(Number(fd), "utf8") : "";
+  } catch {
+    return "";
+  }
+};
+const commToken = readTokenFd(process.env.PI_CREW_COMM_TOKEN_FD);
 const configPath = resolve(process.argv[2]);
 const config = JSON.parse(readFileSync(configPath, "utf8"));
 
@@ -80,11 +91,16 @@ if (config.thinking) args.push("--thinking", config.thinking);
 const credentialLease = leaseFromEnvironment(config.armory?.network?.credentials ?? []);
 const child = spawn("pi", args, {
   cwd: config.cwd,
-  // fd 3 is a one-shot private credential channel, never an environment value.
-  stdio: ["pipe", "pipe", "pipe", "pipe"],
-  env: { ...process.env, PI_CREW_WORKER_CONFIG: configPath },
+  // fd 3 is a one-shot private credential channel and fd 4 a one-shot Comm-token channel; neither is
+  // ever an environment value.
+  stdio: ["pipe", "pipe", "pipe", "pipe", "pipe"],
+  env: { ...process.env, PI_CREW_WORKER_CONFIG: configPath, PI_CREW_COMM_TOKEN_FD: "4" },
 });
+// A Pi that dies before reading these pipes must not crash this worker with an unhandled EPIPE.
+for (const pipe of [child.stdio[3], child.stdio[4]]) pipe.on("error", () => {});
 child.stdio[3].end(serializeLease(credentialLease));
+// fd 4 carries only this worker's Comm token to the Pi extension that connects to Comm.
+child.stdio[4].end(commToken);
 let buffer = "";
 let startupSent = false;
 const send = (message) => child.stdin.write(`${JSON.stringify(message)}\n`);

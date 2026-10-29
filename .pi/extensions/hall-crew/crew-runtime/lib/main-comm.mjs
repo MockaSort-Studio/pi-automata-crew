@@ -1,8 +1,22 @@
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { connectComm } from "./comm-client.mjs";
 import { createCrewTerminalNotifier } from "./crew-terminal-notifier.mjs";
 import { MainInbox } from "./main-inbox.mjs";
 import { startServer } from "./server-process.mjs";
+
+// Mints a random per-actor Comm token on first use and registers it with the
+// server (an already-authenticated Main is the only caller trusted to do
+// this -- see comm-controller-dispatch.mjs). Idempotent per actorId: a
+// second call for the same actor reuses its existing token instead of
+// replacing it (which would strand an already-connected socket).
+export async function registerActorToken(comm, actorTokens, actorId, role) {
+  if (actorTokens.has(actorId)) return actorTokens.get(actorId);
+  const token = randomUUID();
+  actorTokens.set(actorId, token);
+  await comm.registerActor(actorId, role, token);
+  return token;
+}
 
 // Main's side of Crew communication: the Comm server it owns, its messages to members, its own
 // mailbox, and the terminal-state notices. `Runtime` extends this with workers and launch.
@@ -11,6 +25,10 @@ export class MainComm {
   commUrl;
   commProcess;
   commAuthToken;
+  // actorId -> token, for every non-Main actor Main has registered with the
+  // Comm server. Never logged, written to a worker's own config file, or
+  // archived -- see Runtime.spawn() and lifecycle-controller.mjs.
+  actorTokens = new Map();
   plans = new Map();
   main = new MainInbox();
   terminalNotifier;
@@ -53,15 +71,19 @@ export class MainComm {
       this.comm.onDelivery((message) => this.main.deliver(message));
     }
     await Promise.all(
-      actors.map((actor) =>
-        typeof actor === "string" ? this.comm.registerActor(actor) : this.comm.registerActor(actor.actorId, actor.role),
-      ),
+      actors.map((actor) => {
+        const actorId = typeof actor === "string" ? actor : actor.actorId;
+        const role = typeof actor === "string" ? undefined : actor.role;
+        return registerActorToken(this.comm, this.actorTokens, actorId, role);
+      }),
     );
     if (plan?.namespace) {
       this.plans.set(plan.namespace, plan.members ?? []);
       await this.comm.registerPlan(plan.namespace, plan.members ?? []);
       await this.observeTerminalState(plan.namespace);
     }
+    // Only Main's connection info leaves here: it is written to the roster and returned to the
+    // model. Worker tokens stay in `this.actorTokens` and reach each worker only via its environment.
     return { url: this.commUrl, authToken: this.commAuthToken };
   }
 
@@ -133,6 +155,7 @@ export class MainComm {
     this.commProcess = undefined;
     this.commUrl = undefined;
     this.commAuthToken = undefined;
+    this.actorTokens.clear();
     this.main.reset();
     for (const unsubscribe of this.stateUnsubscribers.values()) unsubscribe();
     this.stateUnsubscribers.clear();

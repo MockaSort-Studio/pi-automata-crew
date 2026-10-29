@@ -11,7 +11,7 @@ const actorId = `${namespace}-${handle}`;
 async function setup(t) {
   const runtime = new Runtime(process.cwd());
   const comm = await runtime.startComm([actorId], [], { namespace, members: [{ handle, dependsOn: [], task: "" }] });
-  const worker = await connectComm({ ...comm, actorId, namespace });
+  const worker = await connectComm({ url: comm.url, actorId, namespace, authToken: runtime.actorTokens.get(actorId) });
   t.after(async () => {
     worker.close();
     await runtime.stop();

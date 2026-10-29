@@ -322,7 +322,7 @@ test("Runtime wires typed terminal state to one Main follow-up", async () => {
       url: comm.url,
       actorId: `${namespace}-${handle}`,
       namespace,
-      authToken: comm.authToken,
+      authToken: runtime.actorTokens.get(`${namespace}-${handle}`),
     });
     await worker.lifecycleUpdate(namespace, "running");
     await worker.lifecycleUpdate(namespace, "complete");
@@ -409,5 +409,9 @@ test("launchCrew starts isolated agents and Runtime stop removes them", async ()
   ]);
   assert.equal((await runtime.list()).length, 2);
   const cleanup = await runtime.stop();
-  assert.equal(cleanup.removals.filter((item) => item.removed).length, 2);
+  assert.equal(
+    cleanup.removals.filter((item) => item.removed).length,
+    2,
+    `a worker was not removed: ${JSON.stringify(cleanup.removals)}`,
+  );
 });

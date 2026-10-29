@@ -32,7 +32,7 @@ test("with a session attached every Main delivery starts a turn and stays replya
     namespace,
     members: [{ handle: "developer-snowball-00", dependsOn: [], task: "" }],
   });
-  const worker = await connectComm({ ...comm, actorId, namespace });
+  const worker = await connectComm({ url: comm.url, actorId, namespace, authToken: runtime.actorTokens.get(actorId) });
   t.after(async () => {
     worker.close();
     await runtime.stop();

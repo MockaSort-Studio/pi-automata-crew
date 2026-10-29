@@ -15,6 +15,39 @@ validation. Claude skills and methodology migration are out of scope.
 See [Saga 2](docs/saga/Saga-2-The-Loosed-Harness-[open].md) and the
 [implementation plan](docs/crew/implementation-plan.md) for the active direction.
 
+## Install
+
+This repository is a [Pi package](docs/crew/packaging.md): `package.json` declares a `pi` manifest
+that exposes the Crew extensions (`hall-crew/crew`, `hall-crew/crew-runtime`, `web`) and the
+reviewer skills under `.pi/skills`. Required host tools: Node 24, npm, and the `pi` CLI.
+
+Install straight from git (pin a tag once alpha releases start, e.g. `@v0.1.0-alpha.1`):
+
+```bash
+pi install git:github.com/<org>/pi-automata-crew
+```
+
+Or install a local checkout by path, for development:
+
+```bash
+pi install /path/to/pi-automata-crew
+```
+
+Confirm the package is registered and its resources load:
+
+```bash
+pi list
+```
+
+Update an installed package to the latest pinned ref:
+
+```bash
+pi update --extensions
+```
+
+See [docs/crew/packaging.md](docs/crew/packaging.md) for the manifest contents and the release
+procedure.
+
 ## Develop
 
 Requires Node 24 and npm.

@@ -5,6 +5,10 @@ import { watchParent } from "./parent-watch.mjs";
 const config = JSON.parse(process.argv[2]);
 const controller = new LifecycleController(config);
 const authToken = config.authToken;
+// Replay every run's durable log before accepting any RPC: a worker left
+// running by a prior Lifecycle server that died is recorded owner_lost and
+// its evidence archived, never silently forgotten or marked successful.
+await controller.recover();
 const server = new WebSocketServer({ port: 0 });
 await new Promise((resolve) => server.once("listening", resolve));
 const methods = {
