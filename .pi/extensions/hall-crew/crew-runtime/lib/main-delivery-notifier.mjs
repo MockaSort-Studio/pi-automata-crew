@@ -1,5 +1,7 @@
 // Surfaces each Comm delivery to Main as a Pi session message that starts a
-// turn, so Main (or the user) reacts without polling. The payload is untrusted
+// turn, so Main (or the user) reacts without polling. Delivered with `steer`, not
+// `followUp`: a busy Main receives each report after its current tool calls instead of
+// only once it has stopped working. The payload is untrusted
 // worker data; the message states how to reply and carries no authority.
 const MAX_PAYLOAD_CHARS = 4000;
 
@@ -26,7 +28,7 @@ export function mainDeliveryMessage(delivery) {
 export function createMainDeliveryNotifier(sendMessage) {
   if (typeof sendMessage !== "function") throw new TypeError("sendMessage must be a function");
   return (delivery) =>
-    Promise.resolve(sendMessage(mainDeliveryMessage(delivery), { triggerTurn: true, deliverAs: "followUp" })).catch(
+    Promise.resolve(sendMessage(mainDeliveryMessage(delivery), { triggerTurn: true, deliverAs: "steer" })).catch(
       () => {},
     );
 }

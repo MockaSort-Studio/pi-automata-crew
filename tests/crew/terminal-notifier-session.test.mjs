@@ -24,11 +24,11 @@ test("session binding forwards terminal notifications to Pi and tears down", () 
 
   registerTerminalNotifierSession(pi, runtimeFor);
   handlers.get("session_start")({}, { cwd: "/repo" });
-  notify({ customType: "crew-terminal", content: "done" }, { triggerTurn: true, deliverAs: "followUp" });
+  notify({ customType: "crew-terminal", content: "done" }, { triggerTurn: true, deliverAs: "steer" });
   assert.deepEqual(messages, [
     {
       message: { customType: "crew-terminal", content: "done" },
-      options: { triggerTurn: true, deliverAs: "followUp" },
+      options: { triggerTurn: true, deliverAs: "steer" },
     },
   ]);
   handlers.get("session_shutdown")();

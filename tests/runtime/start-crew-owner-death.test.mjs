@@ -1,39 +1,15 @@
 import { strict as assert } from "node:assert";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import http from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { mockModel, providerFor } from "./mock-model.mjs";
 
 // Drives Pi's real model -> tool-call -> `start_crew` path with an offline OpenAI-compatible mock
 // provider, then kills the owning Pi process and proves nothing it started survives.
 const root = new URL("../..", import.meta.url).pathname;
 const piAvailable = () => spawnSync("pi", ["--version"], { stdio: "ignore" }).status === 0;
-const chunk = (id, delta, finish = null) =>
-  `data: ${JSON.stringify({ id, object: "chat.completion.chunk", created: 1, model: "mock-model", choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
-
-function mockModel(crewArguments) {
-  let calls = 0;
-  return http.createServer((request, response) => {
-    request.resume();
-    request.on("end", () => {
-      const id = `mock-${++calls}`;
-      response.writeHead(200, { "content-type": "text/event-stream" });
-      if (calls === 1) {
-        const call = {
-          index: 0,
-          id: "call_1",
-          type: "function",
-          function: { name: "start_crew", arguments: crewArguments },
-        };
-        response.write(chunk(id, { role: "assistant", tool_calls: [call] }) + chunk(id, {}, "tool_calls"));
-      } else response.write(chunk(id, { role: "assistant", content: "launched" }) + chunk(id, {}, "stop"));
-      response.end("data: [DONE]\n\n");
-    });
-  });
-}
-
 const processes = () =>
   execFileSync("ps", ["-A", "-o", "pid=,ppid=,command="], { encoding: "utf8" })
     .split("\n")
@@ -68,7 +44,9 @@ test(
       ],
       environment: { microvm: "none" },
     });
-    const model = mockModel(crew);
+    const model = mockModel((call) =>
+      call === 1 ? { toolCall: { name: "start_crew", arguments: crew } } : { text: "launched" },
+    );
     await new Promise((resolve) => model.listen(0, "127.0.0.1", resolve));
     const dir = mkdtempSync(join(tmpdir(), "owner-death-"));
     let owner;
@@ -77,25 +55,9 @@ test(
       cpSync(join(root, ".pi", "extensions"), join(dir, ".pi", "extensions"), { recursive: true });
       symlinkSync(join(root, "node_modules"), join(dir, "node_modules"));
       writeFileSync(join(dir, ".gitignore"), ".pi/runtime/\nnode_modules\n");
-      const provider = {
-        baseUrl: `http://127.0.0.1:${model.address().port}/v1`,
-        apiKey: "mock-key",
-        api: "openai-completions",
-        models: [
-          {
-            id: "mock-model",
-            name: "Mock",
-            reasoning: false,
-            input: ["text"],
-            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-            contextWindow: 128000,
-            maxTokens: 4096,
-          },
-        ],
-      };
       writeFileSync(
         join(dir, "mock-provider.mjs"),
-        `export default (pi) => pi.registerProvider("mock", ${JSON.stringify(provider)});\n`,
+        `export default (pi) => pi.registerProvider("mock", ${JSON.stringify(providerFor(model))});\n`,
       );
       const git = (...args) =>
         execFileSync("git", ["-c", "user.email=t@example.com", "-c", "user.name=t", ...args], { cwd: dir });
