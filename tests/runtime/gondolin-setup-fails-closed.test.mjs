@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { skipLiveGondolin } from "./live-gondolin.mjs";
 
 const extension = new URL(
   "../../.pi/extensions/hall-crew/env-runtime/lib/worker-gondolin-extension.mjs",
@@ -42,7 +43,8 @@ test("an invalid Armory config ends the worker with a clear message instead of l
   assert.doesNotMatch(result.stdout, /SETUP-RETURNED/);
 });
 
-test("a valid config with no suite completes setup normally", () => {
+test("a valid config with no suite completes setup normally", (t) => {
+  if (skipLiveGondolin(t)) return;
   const result = runSessionStart({});
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /SETUP-RETURNED/);

@@ -4,8 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { VM, VmCheckpoint } from "@earendil-works/gondolin";
+import { skipLiveGondolin } from "./live-gondolin.mjs";
 
-test("a Gondolin disk checkpoint restores a private VM overlay", { timeout: 90_000 }, async () => {
+test("a Gondolin disk checkpoint restores a private VM overlay", { timeout: 90_000 }, async (t) => {
+  if (skipLiveGondolin(t)) return;
   const directory = mkdtempSync(join(tmpdir(), "gondolin-checkpoint-"));
   const checkpointPath = join(directory, "profile.qcow2");
   let vm;

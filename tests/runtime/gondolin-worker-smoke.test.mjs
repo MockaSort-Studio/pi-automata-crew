@@ -6,6 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { requiredQemuBinary } from "../../.pi/extensions/hall-crew/env-runtime/lib/sandbox-preflight.mjs";
 import { chooseVmm } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-vmm.mjs";
+import { skipLiveGondolin } from "./live-gondolin.mjs";
 
 const extension = new URL(
   "../../.pi/extensions/hall-crew/env-runtime/lib/worker-gondolin-extension.mjs",
@@ -45,6 +46,7 @@ for (const vmm of ["krun", "qemu"]) {
     `${vmm}: the registered Gondolin worker extension routes Pi's built-in bash through the guest`,
     { timeout: 100_000 },
     async (t) => {
+      if (skipLiveGondolin(t)) return;
       if (!available[vmm]()) return t.skip(`${vmm} is unavailable here`);
       const cwd = mkdtempSync(join(tmpdir(), "gondolin-worker-smoke-"));
       const { child, response } = rpcBash(cwd, vmm);

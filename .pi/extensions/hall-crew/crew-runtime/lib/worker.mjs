@@ -15,11 +15,12 @@ async function prepareArmory(config) {
   const catalog = await resolveArmoryCatalog(config.armory.catalog);
   const suites = await acquireNixGuestSuites({ catalog, requests: config.armory.requests });
   const credentials = credentialPolicyForSuites(suites.map((suite) => suite.suite));
+  const allowedHosts = [...new Set(suites.flatMap((suite) => suite.network.allowedHosts))].sort();
   return {
     catalogRevision: catalog.revision,
     nixPaths: [...new Set(suites.flatMap((suite) => suite.paths))].sort(),
     suites: suites.map(({ suite, rootPath, tools }) => ({ suite, rootPath, tools })),
-    network: { credentials },
+    network: { allowedHosts, credentials },
   };
 }
 

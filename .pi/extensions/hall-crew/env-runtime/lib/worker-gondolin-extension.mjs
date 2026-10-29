@@ -81,14 +81,18 @@ async function startVm(localCwd) {
       .filter((credential) => credentialLease.credentials.has(credential.environment))
       .map((credential) => [credential.environment, credentialLease.credentials.get(credential.environment)]),
   );
-  // No global egress policy is imposed here. Gondolin substitutes each secret
-  // only at its individually bound hosts.
-  const network = Object.keys(secrets).length ? createHttpHooks({ secrets }) : undefined;
-  secretManager = network?.secretManager;
+  // Every guest starts deny-all. The host passes only the union of its granted
+  // suites' host allowlists; credentials remain separately bound to their hosts.
+  const network = createHttpHooks({
+    allowedHosts: armory.network?.allowedHosts ?? [],
+    secrets,
+  });
+  secretManager = network.secretManager;
   const created = await VM.create({
     sandbox: { vmm: chooseVmm() },
     sessionLabel: `crew worker ${process.env.PI_SDK_ACTOR_ID ?? "unknown"}`,
-    ...(network ? { httpHooks: network.httpHooks, env: network.env } : {}),
+    httpHooks: network.httpHooks,
+    env: network.env,
     vfs: {
       mounts: {
         [GUEST_WORKSPACE]: new ShadowProvider(new RealFSProvider(localCwd), {

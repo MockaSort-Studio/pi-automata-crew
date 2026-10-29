@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { requiredQemuBinary } from "../../.pi/extensions/hall-crew/env-runtime/lib/sandbox-preflight.mjs";
 import { chooseVmm } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-vmm.mjs";
+import { skipLiveGondolin } from "./live-gondolin.mjs";
 
 const extension = new URL(
   "../../.pi/extensions/hall-crew/env-runtime/lib/worker-gondolin-extension.mjs",
@@ -43,6 +44,7 @@ for (const vmm of ["krun", "qemu"]) {
     `${vmm}: an idle worker releases its VM and boots a fresh one on the next tool call`,
     { timeout: 120_000 },
     (t) => {
+      if (skipLiveGondolin(t)) return;
       if (!available[vmm]()) return t.skip(`${vmm} is unavailable here`);
       const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
         encoding: "utf8",

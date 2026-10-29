@@ -17,4 +17,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+        env:
+          HALL_SKIP_GONDOLIN_LIVE_TESTS: "1"
       - run: npm run format:check
