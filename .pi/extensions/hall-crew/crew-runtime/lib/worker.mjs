@@ -63,6 +63,9 @@ const args = [
   // authentication) and the explicit --extension paths below still load, which is why
   // this is --no-approve and not --no-extensions.
   "--no-approve",
+  // AGENTS.md tells Main how to run a Crew. A worker that read it could try to orchestrate one, and
+  // --no-approve does not stop Pi loading context files.
+  "--no-context-files",
   "--tools",
   tools.join(","),
   "--extension",
