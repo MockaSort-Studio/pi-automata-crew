@@ -4,6 +4,7 @@ import test from "node:test";
 
 const skillPath = new URL("../../.pi/skills/independent-runtime-review/SKILL.md", import.meta.url);
 const reviewerPath = new URL("../../.pi/extensions/hall-crew/crew/prompts/roles/reviewer.md", import.meta.url);
+const iterationSkillPath = new URL("../../.pi/skills/post-iteration-review/SKILL.md", import.meta.url);
 const securitySkillPath = new URL("../../.pi/skills/security-boundary-review/SKILL.md", import.meta.url);
 
 test("the reviewer role invokes the project independent-runtime-review skill", () => {
@@ -15,6 +16,11 @@ test("the reviewer role invokes the project independent-runtime-review skill", (
   assert.match(skill, /network, credential/);
   assert.match(skill, /would regress/);
   assert.match(reviewer, /independent-runtime-review/);
+  const iteration = readFileSync(iterationSkillPath, "utf8");
+  assert.match(reviewer, /post-iteration-review/);
+  assert.match(iteration, /^---\nname: post-iteration-review\n/m);
+  for (const section of ["Over-engineering", "Dead code and tests", "Weak spots", "Vulnerabilities"])
+    assert.match(iteration, new RegExp(section));
   assert.match(reviewer, /security-boundary-review/);
   assert.match(securitySkill, /^---\nname: security-boundary-review\ndescription: .+\n/m);
   assert.match(securitySkill, /deny-by-default/);
