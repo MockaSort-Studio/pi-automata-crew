@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs",
+    "test": "node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs && bash tests/pi/test-extension-load.sh",
     "format": "prettier --write .pi/extensions tests docs README.md CONTRIBUTING.md",
     "format:check": "prettier --check .pi/extensions tests docs README.md CONTRIBUTING.md"
   },

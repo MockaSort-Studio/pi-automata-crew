@@ -7,6 +7,10 @@ trap 'rm -rf "$TMP"' EXIT
 
 mkdir -p "$TMP/.pi"
 cp -R "$ROOT/.pi/extensions" "$TMP/.pi/extensions"
+# The relocated extension tree must resolve the dependencies declared by this
+# package, just as an installed project does; do not accidentally test only
+# extensions whose imports happen to be bundled into Pi itself.
+ln -s "$ROOT/node_modules" "$TMP/node_modules"
 if rg -n '(/Users/|Workspace/|pi\.agents|pi\.tools\.call)' "$TMP/.pi/extensions"; then
   echo "Extension source contains a host-specific path or unsupported Pi API" >&2
   exit 1

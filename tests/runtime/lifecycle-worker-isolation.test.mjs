@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
@@ -24,6 +24,19 @@ function gitRepo() {
   execFileSync("git", ["commit", "-q", "-m", "init"], { cwd });
   return cwd;
 }
+
+test("owner shutdown archives a live worker before removing its run directory", async () => {
+  const cwd = gitRepo();
+  const controller = new LifecycleController({ cwd, workerModule: stubWorker });
+  try {
+    const agent = await controller.spawn({ actorId: "owner-death", name: "owner-death", task: "SLEEP" });
+    await controller.shutdown();
+    assert.equal(existsSync(join(cwd, ".pi", "runtime", "runs", agent.id)), false);
+    assert.equal(existsSync(join(cwd, ".pi", "runtime", "archive", agent.id, "worker.json")), true);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
 
 test("a spawned worker's environment carries no host .pi/runtime discovery variable", async () => {
   const cwd = gitRepo();

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { preserveEvidence } from "./crew-launch.mjs";
 import { resolveModelWindow } from "./model-window.mjs";
 import { summarizeWorkerEvents } from "./worker-metrics.mjs";
 import { syncWorkingTree } from "./worktree-sync.mjs";
@@ -188,6 +189,9 @@ export class LifecycleController {
   }
   async shutdown() {
     const agents = await this.list();
+    // Owner death is an abnormal terminal path. Keep each run's evidence before
+    // removing its worktree, exactly as launch rollback does.
+    await preserveEvidence(this.cwd, agents);
     return Promise.allSettled(agents.map((agent) => this.remove(agent.id)));
   }
 }
