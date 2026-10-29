@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { roleModule } from "../../.pi/extensions/hall-crew/crew/lib/automaton-body/lib/modules/role.mjs";
 import { assemble } from "../../.pi/extensions/hall-crew/crew/lib/assembly.mjs";
+import { GITHUB_BASE_TOOLS } from "../../.pi/extensions/hall-crew/crew/lib/github-base-tools.mjs";
 
 test("roles provide bounded native capabilities", () => {
   for (const [role, tool, thinking] of [
@@ -19,6 +20,11 @@ test("roles provide bounded native capabilities", () => {
   }
 });
 
+test("GitHub base catalog declares bounded workflow inspection operations", () => {
+  for (const operation of ["github_workflow_runs_list", "github_workflow_run_view", "github_workflow_run_failed_log"])
+    assert.ok(GITHUB_BASE_TOOLS.includes(operation));
+});
+
 test("base Crew policy has Comm and no implicit GitHub operations", () => {
   const lead = roleModule({ role: "lead", override: {} });
   const architect = assemble("tomashco", "architect", "");
@@ -28,6 +34,7 @@ test("base Crew policy has Comm and no implicit GitHub operations", () => {
   assert.match(architect.instructions, /SDK Comm is the Crew coordination channel/);
   assert.doesNotMatch(architect.instructions, /github_discussion|crew_ask|Discussion is the durable/);
   assert.ok(!lead.tools.some((tool) => tool.startsWith("github_")));
+  assert.ok(!architect.tools.some((tool) => tool.startsWith("github_workflow_")));
   assert.ok(!architect.tools.some((tool) => tool.startsWith("github_")));
   assert.ok(!architect.tools.some((tool) => tool.startsWith("crew_")));
 });

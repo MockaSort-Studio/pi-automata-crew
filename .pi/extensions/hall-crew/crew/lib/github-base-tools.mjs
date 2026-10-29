@@ -39,5 +39,8 @@ export const GITHUB_BASE_TOOLS = Object.freeze([
   "github_pull_request_merge",
   "github_pull_request_add_label",
   "github_pull_request_remove_label",
+  "github_workflow_runs_list",
+  "github_workflow_run_view",
+  "github_workflow_run_failed_log",
 ]);
 export const GITHUB_BASE_TOOL_SET = new Set(GITHUB_BASE_TOOLS);
