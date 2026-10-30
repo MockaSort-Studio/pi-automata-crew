@@ -17,6 +17,7 @@ let commReady;
 let activePi;
 // Shared across reloads for the same reason: turn_end writes it, the once-registered listener reads it.
 let staticContextReported = false;
+let resolvedModel;
 // sawTurnEnd separates "a turn_end fired and it was empty" (degenerate, retry) from "none fired
 // before settling" (a legitimate reply-driven completion that must not trigger a retry).
 let sawTurnEnd, lastTurnUsage, lastTurnToolCalls;
@@ -64,7 +65,10 @@ export default function workerCommExtension(pi) {
     // which the launch config never captures; ctx.model is where it is knowable.
     const modelId = ctx.model?.provider && ctx.model?.id ? `${ctx.model.provider}/${ctx.model.id}` : ctx.model?.id;
     const modelWindow = Number.isFinite(ctx.model?.contextWindow) ? ctx.model.contextWindow : undefined;
-    if (modelId) ctx.ui.notify(`${RESOLVED_MODEL_MARKER}${JSON.stringify({ modelId, modelWindow })}`, "info");
+    if (modelId) {
+      resolvedModel = modelId;
+      ctx.ui.notify(`${RESOLVED_MODEL_MARKER}${JSON.stringify({ modelId, modelWindow })}`, "info");
+    }
   });
   if (!config.comm) return;
   const ensureCommConnected = () => {
@@ -105,13 +109,15 @@ export default function workerCommExtension(pi) {
             await settled;
             if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
               try {
+                await comm.lifecycleUpdate(config.comm.namespace, "blocked");
                 await comm.emit({
                   to: "main",
                   payload: {
                     kind: "report",
                     status: "BLOCKED",
                     reason: "empty-turn",
-                    detail: "Two consecutive empty provider turns (no tokens, no tool call) for this delivery.",
+                    detail: "Two consecutive provider turns returned no tokens or tool calls.",
+                    diagnostics: { model: resolvedModel ?? "unknown", attempts: 2, providerResponse: "empty" },
                   },
                 });
               } catch {}

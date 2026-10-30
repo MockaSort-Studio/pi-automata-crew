@@ -82,9 +82,15 @@ export class MainComm {
       await this.comm.registerPlan(plan.namespace, plan.members ?? []);
       await this.observeTerminalState(plan.namespace);
     }
-    // Only Main's connection info leaves here: it is written to the roster and returned to the
-    // model. Worker tokens stay in `this.actorTokens` and reach each worker only via its environment.
-    return { url: this.commUrl, authToken: this.commAuthToken };
+    // Roster/config artifacts and model-visible results receive only this public endpoint. Every
+    // authentication secret stays in Main memory; workers receive their individual token over an FD.
+    return { url: this.commUrl };
+  }
+
+  // The local monitor may open an in-memory observer connection. Never serialize or return this from
+  // a Crew tool: callers outside this Main process have only the public URL.
+  monitorConnection() {
+    return this.commUrl && this.commAuthToken ? { url: this.commUrl, authToken: this.commAuthToken } : undefined;
   }
 
   memberId(runId, handle) {

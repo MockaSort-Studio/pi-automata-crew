@@ -170,8 +170,8 @@ test("retries exactly once on a degenerate turn, then acknowledges once real wor
   );
 });
 test("reports BLOCKED to main and still acknowledges after two consecutive degenerate turns", async (t) => {
-  const { comm, pi } = await setup(t);
-  comm.emit("lead", "ns-worker", { ask: "respond" }, true);
+  const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
+  comm.emit("lead", "ns-developer-worker-00", { ask: "respond" }, true);
   await waitFor(() => pi.deliveries.length === 1);
   fireTurn(pi, { usage: { input: 0, output: 0 }, toolCalls: 0 });
   await waitFor(() => pi.deliveries.length === 2);
@@ -179,9 +179,11 @@ test("reports BLOCKED to main and still acknowledges after two consecutive degen
   await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
   assert.equal(pi.deliveries.length, 2, "never a third attempt: bounded, not a loop");
   const report = comm.claim("main");
-  assert.equal(report?.from, "ns-worker");
+  assert.equal(report?.from, "ns-developer-worker-00");
   assert.equal(report?.payload?.status, "BLOCKED");
   assert.equal(report?.payload?.reason, "empty-turn");
+  assert.deepEqual(report?.payload?.diagnostics, { model: "unknown", attempts: 2, providerResponse: "empty" });
+  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "blocked");
 });
 test("a same-process reload (new_session) never races a second Comm registration, and never calls a stale pi", async (t) => {
   const comm = new CommController();

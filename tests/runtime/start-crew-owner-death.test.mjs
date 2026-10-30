@@ -1,6 +1,16 @@
 import { strict as assert } from "node:assert";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -158,6 +168,11 @@ test(
         existsSync(join(dir, ".pi", "runtime", "runs")) ? readdirSync(join(dir, ".pi", "runtime", "runs")).length : 0,
         0,
       );
+      const evidence = readdirSync(join(dir, ".pi", "runtime"), { recursive: true })
+        .filter((name) => String(name).endsWith(".json"))
+        .map((name) => readFileSync(join(dir, ".pi", "runtime", String(name)), "utf8"));
+      assert.ok(evidence.length, "launch and archive evidence exists");
+      for (const text of evidence) assert.doesNotMatch(text, /"authToken"\s*:/);
     } finally {
       owner?.kill("SIGKILL");
       for (const pid of pids) if (alive(pid)) process.kill(pid, "SIGKILL");

@@ -360,7 +360,8 @@ test("launchCrew registers the plan it is given, so the Comm server owns that ru
         ],
       },
     );
-    const comm = await runtime.startComm();
+    const comm = runtime.monitorConnection();
+    assert.ok(comm);
     const client = await connectComm({
       url: comm.url,
       actorId: `observer-${prefix}`,
@@ -386,7 +387,8 @@ test("launchCrew without a plan registers nothing (plan is optional)", async () 
     prefix = `noplan-${randomUUID()}`;
   try {
     await runtime.launchCrew([{ name: "developer-a-00", actorId: `${prefix}-a`, task: "Reply done." }]);
-    const comm = await runtime.startComm();
+    const comm = runtime.monitorConnection();
+    assert.ok(comm);
     const client = await connectComm({
       url: comm.url,
       actorId: `observer-${prefix}`,

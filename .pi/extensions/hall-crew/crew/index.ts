@@ -59,7 +59,7 @@ export default function crewExtension(pi: ExtensionAPI) {
   registerRosterTools(pi);
   registerSkillTrace(pi);
   registerCrewAssemblyCard(pi);
-  const monitor = registerCrewMonitor(pi);
+  const monitor = registerCrewMonitor(pi, runtimeFor);
 
   pi.registerTool({
     name: "crew_route",

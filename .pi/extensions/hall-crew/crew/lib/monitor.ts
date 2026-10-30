@@ -27,7 +27,10 @@ const readJson = (path) => {
 };
 const workerMetricsByActor = (cwd, roster) => workerMetricsByActorFor(cwd, CONFIG_DIR_NAME, roster);
 
-export function registerCrewMonitor(pi: ExtensionAPI) {
+export function registerCrewMonitor(
+  pi: ExtensionAPI,
+  runtimeFor?: (cwd: string) => { monitorConnection?: () => unknown },
+) {
   let ctx: ExtensionContext | undefined;
   let activePath: string | undefined;
   let watcher: FSWatcher | undefined;
@@ -51,8 +54,9 @@ export function registerCrewMonitor(pi: ExtensionAPI) {
   const liveLedgerFor = (roster) => {
     if (!ctx) return undefined;
     const selected = selectedCrewFor(readJson, ctx.cwd, roster);
+    const connection = runtimeFor?.(ctx.cwd).monitorConnection?.() as { url?: string; authToken?: string } | undefined;
     return selected
-      ? ensureLiveLedgerTracker().ledgerFor(selected, roster?.comm?.url, roster?.comm?.authToken)
+      ? ensureLiveLedgerTracker().ledgerFor(selected, connection?.url ?? roster?.comm?.url, connection?.authToken)
       : undefined;
   };
 
