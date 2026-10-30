@@ -4,8 +4,12 @@ import test from "node:test";
 import { parse } from "yaml";
 
 const skillsDir = new URL("../../.pi/skills/", import.meta.url);
-// A skill that nothing references is never armed: the reviewer role or AGENTS.md must name it.
-const referencedBy = ["../../.pi/extensions/hall-crew/crew/prompts/roles/reviewer.md", "../../AGENTS.md"]
+// A skill that no Main procedure names cannot be supplied to an isolated worker.
+const referencedBy = [
+  "../../.pi/extensions/hall-crew/crew/prompts/roles/reviewer.md",
+  "../../.pi/skills/engineering-review/SKILL.md",
+  "../../AGENTS.md",
+]
   .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
   .join("\n");
 
@@ -23,7 +27,7 @@ for (const { name: directory } of skills) {
     assert.equal(name, directory);
     assert.match(name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
     assert.ok(typeof description === "string" && description.length > 20 && description.length <= 1024);
-    assert.ok(referencedBy.includes(name), `${name} is not referenced by the reviewer role or AGENTS.md`);
+    assert.ok(referencedBy.includes(name), `${name} is not referenced by a Main procedure`);
   });
 }
 

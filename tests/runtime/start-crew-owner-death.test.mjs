@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 import { mockModel, providerFor } from "./mock-model.mjs";
 
@@ -39,8 +39,14 @@ test(
   { skip: !piAvailable() && "pi is not installed", timeout: 120_000 },
   async () => {
     const crew = JSON.stringify({
+      model: "mock/mock-model",
       members: [
-        { name: "snowball", role: "developer", task: "wait", tools: [{ suite: "system", operations: ["read"] }] },
+        {
+          name: "snowball",
+          role: "developer",
+          task: "wait",
+          tools: [{ suite: "system", operations: ["read"] }],
+        },
       ],
       environment: { microvm: "none" },
     });
@@ -58,6 +64,13 @@ test(
       writeFileSync(
         join(dir, "mock-provider.mjs"),
         `export default (pi) => pi.registerProvider("mock", ${JSON.stringify(providerFor(model))});\n`,
+      );
+      const agentDir = join(dir, "agent");
+      const userExtension = join(agentDir, "extensions", "mock-provider", "index.ts");
+      mkdirSync(dirname(userExtension), { recursive: true });
+      writeFileSync(
+        userExtension,
+        `export { default } from ${JSON.stringify(join(root, "tests/runtime/fixtures/mock-provider-from-env.mjs"))};\n`,
       );
       const git = (...args) =>
         execFileSync("git", ["-c", "user.email=t@example.com", "-c", "user.name=t", ...args], { cwd: dir });
@@ -89,7 +102,16 @@ test(
           "-e",
           join(dir, ".pi/extensions/hall-crew/crew-runtime/index.ts"),
         ],
-        { cwd: dir, env: { ...process.env, PI_OFFLINE: "1" }, stdio: ["pipe", "pipe", "ignore"] },
+        {
+          cwd: dir,
+          env: {
+            ...process.env,
+            PI_OFFLINE: "1",
+            PI_CODING_AGENT_DIR: agentDir,
+            HALL_TEST_MOCK_MODEL_PORT: String(model.address().port),
+          },
+          stdio: ["pipe", "pipe", "ignore"],
+        },
       );
       let launched;
       let buffer = "";

@@ -9,6 +9,7 @@ import { kickoffPayload } from "./kickoff-payload.mjs";
 import { suiteGrants } from "./suite-grants.mjs";
 import { writeLaunchFiles } from "./launch-files.mjs";
 import { resolveLaunchEnvironment } from "./launch-environment.mjs";
+import { requiredWorkerSkills } from "./worker-skills.mjs";
 export function crewPaths(configDir, runId) {
   const root = join(configDir, "runtime", "crew-launch");
   return {
@@ -21,7 +22,7 @@ const handle = (role, name, ordinal) => `${role}-${name}-${String(ordinal).padSt
 const runtimeIdentity = (name, directory) =>
   `## CREW IDENTITY\nYour exact Comm sender handle is ${name}.\n\n## CREW DIRECTORY\n${directory}`;
 const workerTask = (actor, runId, topic, directory) =>
-  `${actor.instructions}\n\n${runtimeIdentity(actor.handle, directory)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.`;
+  `${actor.instructions}${actor.workerSkills ? `\n\n${actor.workerSkills}` : ""}\n\n${runtimeIdentity(actor.handle, directory)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.`;
 export function queuedMessage(prepared) {
   return `Crew ${prepared.runId} launched on the SDK runtime.`;
 }
@@ -34,7 +35,8 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   const topic = `crew.${runId}`;
   const paths = crewPaths(configDir, runId);
   const counts = new Map();
-  const actors = input.members.map((member) => {
+  const skills = input.members.map((member) => requiredWorkerSkills(ctx.cwd, member.skills));
+  const actors = input.members.map((member, index) => {
     const grants = suiteGrants(member.tools ?? BASE_TOOLS_PROFILE);
     if (!member.name?.trim() || !member.role?.trim()) throw new Error("Crew members require name and role.");
     const key = `${member.role}-${member.name}`;
@@ -53,6 +55,10 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       suiteGrants: grants.suites,
       role: member.role,
       handle: handle(member.role, member.name, ordinal),
+      // An explicit member model wins; otherwise inherit the Crew model. With neither, Pi uses its runtime default.
+      model: member.model ?? input.model ?? assembled.model,
+      workerSkills: skills[index].text,
+      skills: skills[index].names,
     };
   });
   const leads = actors.filter((actor) => actor.role === "lead");
@@ -107,6 +113,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       thinking: actor.thinking,
       task: String(input.members[index].task || "").trim(),
       dependsOn: input.members[index].dependsOn || [],
+      ...(actor.skills.length ? { skills: actor.skills } : {}),
       ...(input.members[index].inputs ? { inputs: input.members[index].inputs } : {}),
       ...(input.members[index].deliverTo ? { deliverTo: input.members[index].deliverTo } : {}),
       ...(input.members[index].authority ? { authority: input.members[index].authority } : {}),

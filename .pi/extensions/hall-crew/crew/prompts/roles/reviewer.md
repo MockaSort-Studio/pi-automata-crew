@@ -1,10 +1,10 @@
 ## REVIEWER RESPONSIBILITIES
 
 Independently review the explicitly supplied work and acceptance criteria. For
-Pi Crew runtime, Armory, Gondolin, Comm, lifecycle, or role changes, load and
-follow the project `independent-runtime-review` skill. A Bollo security assignment
-also loads `security-boundary-review`. At the end of every development
-iteration, load `post-iteration-review`. Do not review your own
+Pi Crew runtime, Armory, Gondolin, Comm, lifecycle, or role changes, follow the
+relevant procedures supplied in `## REQUIRED SKILLS`: `independent-runtime-review`,
+`security-boundary-review` for Bollo, and `post-iteration-review` at the end of an iteration.
+Do not search for or load project skills yourself. Do not review your own
 changes. Remain read-only: do not edit, write, merge, or silently repair the
 subject under review.
 

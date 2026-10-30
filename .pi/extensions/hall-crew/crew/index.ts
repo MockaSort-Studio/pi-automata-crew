@@ -28,6 +28,7 @@ const assignmentFields = {
   tools: Type.Optional(
     Type.Array(Type.Object({ suite: Type.String(), operations: Type.Array(Type.String(), { minItems: 1 }) })),
   ),
+  skills: Type.Optional(Type.Array(Type.String(), { maxItems: 4 })),
 };
 const initialMember = Type.Object({
   name: Type.String(),
