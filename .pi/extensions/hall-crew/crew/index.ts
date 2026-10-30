@@ -1,7 +1,7 @@
 import { CONFIG_DIR_NAME, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Text } from "@earendil-works/pi-tui";
+import { Container, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { assemble, validateAvailableRoleTools } from "./lib/assembly.mjs";
 import { registerCrewMonitor } from "./lib/monitor.ts";
@@ -11,6 +11,7 @@ import { registerRosterTools } from "./lib/roster-tools.ts";
 import { registerSkillTrace } from "./lib/skill-trace.ts";
 import { assemblyCardData } from "./lib/crew-assembly-card.mjs";
 import { CREW_ASSEMBLED_ENTRY, registerCrewAssemblyCard } from "./lib/crew-assembly-card.ts";
+import { registerCrewMessageRenderer } from "./lib/crew-message-renderer.ts";
 import { parseSpecialistRoutes, routeSpecialists } from "./lib/specialist-routing.mjs";
 import { runtimeFor } from "../crew-runtime/lib/shared-runtime.mjs";
 import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
@@ -59,6 +60,7 @@ export default function crewExtension(pi: ExtensionAPI) {
   registerRosterTools(pi);
   registerSkillTrace(pi);
   registerCrewAssemblyCard(pi);
+  registerCrewMessageRenderer(pi);
   const monitor = registerCrewMonitor(pi, runtimeFor);
 
   pi.registerTool({
@@ -108,11 +110,9 @@ export default function crewExtension(pi: ExtensionAPI) {
       if (isPartial) return new Text(theme.fg("warning", "Launching SDK Crew..."), 0, 0);
       const details = result.details as { runId?: string; status?: string } | undefined;
       if (!details?.runId) return new Text(theme.fg("error", "Crew launch failed"), 0, 0);
-      return new Text(
-        theme.fg("success", theme.bold("✓ SDK Crew started")) + theme.fg("muted", `  ${details.runId.slice(0, 8)}`),
-        0,
-        0,
-      );
+      // Launch success is already shown by the TUI-only assembled-Crew card appended before
+      // the runtime launch; a second "started" line here would be redundant.
+      return new Container();
     },
     async execute(_id, input, signal, _update, ctx) {
       // Bind against this tool's actual Runtime before it launches a Crew.
