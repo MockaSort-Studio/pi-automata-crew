@@ -34,6 +34,17 @@ test("crew extension calls all tool registration functions", () => {
   assert.match(source, /registerRosterTools\(pi\)/);
 });
 
+test("start_crew no longer renders a redundant final success line", () => {
+  assert.doesNotMatch(source, /SDK Crew started/);
+  assert.match(source, /Launching SDK Crew\.\.\./, "the transient launch indication should remain");
+  assert.match(source, /Crew launch failed/, "the error case should still render");
+});
+
+test("crew extension registers a Markdown renderer for incoming crew-message deliveries", () => {
+  assert.match(source, /import.*registerCrewMessageRenderer.*from.*crew-message-renderer/);
+  assert.match(source, /registerCrewMessageRenderer\(pi\)/);
+});
+
 test("roster tools module exports registration function", () => {
   const rosterTools = readFileSync(
     new URL("../../.pi/extensions/hall-crew/crew/lib/roster-tools.ts", import.meta.url),
