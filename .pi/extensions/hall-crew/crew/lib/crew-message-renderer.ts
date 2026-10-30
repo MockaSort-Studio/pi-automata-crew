@@ -1,15 +1,17 @@
 import { getMarkdownTheme, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Markdown, Text } from "@earendil-works/pi-tui";
-import { renderCrewMessageMarkdown } from "./crew-message-view.mjs";
+import { Text } from "@earendil-works/pi-tui";
+import { buildCrewMessageChrome } from "./crew-message-chrome.mjs";
 
-// Renders incoming `crew-message` deliveries (untrusted worker payloads) as readable
-// Markdown. Falls back to the raw message text for any shape this can't parse, so a
-// malformed or adversarial payload degrades to plain text instead of breaking the TUI.
+// Renders incoming `crew-message` deliveries (untrusted worker payloads) inside the
+// original-style custom-message card chrome -- a `customMessageBg` background band
+// with a bold `[crew-message]` label -- with the deterministic Markdown body (see
+// crew-message-view.mjs) underneath. Falls back to the raw message text for any shape
+// this can't parse, so a malformed or adversarial payload degrades to plain text
+// instead of breaking the TUI.
 export function registerCrewMessageRenderer(pi: ExtensionAPI) {
   pi.registerMessageRenderer("crew-message", (message, { outputPad }, theme) => {
     try {
-      const markdownText = renderCrewMessageMarkdown(message as { content?: string });
-      return new Markdown(markdownText, outputPad, 0, getMarkdownTheme());
+      return buildCrewMessageChrome(message as { content?: string }, theme, getMarkdownTheme(), outputPad);
     } catch {
       return new Text(theme.fg("customMessageText", String(message?.content ?? "")), outputPad, 0);
     }

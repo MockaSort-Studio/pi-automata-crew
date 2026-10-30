@@ -9,7 +9,7 @@ const source = readFileSync(
 
 test("crew-message renderer registers against the crew-message customType", () => {
   assert.match(source, /registerMessageRenderer\("crew-message"/);
-  assert.match(source, /renderCrewMessageMarkdown/);
+  assert.match(source, /buildCrewMessageChrome/);
 });
 
 test("crew-message renderer safely falls back to raw content on a render failure", () => {
