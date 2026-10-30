@@ -1,12 +1,6 @@
 // Builds the terminal chrome (background band + `[crew-message]` label) around a
-// `crew-message` delivery's Markdown body. Isolated in its own file for the same
-// reason as monitor-dashboard-chrome.mjs / monitor-footer-widget.mjs: Box, Markdown,
-// Spacer, and Text are only resolvable inside an actual running `pi` process, never
-// from plain `node --test` in this repo. This keeps crew-message-renderer.ts's own
-// pi-tui wiring covered by source-pattern assertions in crew-message-renderer.test.mjs,
-// while this file's own chrome assembly is covered by behavior assertions in
-// crew-message-chrome.test.mjs (skipped, with the reason stated, when pi-tui isn't
-// resolvable -- same pattern as monitor-footer-widget.test.mjs).
+// `crew-message` delivery's Markdown body. It stays separate from the pure formatter
+// because pi-tui components are available only in a running Pi terminal.
 import { Box, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { renderCrewMessageMarkdown } from "./crew-message-view.mjs";
 
