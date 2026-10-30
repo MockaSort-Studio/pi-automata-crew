@@ -1,0 +1,22 @@
+# Crew specialist routing. Last matching rule wins for each path.
+# @names select personas only; Main selects the role and final Crew composition.
+
+/.github/workflows/** @mergio @bollo
+/package.json @mergio @bollo
+/package-lock.json @mergio @bollo
+
+/.pi/extensions/hall-crew/env-runtime/** @bollo @snowball
+/.pi/extensions/hall-crew/crew-runtime/** @snowball @tomashco @bollo
+/.pi/extensions/hall-crew/crew/prompts/** @snowball
+/.pi/skills/** @snowball
+/.pi/extensions/hall-crew/crew/** @snowball
+
+/**/credentials*.mjs @bollo
+/**/guest-network.mjs @bollo
+/**/worker*.mjs @bollo @snowball
+/**/comm-*.mjs @tomashco @bollo
+/**/lifecycle-*.mjs @tomashco @bollo
+
+/docs/** @indiana-docs
+/README.md @indiana-docs
+/CONTRIBUTING.md @indiana-docs

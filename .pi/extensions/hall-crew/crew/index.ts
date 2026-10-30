@@ -1,4 +1,6 @@
 import { CONFIG_DIR_NAME, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { assemble, validateAvailableRoleTools } from "./lib/assembly.mjs";
@@ -9,6 +11,7 @@ import { registerRosterTools } from "./lib/roster-tools.ts";
 import { registerSkillTrace } from "./lib/skill-trace.ts";
 import { assemblyCardData } from "./lib/crew-assembly-card.mjs";
 import { CREW_ASSEMBLED_ENTRY, registerCrewAssemblyCard } from "./lib/crew-assembly-card.ts";
+import { parseSpecialistRoutes, routeSpecialists } from "./lib/specialist-routing.mjs";
 import { runtimeFor } from "../crew-runtime/lib/shared-runtime.mjs";
 import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
 
@@ -56,6 +59,21 @@ export default function crewExtension(pi: ExtensionAPI) {
   registerSkillTrace(pi);
   registerCrewAssemblyCard(pi);
   const monitor = registerCrewMonitor(pi);
+
+  pi.registerTool({
+    name: "crew_route",
+    label: "Crew: route specialists",
+    description:
+      "Select specialist personas for repository paths using .pi/crew/SPECIALIST_ROUTES. Does not select roles.",
+    parameters: Type.Object({
+      paths: Type.Array(Type.String(), { minItems: 1 }),
+      maxSpecialists: Type.Optional(Type.Integer({ minimum: 1, maximum: 8 })),
+    }),
+    async execute(_id, input, _signal, _update, ctx) {
+      const source = readFileSync(join(ctx.cwd, ".pi", "crew", "SPECIALIST_ROUTES"), "utf8");
+      return output(routeSpecialists(input.paths, parseSpecialistRoutes(source), input.maxSpecialists));
+    },
+  });
 
   pi.registerTool({
     name: "build_crew_member",
