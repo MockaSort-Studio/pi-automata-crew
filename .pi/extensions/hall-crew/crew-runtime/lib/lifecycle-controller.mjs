@@ -213,6 +213,9 @@ export class LifecycleController {
       try {
         process.kill(-agent.pid, "SIGKILL");
       } catch {}
+    // A forced removal may be the only evidence of a hung tool. Archive after its process tree is
+    // stopped (so output is flushed), but before telemetry/worktree reclamation.
+    await preserveEvidence(this.cwd, [agent]);
     // Snapshot telemetry before the run directory is wiped: this is the last
     // moment events.jsonl exists to summarize.
     await this.#captureMetrics(agent);

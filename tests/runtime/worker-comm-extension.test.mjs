@@ -66,6 +66,18 @@ async function setup(t, commTools, actorId = "ns-worker") {
   });
   return { comm, pi };
 }
+test("worker bash calls receive a bounded default and reject an oversized timeout", async (t) => {
+  const { pi } = await setup(t);
+  const guard = pi.handlers.get("tool_call");
+  const defaulted = { toolName: "bash", input: { command: "npm test" } };
+  assert.equal(guard(defaulted), undefined);
+  assert.equal(defaulted.input.timeout, 120);
+  assert.deepEqual(guard({ toolName: "bash", input: { command: "npm test", timeout: 301 } }), {
+    block: true,
+    reason: "Worker bash timeout may not exceed 300 seconds.",
+  });
+});
+
 test("lifecycle_update changes only this worker's typed state", async (t) => {
   const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
   const update = await pi.tools.get("lifecycle_update").execute("call", { state: "running" });

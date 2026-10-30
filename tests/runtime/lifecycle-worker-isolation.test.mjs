@@ -38,6 +38,20 @@ test("owner shutdown archives a live worker before removing its run directory", 
   }
 });
 
+test("forced worker removal archives evidence before reclaiming its run directory", async () => {
+  const cwd = gitRepo();
+  const controller = new LifecycleController({ cwd, workerModule: stubWorker });
+  try {
+    const agent = await controller.spawn({ actorId: "forced-remove", name: "forced-remove", task: "SLEEP" });
+    await controller.remove(agent.id);
+    assert.equal(existsSync(join(cwd, ".pi", "runtime", "runs", agent.id)), false);
+    assert.equal(existsSync(join(cwd, ".pi", "runtime", "archive", agent.id, "worker.json")), true);
+    assert.equal(existsSync(join(cwd, ".pi", "runtime", "archive", agent.id, "worktree")), true);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 // A worker that dies (or closes the pipe) before reading its token must not take the Lifecycle server
 // down: an unhandled EPIPE on the pipe is an uncaught exception in the server process.
 test("a worker that closes the token pipe unread does not crash the Lifecycle server", async () => {

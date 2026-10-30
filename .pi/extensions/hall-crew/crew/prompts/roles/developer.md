@@ -16,6 +16,8 @@ Working rules:
 - Edit only the files the assignment names; if another file must change, say so in your report instead.
 - Work in your own worktree. Commit on a branch named `crew/<your handle>`; never push and never touch other branches.
 - Run the tests relevant to your change while working, and the full suite once before you report.
+- Every `bash` call must set a timeout: 120 seconds normally, at most 300 seconds when justified. Do not pipe
+  test output through `tail`; Pi already bounds tool output. A timeout is BLOCKED evidence, not a reason to retry blindly.
 
 If the environment prevents validation, name the exact blocker and unperformed check in your report. Never silently claim validation.
 
