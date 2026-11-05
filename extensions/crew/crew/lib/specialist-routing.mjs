@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+
 const OWNERS = /^@([a-z0-9][a-z0-9-]*)$/i;
 
 function glob(pattern) {
@@ -11,6 +14,21 @@ function pathOf(path) {
   if (typeof path !== "string" || !path || path.startsWith("/") || path.split("/").includes(".."))
     throw new TypeError(`Route path must be a relative repository path: ${path}`);
   return path.replaceAll("\\", "/").replace(/^\.\//, "");
+}
+
+// Routing policy belongs to the checked-out repository, never the installed package or .pi state.
+export function specialistRoutesPath(cwd) {
+  let directory = resolve(cwd);
+  while (true) {
+    if (existsSync(join(directory, ".git"))) {
+      const policy = join(directory, "SPECIALIST_ROUTES");
+      if (existsSync(policy)) return policy;
+      throw new Error(`Repository routing policy is missing: ${policy}`);
+    }
+    const parent = dirname(directory);
+    if (parent === directory) throw new Error(`Unable to locate repository root from: ${cwd}`);
+    directory = parent;
+  }
 }
 
 export function parseSpecialistRoutes(source) {
