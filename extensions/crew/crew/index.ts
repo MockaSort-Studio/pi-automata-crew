@@ -1,6 +1,5 @@
 import { CONFIG_DIR_NAME, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { assemble, validateAvailableRoleTools } from "./lib/assembly.mjs";
@@ -12,7 +11,7 @@ import { registerSkillTrace } from "./lib/skill-trace.ts";
 import { assemblyCardData } from "./lib/crew-assembly-card.mjs";
 import { CREW_ASSEMBLED_ENTRY, registerCrewAssemblyCard } from "./lib/crew-assembly-card.ts";
 import { registerCrewMessageRenderer } from "./lib/crew-message-renderer.ts";
-import { parseSpecialistRoutes, routeSpecialists } from "./lib/specialist-routing.mjs";
+import { parseSpecialistRoutes, routeSpecialists, specialistRoutesPath } from "./lib/specialist-routing.mjs";
 import { runtimeFor } from "../crew-runtime/lib/shared-runtime.mjs";
 import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
 
@@ -72,7 +71,7 @@ export default function crewExtension(pi: ExtensionAPI) {
       maxSpecialists: Type.Optional(Type.Integer({ minimum: 1, maximum: 8 })),
     }),
     async execute(_id, input, _signal, _update, ctx) {
-      const source = readFileSync(join(ctx.cwd, "SPECIALIST_ROUTES"), "utf8");
+      const source = readFileSync(specialistRoutesPath(ctx.cwd), "utf8");
       return output(routeSpecialists(input.paths, parseSpecialistRoutes(source), input.maxSpecialists));
     },
   });

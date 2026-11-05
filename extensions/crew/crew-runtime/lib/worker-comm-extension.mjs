@@ -25,8 +25,9 @@ let replyContext;
 let kickoffManifest;
 let firstDelivery = true;
 let deliveries = Promise.resolve();
-const settledWaiters = [];
-const nextSettled = () => new Promise((resolve) => settledWaiters.push(resolve));
+// Only the active directed delivery may consume agent_settled. Pi may reload this extension,
+// so delivery identity prevents a late settlement from completing later work.
+let activeDelivery;
 // "main" is the one canonical, pre-registered actor id: it is never
 // namespace-qualified, unlike every other Crew recipient handle.
 const qualify = (id) =>
@@ -98,32 +99,28 @@ export default function workerCommExtension(pi) {
           replyContext = message;
           await comm.lifecycleUpdate(config.comm.namespace, "running");
           const prompt = deliveryPrompt(message);
-          let settled = nextSettled();
+          const settle = () =>
+            new Promise((resolve) => {
+              activeDelivery = { id: message.id, state: "running", settled: false, resolve };
+            });
+          let settled = settle();
           sawTurnEnd = false;
           await activePi.sendUserMessage(prompt, { deliverAs: "followUp" });
           await settled;
           if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
-            settled = nextSettled();
+            settled = settle();
             sawTurnEnd = false;
             await activePi.sendUserMessage(prompt, { deliverAs: "followUp" });
             await settled;
-            if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
-              try {
-                await comm.lifecycleUpdate(config.comm.namespace, "blocked");
-                await comm.emit({
-                  to: "main",
-                  payload: {
-                    kind: "report",
-                    status: "BLOCKED",
-                    reason: "empty-turn",
-                    detail: "Two consecutive provider turns returned no tokens or tool calls.",
-                    diagnostics: { model: resolvedModel ?? "unknown", attempts: 2, providerResponse: "empty" },
-                  },
-                });
-              } catch {}
-            }
+          }
+          // A settled Pi agent completed its directed turn. Tool/provider diagnostics are not
+          // lifecycle outcomes; only explicit model updates or the controller may block/fail work.
+          if (activeDelivery?.id === message.id && activeDelivery.state === "running") {
+            await comm.lifecycleUpdate(config.comm.namespace, "complete");
+            activeDelivery.state = "complete";
           }
           await comm.acknowledge(message.id);
+          if (activeDelivery?.id === message.id) activeDelivery = undefined;
           replyContext = undefined;
           firstDelivery = false;
         });
@@ -145,7 +142,15 @@ export default function workerCommExtension(pi) {
         Type.Literal("failed"),
       ]),
     }),
-    execute: (_id, input) => result(requireComm().lifecycleUpdate(config.comm.namespace, input.state)),
+    execute: (_id, input) =>
+      result(
+        requireComm()
+          .lifecycleUpdate(config.comm.namespace, input.state)
+          .then((value) => {
+            if (activeDelivery) activeDelivery.state = input.state;
+            return value;
+          }),
+      ),
   });
   if (granted.has("comm_notify"))
     pi.registerTool({
@@ -199,7 +204,11 @@ export default function workerCommExtension(pi) {
           }),
         ),
     });
-  pi.on("agent_settled", () => settledWaiters.splice(0).forEach((resolve) => resolve()));
+  pi.on("agent_settled", () => {
+    if (!activeDelivery || activeDelivery.settled) return;
+    activeDelivery.settled = true;
+    activeDelivery.resolve();
+  });
   pi.on("session_start", () => ensureCommConnected());
   // Only a real process-ending shutdown ever closes the Comm socket. A
   // same-process reload ("new" or "reload", from the new_session call above)

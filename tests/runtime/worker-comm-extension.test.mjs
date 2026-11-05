@@ -99,6 +99,25 @@ test("acknowledges only after the Pi turn settles", async (t) => {
   await pi.handlers.get("agent_settled")();
   await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
 });
+test("settled running delivery completes even when the model sends no lifecycle update", async (t) => {
+  const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
+  comm.emit("lead", "ns-developer-worker-00", { ask: "respond" });
+  await waitFor(() => pi.deliveries.length === 1);
+  fireTurn(pi, { usage: { input: 2, output: 5 }, toolCalls: 1 });
+  await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
+  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "complete");
+});
+
+test("settlement preserves an explicit waiting state", async (t) => {
+  const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
+  comm.emit("lead", "ns-developer-worker-00", { ask: "wait" });
+  await waitFor(() => pi.deliveries.length === 1);
+  await pi.tools.get("lifecycle_update").execute("call", { state: "waiting" });
+  fireTurn(pi, { usage: { input: 2, output: 5 }, toolCalls: 1 });
+  await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
+  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "waiting");
+});
+
 test("keeps reply context for the current delivery", async (t) => {
   const { comm, pi } = await setup(t);
   const first = comm.emit("lead", "ns-worker", { ask: "first" }, true);
@@ -169,7 +188,7 @@ test("retries exactly once on a degenerate turn, then acknowledges once real wor
     "no BLOCKED report when the retry succeeds",
   );
 });
-test("reports BLOCKED to main and still acknowledges after two consecutive degenerate turns", async (t) => {
+test("two degenerate turns complete without inferring a blocked lifecycle state", async (t) => {
   const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
   comm.emit("lead", "ns-developer-worker-00", { ask: "respond" }, true);
   await waitFor(() => pi.deliveries.length === 1);
@@ -178,12 +197,8 @@ test("reports BLOCKED to main and still acknowledges after two consecutive degen
   fireTurn(pi, { usage: { input: 0, output: 0 }, toolCalls: 0 });
   await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
   assert.equal(pi.deliveries.length, 2, "never a third attempt: bounded, not a loop");
-  const report = comm.claim("main");
-  assert.equal(report?.from, "ns-developer-worker-00");
-  assert.equal(report?.payload?.status, "BLOCKED");
-  assert.equal(report?.payload?.reason, "empty-turn");
-  assert.deepEqual(report?.payload?.diagnostics, { model: "unknown", attempts: 2, providerResponse: "empty" });
-  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "blocked");
+  assert.equal(comm.claim("main"), undefined, "no lifecycle report is inferred from diagnostics");
+  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "complete");
 });
 test("a same-process reload (new_session) never races a second Comm registration, and never calls a stale pi", async (t) => {
   const comm = new CommController();

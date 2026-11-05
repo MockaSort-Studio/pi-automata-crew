@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
-import { parseSpecialistRoutes, routeSpecialists } from "../../extensions/crew/crew/lib/specialist-routing.mjs";
+import {
+  parseSpecialistRoutes,
+  routeSpecialists,
+  specialistRoutesPath,
+} from "../../extensions/crew/crew/lib/specialist-routing.mjs";
 
 const routes = parseSpecialistRoutes(readFileSync(new URL("../../SPECIALIST_ROUTES", import.meta.url), "utf8"));
 
@@ -37,4 +43,20 @@ test("every routed specialist exists in the roster", () => {
 test("routing rejects paths outside the repository rather than guessing", () => {
   assert.throws(() => routeSpecialists(["../secrets"], routes), /relative repository path/);
   assert.throws(() => parseSpecialistRoutes("*.mjs @snowball"), /Invalid specialist route/);
+});
+
+test("routing policy resolves at the repository root, never under .pi", () => {
+  const root = mkdtempSync(join(tmpdir(), "specialist-routes-"));
+  mkdirSync(join(root, ".git"));
+  mkdirSync(join(root, "nested", "project"), { recursive: true });
+  writeFileSync(join(root, "SPECIALIST_ROUTES"), "/src/** @snowball\n");
+  mkdirSync(join(root, ".pi", "crew"), { recursive: true });
+  writeFileSync(join(root, ".pi", "crew", "SPECIALIST_ROUTES"), "/src/** @bollo\n");
+  assert.equal(specialistRoutesPath(join(root, "nested", "project")), join(root, "SPECIALIST_ROUTES"));
+});
+
+test("routing fails clearly when a repository has no root policy", () => {
+  const root = mkdtempSync(join(tmpdir(), "specialist-routes-"));
+  mkdirSync(join(root, ".git"));
+  assert.throws(() => specialistRoutesPath(root), /Repository routing policy is missing/);
 });
