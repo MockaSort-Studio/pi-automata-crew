@@ -10,21 +10,16 @@ manifest in `package.json` and how to cut an alpha release.
 ```json
 {
   "pi": {
-    "extensions": [
-      ".pi/extensions/hall-crew/crew/index.ts",
-      ".pi/extensions/hall-crew/crew-runtime/index.ts",
-      ".pi/extensions/web/index.ts"
-    ],
-    "skills": [".pi/skills"]
+    "extensions": ["extensions/crew.ts", "extensions/web/index.ts"],
+    "skills": ["skills"]
   }
 }
 ```
 
-- `extensions` lists explicit entry-point files rather than a directory glob, because
-  `.pi/extensions/hall-crew/` also contains `env-runtime/`, which is not a standalone Pi extension
-  (it is a library consumed by `crew-runtime`). Listing entry points keeps the manifest matched to
-  what `pi -e` actually loads.
-- `skills` points at `.pi/skills`, which pi auto-discovers recursively for `SKILL.md` directories
+- `extensions` lists explicit entry-point files rather than a directory glob. `extensions/crew/`
+  contains runtime libraries, not standalone Pi extensions; listing entry points keeps the manifest
+  matched to what `pi -e` actually loads.
+- `skills` points at root `skills/`, which Pi auto-discovers recursively for `SKILL.md` directories
   (currently `independent-runtime-review`, `post-iteration-review`, and `security-boundary-review`).
 - `package.json` keeps `"private": true`. That only blocks `npm publish` to a registry; it does not
   block `pi install` by git URL or local path, which is how this package is distributed during the
@@ -32,8 +27,8 @@ manifest in `package.json` and how to cut an alpha release.
 
 ### Keeping the manifest honest
 
-`tests/pi/test-extension-load.sh` loads the package's extensions from a relocated copy of
-`.pi/extensions` with `pi -e <path>` to prove they work outside this checkout's directory layout.
+`tests/pi/test-extension-load.sh` loads the package's declared extensions from a relocated package
+copy with `pi -e <path>` to prove they work outside this checkout's directory layout.
 `tests/pi/manifest-paths.test.mjs` cross-checks the `pi.extensions` manifest against every `-e`
 path that script loads, and asserts every manifest path (`extensions` and `skills`) exists on
 disk. If a manifest path is deleted, or an entry point used by the relocated-load test is dropped

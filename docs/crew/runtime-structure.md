@@ -4,12 +4,12 @@ Status: canonical for `dev`.
 
 ## Supported entrypoints
 
-Pi discovers project-local extensions:
+The package manifest discovers explicit extension entry points:
 
-- `.pi/extensions/hall-crew/crew/index.ts` — Crew orchestration.
-- `.pi/extensions/hall-crew/crew-runtime/index.ts` — SDK Lifecycle and Comm runtime.
+- `extensions/crew.ts` — Crew orchestration, SDK Lifecycle, and Comm runtime.
+- `extensions/crew/` — private Crew runtime and environment libraries.
 - Armory suites resolve from external `MockaSort-Studio/hall-armory`; Hall CLI has no local Armory/GitHub source tree.
-- `.pi/extensions/web/index.ts` — bounded web fetch.
+- `extensions/web/index.ts` — bounded web fetch.
 
 `tests/pi/test-extension-load.sh` is the relocation smoke test.
 

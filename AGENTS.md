@@ -1,7 +1,7 @@
 # pi-automata-crew
 
 Pi extensions that run a Crew of specialist agents (Comm, Lifecycle, Gondolin isolation, Armory tools).
-Runtime: `.pi/extensions/hall-crew/`. Design and status: `docs/crew/`.
+Runtime: `extensions/crew/`. Design and status: `docs/crew/`.
 
 ## Commands
 
@@ -18,5 +18,5 @@ Runtime: `.pi/extensions/hall-crew/`. Design and status: `docs/crew/`.
 
 - To run engineering work through a Crew, use the `engineering-execution` skill.
 - To review a change with independent specialists, use the `engineering-review` skill.
-- Route paths to specialist personas with `crew_route` and `.pi/crew/SPECIALIST_ROUTES`; it does not choose roles.
+- Route paths to specialist personas with `crew_route` and root `SPECIALIST_ROUTES`; it does not choose roles.
 - Launch only through `start_crew`. Reports arrive as messages: end your turn and wait, do not poll.

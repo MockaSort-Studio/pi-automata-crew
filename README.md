@@ -18,8 +18,8 @@ See [Saga 2](docs/saga/Saga-2-The-Loosed-Harness-[open].md) and the
 ## Install
 
 This repository is a [Pi package](docs/crew/packaging.md): `package.json` declares a `pi` manifest
-that exposes the Crew extensions (`hall-crew/crew`, `hall-crew/crew-runtime`, `web`) and the
-reviewer skills under `.pi/skills`. Required host tools: Node 24, npm, and the `pi` CLI.
+that exposes the Crew extension (`extensions/crew.ts`), web extension, and reviewer skills under
+`skills/`. Required host tools: Node 24, npm, and the `pi` CLI.
 
 Install straight from git (pin a tag once alpha releases start, e.g. `@v0.1.0-alpha.1`):
 
@@ -64,9 +64,10 @@ and host VM support; they are not installed by `npm ci`.
 
 ## Layout
 
-- `.pi/extensions/hall-crew/crew/` — policy, roles, composition, and TUI.
-- `.pi/extensions/hall-crew/crew-runtime/` — Comm, Lifecycle, workers, worktrees, cleanup.
-- `.pi/extensions/hall-crew/env-runtime/` — Gondolin, Armory, Nix, and credentials.
+- `extensions/crew/crew/` — policy, roles, composition, and TUI.
+- `extensions/crew/crew-runtime/` — Comm, Lifecycle, workers, worktrees, cleanup.
+- `extensions/crew/env-runtime/` — Gondolin, Armory, Nix, and credentials.
+- `skills/` and root `SPECIALIST_ROUTES` — Crew procedures and routing policy.
 - `tests/crew/`, `tests/runtime/` — deterministic unit and integration tests.
 - `docs/crew/` — alpha status, decisions, measurements, and active plan.
 
