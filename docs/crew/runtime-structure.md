@@ -9,7 +9,6 @@ The package manifest discovers explicit extension entry points:
 - `extensions/crew.ts` — Crew orchestration, SDK Lifecycle, and Comm runtime.
 - `extensions/crew/` — private Crew runtime and environment libraries.
 - Armory suites resolve from external `MockaSort-Studio/hall-armory`; Hall CLI has no local Armory/GitHub source tree.
-- `extensions/web/index.ts` — bounded web fetch.
 
 `tests/pi/test-extension-load.sh` is the relocation smoke test.
 

@@ -10,7 +10,7 @@ manifest in `package.json` and how to cut an alpha release.
 ```json
 {
   "pi": {
-    "extensions": ["extensions/crew.ts", "extensions/web/index.ts"],
+    "extensions": ["extensions/crew.ts"],
     "skills": ["skills"]
   }
 }
