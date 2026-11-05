@@ -1,5 +1,11 @@
 # Hall SDK worktree runtime
 
+> **Historical — Hall CLI.** This probe compares Fabric vs. SDK runtimes from the prior
+> `hall-of-automata-cli` repository and cites a source map (including
+> `armory/collaboration/github/...`) that does not exist in this repository. Current,
+> canonical runtime design lives in [runtime-structure.md](../crew/runtime-structure.md).
+> Kept for provenance only.
+
 ## Token ledger
 
 | Case                          | System (est.) | Tool schemas (est.) | Tool calls (est.) | Tool results (est.) | Context after | Provider input/output | Wall time |

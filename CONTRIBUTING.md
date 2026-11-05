@@ -16,10 +16,11 @@ one responsibility. Explain why in comments; make names explain what.
 
 ## Boundaries
 
-- `crew/` owns public tools, policy, roles, composition, and TUI.
-- `crew-runtime/` owns Comm, Lifecycle, workers, worktrees, events, and cleanup.
-- `env-runtime/` owns Gondolin, Nix/Armory acquisition, guest proxies, and credentials.
+- `.pi/extensions/hall-crew/crew/` owns public tools, policy, roles, composition, and TUI.
+- `.pi/extensions/hall-crew/crew-runtime/` owns Comm, Lifecycle, workers, worktrees, events, and cleanup.
+- `.pi/extensions/hall-crew/env-runtime/` owns Gondolin, Nix/Armory acquisition, guest proxies, and credentials.
 - Dependencies flow only downward: `crew → crew-runtime → env-runtime`.
+- Specialist routing for these paths lives in `.pi/crew/SPECIALIST_ROUTES`, read by `crew_route`.
 - Do not add broad shell, network, or credential access for convenience. Grants must be explicit,
   role-scoped, and testable.
 - Do not add project dependencies, guest git, or container runtimes to Armory suites.
