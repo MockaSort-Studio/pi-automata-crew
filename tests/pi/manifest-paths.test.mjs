@@ -32,7 +32,7 @@ test("every manifest skills path exists on disk", () => {
 });
 
 test("manifest extensions cover every -e entry point loaded by the relocated-load test", () => {
-  const loadedPaths = [...loaderScript.matchAll(/-e\s+(\.pi\/extensions\/\S+)/g)].map((match) => match[1]);
+  const loadedPaths = [...loaderScript.matchAll(/-e\s+(extensions\/\S+)/g)].map((match) => match[1]);
   assert.ok(loadedPaths.length > 0, "could not find any -e extension paths in test-extension-load.sh");
   for (const loadedPath of loadedPaths) {
     assert.ok(

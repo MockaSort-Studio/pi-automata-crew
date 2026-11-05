@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { summarizeWorkerEvents } from "../../.pi/extensions/hall-crew/crew-runtime/lib/worker-metrics.mjs";
+import { summarizeWorkerEvents } from "../../extensions/crew/crew-runtime/lib/worker-metrics.mjs";
 
 const turns = [
   { type: "turn", usage: { input: 10, output: 20, cacheRead: 100, cacheWrite: 30, totalTokens: 160 } },

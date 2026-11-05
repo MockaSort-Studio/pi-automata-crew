@@ -4,7 +4,7 @@ import {
   crewMonitorSnapshot,
   formatSessionContext,
   formatTokenCount,
-} from "../../.pi/extensions/hall-crew/crew/lib/monitor-snapshot.mjs";
+} from "../../extensions/crew/crew/lib/monitor-snapshot.mjs";
 
 const roster = (overrides) => ({
   runId: "run-123456",

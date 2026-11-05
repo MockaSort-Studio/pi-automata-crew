@@ -7,7 +7,7 @@ import {
   acquireNixGuestSuite,
   fetchPublishedClosure,
   guestNixSystem,
-} from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-nix.mjs";
+} from "../../extensions/crew/env-runtime/lib/armory-nix.mjs";
 
 const cache = { substituter: "https://cache.example", publicKey: "k" };
 const root = "/nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-suite";

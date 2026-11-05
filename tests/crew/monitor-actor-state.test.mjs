@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { lifecycleByActor } from "../../.pi/extensions/hall-crew/crew/lib/monitor-actor-state.mjs";
-import { crewMonitorSnapshot } from "../../.pi/extensions/hall-crew/crew/lib/monitor-snapshot.mjs";
+import { lifecycleByActor } from "../../extensions/crew/crew/lib/monitor-actor-state.mjs";
+import { crewMonitorSnapshot } from "../../extensions/crew/crew/lib/monitor-snapshot.mjs";
 
 const roster = (members) => ({ runId: "run-1", status: "started", members });
 

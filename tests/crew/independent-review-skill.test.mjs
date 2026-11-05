@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const skillPath = new URL("../../.pi/skills/independent-runtime-review/SKILL.md", import.meta.url);
-const reviewerPath = new URL("../../.pi/extensions/hall-crew/crew/prompts/roles/reviewer.md", import.meta.url);
-const iterationSkillPath = new URL("../../.pi/skills/post-iteration-review/SKILL.md", import.meta.url);
-const securitySkillPath = new URL("../../.pi/skills/security-boundary-review/SKILL.md", import.meta.url);
+const skillPath = new URL("../../skills/independent-runtime-review/SKILL.md", import.meta.url);
+const reviewerPath = new URL("../../extensions/crew/crew/prompts/roles/reviewer.md", import.meta.url);
+const iterationSkillPath = new URL("../../skills/post-iteration-review/SKILL.md", import.meta.url);
+const securitySkillPath = new URL("../../skills/security-boundary-review/SKILL.md", import.meta.url);
 
 test("the reviewer role invokes the project independent-runtime-review skill", () => {
   const skill = readFileSync(skillPath, "utf8");

@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { renderCrewStatusFooter } from "../../.pi/extensions/hall-crew/crew/lib/monitor-footer.mjs";
+import { renderCrewStatusFooter } from "../../extensions/crew/crew/lib/monitor-footer.mjs";
 
 const snapshot = (overrides) => ({
   runId: "run-123456",

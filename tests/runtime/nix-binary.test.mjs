@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { nixBinary } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-nix.mjs";
+import { nixBinary } from "../../extensions/crew/env-runtime/lib/armory-nix.mjs";
 
 const profile = "/nix/var/nix/profiles/default/bin/nix";
 

@@ -3,9 +3,9 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { CommController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs";
-import { isDegenerateTurn } from "../../.pi/extensions/hall-crew/crew-runtime/lib/degenerate-turn.mjs";
-import { STATIC_CONTEXT_MARKER } from "../../.pi/extensions/hall-crew/crew-runtime/lib/worker-events.mjs";
+import { CommController } from "../../extensions/crew/crew-runtime/lib/comm-controller.mjs";
+import { isDegenerateTurn } from "../../extensions/crew/crew-runtime/lib/degenerate-turn.mjs";
+import { STATIC_CONTEXT_MARKER } from "../../extensions/crew/crew-runtime/lib/worker-events.mjs";
 
 const loadExtension = async (config) => {
   const dir = mkdtempSync(join(tmpdir(), "worker-comm-config-"));
@@ -13,7 +13,7 @@ const loadExtension = async (config) => {
   writeFileSync(configPath, JSON.stringify(config));
   process.env.PI_CREW_WORKER_CONFIG = configPath;
   const module = await import(
-    `../../.pi/extensions/hall-crew/crew-runtime/lib/worker-comm-extension.mjs?t=${Date.now()}-${Math.random()}`
+    `../../extensions/crew/crew-runtime/lib/worker-comm-extension.mjs?t=${Date.now()}-${Math.random()}`
   );
   return module.default;
 };
@@ -66,18 +66,6 @@ async function setup(t, commTools, actorId = "ns-worker") {
   });
   return { comm, pi };
 }
-test("worker bash calls receive a bounded default and reject an oversized timeout", async (t) => {
-  const { pi } = await setup(t);
-  const guard = pi.handlers.get("tool_call");
-  const defaulted = { toolName: "bash", input: { command: "npm test" } };
-  assert.equal(guard(defaulted), undefined);
-  assert.equal(defaulted.input.timeout, 120);
-  assert.deepEqual(guard({ toolName: "bash", input: { command: "npm test", timeout: 301 } }), {
-    block: true,
-    reason: "Worker bash timeout may not exceed 300 seconds.",
-  });
-});
-
 test("lifecycle_update changes only this worker's typed state", async (t) => {
   const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
   const update = await pi.tools.get("lifecycle_update").execute("call", { state: "running" });

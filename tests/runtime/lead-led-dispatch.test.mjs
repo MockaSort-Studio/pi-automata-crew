@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { CommController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs";
-import { Runtime } from "../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs";
-import { connectComm } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-client.mjs";
+import { CommController } from "../../extensions/crew/crew-runtime/lib/comm-controller.mjs";
+import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
+import { connectComm } from "../../extensions/crew/crew-runtime/lib/comm-client.mjs";
 
 const runId = "44444444-4444-4444-4444-444444444444";
 const ns = `crew-${runId}`;

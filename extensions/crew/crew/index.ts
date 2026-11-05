@@ -13,7 +13,6 @@ import { assemblyCardData } from "./lib/crew-assembly-card.mjs";
 import { CREW_ASSEMBLED_ENTRY, registerCrewAssemblyCard } from "./lib/crew-assembly-card.ts";
 import { registerCrewMessageRenderer } from "./lib/crew-message-renderer.ts";
 import { parseSpecialistRoutes, routeSpecialists } from "./lib/specialist-routing.mjs";
-import { crewLaunchResultState } from "./lib/crew-launch-view.mjs";
 import { runtimeFor } from "../crew-runtime/lib/shared-runtime.mjs";
 import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
 
@@ -67,14 +66,13 @@ export default function crewExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "crew_route",
     label: "Crew: route specialists",
-    description:
-      "Select specialist personas for repository paths using .pi/crew/SPECIALIST_ROUTES. Does not select roles.",
+    description: "Select specialist personas for repository paths using SPECIALIST_ROUTES. Does not select roles.",
     parameters: Type.Object({
       paths: Type.Array(Type.String(), { minItems: 1 }),
       maxSpecialists: Type.Optional(Type.Integer({ minimum: 1, maximum: 8 })),
     }),
     async execute(_id, input, _signal, _update, ctx) {
-      const source = readFileSync(join(ctx.cwd, ".pi", "crew", "SPECIALIST_ROUTES"), "utf8");
+      const source = readFileSync(join(ctx.cwd, "SPECIALIST_ROUTES"), "utf8");
       return output(routeSpecialists(input.paths, parseSpecialistRoutes(source), input.maxSpecialists));
     },
   });
@@ -108,16 +106,12 @@ export default function crewExtension(pi: ExtensionAPI) {
       return new Text(theme.fg("toolTitle", theme.bold("Crew ")) + theme.fg("muted", label), 0, 0);
     },
     renderResult(result, { isPartial }, theme) {
+      if (isPartial) return new Text(theme.fg("warning", "Launching SDK Crew..."), 0, 0);
       const details = result.details as { runId?: string; status?: string } | undefined;
-      switch (crewLaunchResultState(isPartial, details)) {
-        case "launching":
-          return new Text(theme.fg("warning", "Launching SDK Crew..."), 0, 0);
-        case "failed":
-          return new Text(theme.fg("error", "Crew launch failed"), 0, 0);
-        default:
-          // The TUI-only assembled-Crew card is the successful launch surface.
-          return new Container();
-      }
+      if (!details?.runId) return new Text(theme.fg("error", "Crew launch failed"), 0, 0);
+      // Launch success is already shown by the TUI-only assembled-Crew card appended before
+      // the runtime launch; a second "started" line here would be redundant.
+      return new Container();
     },
     async execute(_id, input, signal, _update, ctx) {
       // Bind against this tool's actual Runtime before it launches a Crew.

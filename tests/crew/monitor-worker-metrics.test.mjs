@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { workerMetricsByActor } from "../../.pi/extensions/hall-crew/crew/lib/monitor-worker-metrics.mjs";
+import { workerMetricsByActor } from "../../extensions/crew/crew/lib/monitor-worker-metrics.mjs";
 
 const withTempDir = (fn) => {
   const dir = mkdtempSync(join(tmpdir(), "monitor-worker-metrics-"));

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { Runtime } from "../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs";
+import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
 import { mockModel, providerFor } from "./mock-model.mjs";
 
 // The AGENTS.md of a repo tells Main how to run a Crew. A worker that read it could try to launch
@@ -20,11 +20,11 @@ test(
     const dir = mkdtempSync(join(tmpdir(), "worker-context-"));
     const runtime = new Runtime(dir);
     try {
-      mkdirSync(join(dir, ".pi", "skills", "marker-skill"), { recursive: true });
-      mkdirSync(join(dir, ".pi", "extensions"), { recursive: true });
+      mkdirSync(join(dir, "skills", "marker-skill"), { recursive: true });
+      mkdirSync(join(dir, "extensions"), { recursive: true });
       writeFileSync(join(dir, "AGENTS.md"), "# Marker\nAGENTS-MD-MARKER-7c1e: launch a Crew with start_crew.\n");
       writeFileSync(
-        join(dir, ".pi", "skills", "marker-skill", "SKILL.md"),
+        join(dir, "skills", "marker-skill", "SKILL.md"),
         "---\nname: marker-skill\ndescription: SKILL-MARKER-7c1e orchestration skill that launches a Crew.\n---\nbody\n",
       );
       writeFileSync(

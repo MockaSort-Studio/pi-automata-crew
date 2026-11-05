@@ -10,7 +10,7 @@ import { test } from "node:test";
 test("buildFooterWidgetFactory renders one line per active Crew", async (t) => {
   let buildFooterWidgetFactory;
   try {
-    ({ buildFooterWidgetFactory } = await import("../../.pi/extensions/hall-crew/crew/lib/monitor-footer-widget.mjs"));
+    ({ buildFooterWidgetFactory } = await import("../../extensions/crew/crew/lib/monitor-footer-widget.mjs"));
   } catch (err) {
     t.skip(
       `@earendil-works/pi-tui not resolvable from plain node --test in this repo (${err.code ?? err.message}); ` +

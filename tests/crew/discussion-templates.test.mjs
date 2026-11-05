@@ -8,7 +8,7 @@ import {
   renderKickoff,
   renderReply,
   renderReview,
-} from "../../.pi/extensions/hall-crew/crew/lib/discussion-templates.mjs";
+} from "../../extensions/crew/crew/lib/discussion-templates.mjs";
 
 const roster = {
   runId: "run-1",

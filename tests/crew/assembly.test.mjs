@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { assemble } from "../../.pi/extensions/hall-crew/crew/lib/assembly.mjs";
+import { assemble } from "../../extensions/crew/crew/lib/assembly.mjs";
 test("assembly narrows explicit system operations", () => {
   const actor = assemble("mergio", "architect", "Design one focused behavior and prove it.", {
     systemOperations: ["read"],

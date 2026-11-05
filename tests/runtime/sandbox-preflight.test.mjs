@@ -4,7 +4,7 @@ import {
   gondolinCacheHome,
   preflightWorkerSandbox,
   requiredQemuBinary,
-} from "../../.pi/extensions/hall-crew/env-runtime/lib/sandbox-preflight.mjs";
+} from "../../extensions/crew/env-runtime/lib/sandbox-preflight.mjs";
 
 test("uses the Pi cache only when no XDG cache is configured", () => {
   assert.equal(gondolinCacheHome({ XDG_CACHE_HOME: "/shared-cache" }), "/shared-cache");

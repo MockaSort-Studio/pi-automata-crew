@@ -68,7 +68,7 @@ test(
     let owner;
     let pids = [];
     try {
-      cpSync(join(root, ".pi", "extensions"), join(dir, ".pi", "extensions"), { recursive: true });
+      cpSync(join(root, "extensions"), join(dir, "extensions"), { recursive: true });
       symlinkSync(join(root, "node_modules"), join(dir, "node_modules"));
       writeFileSync(join(dir, ".gitignore"), ".pi/runtime/\nnode_modules\n");
       writeFileSync(
@@ -108,9 +108,9 @@ test(
           "-e",
           join(dir, "mock-provider.mjs"),
           "-e",
-          join(dir, ".pi/extensions/hall-crew/crew/index.ts"),
+          join(dir, "extensions/crew/crew/index.ts"),
           "-e",
-          join(dir, ".pi/extensions/hall-crew/crew-runtime/index.ts"),
+          join(dir, "extensions/crew/crew-runtime/index.ts"),
         ],
         {
           cwd: dir,

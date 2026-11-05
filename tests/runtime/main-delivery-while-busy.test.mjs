@@ -7,7 +7,7 @@ import test from "node:test";
 import { mockModel, providerFor } from "./mock-model.mjs";
 
 // A Crew report must reach a busy Main between its tool calls, not only after it stops working.
-const notifier = new URL("../../.pi/extensions/hall-crew/crew-runtime/lib/main-delivery-notifier.mjs", import.meta.url);
+const notifier = new URL("../../extensions/crew/crew-runtime/lib/main-delivery-notifier.mjs", import.meta.url);
 const piAvailable = () => spawnSync("pi", ["--version"], { stdio: "ignore" }).status === 0;
 
 test(

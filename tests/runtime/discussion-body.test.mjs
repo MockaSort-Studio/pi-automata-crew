@@ -6,7 +6,7 @@ import {
   contentDigest,
   truncateForDiscussion,
   withRecentDigest,
-} from "../../.pi/extensions/hall-crew/crew-runtime/lib/discussion-body.mjs";
+} from "../../extensions/crew/crew-runtime/lib/discussion-body.mjs";
 
 test("truncateForDiscussion passes short text through unchanged", () => {
   assert.equal(truncateForDiscussion("short report"), "short report");

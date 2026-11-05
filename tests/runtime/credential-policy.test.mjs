@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { credentialPolicyForSuites } from "../../.pi/extensions/hall-crew/env-runtime/credential-policy.mjs";
+import { credentialPolicyForSuites } from "../../extensions/crew/env-runtime/credential-policy.mjs";
 
 test("host policy binds GitHub credentials without granting unknown suites", () => {
   const [binding] = credentialPolicyForSuites(["collaboration/pi-github-tools", "unknown/suite"]);

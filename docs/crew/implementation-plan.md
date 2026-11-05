@@ -47,7 +47,7 @@ Items 1-3 are implemented and unit/integration tested; their live proof is item 
 Current local baseline: 449 tests, 446 pass, 3 skipped, 0 fail in about 16 s. CI runs this same
 suite and the format check; its first remote run remains to be verified. No live Crew or VM state
 remains. Runtime tools are exposed by
-`.pi/extensions/hall-crew/crew-runtime/index.ts`; design in
+`extensions/crew/crew-runtime/index.ts`; design in
 [dispatch-control-plane-design.md](dispatch-control-plane-design.md).
 
 ## 2. Lifecycle state redesign

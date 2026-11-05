@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { chooseVmm } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-vmm.mjs";
+import { chooseVmm } from "../../extensions/crew/env-runtime/lib/guest-vmm.mjs";
 
 const present = () => "/somewhere/package.json";
 const absent = () => {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lazyGuest, registerArmoryWorkerProxies } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-suite.mjs";
+import { lazyGuest, registerArmoryWorkerProxies } from "../../extensions/crew/env-runtime/lib/guest-suite.mjs";
 
 const rootPath = "/nix/store/0123456789abcdefghijklmnopqrstuv-github";
 

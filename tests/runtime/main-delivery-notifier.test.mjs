@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { Runtime } from "../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs";
-import { connectComm } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-client.mjs";
-import { mainDeliveryMessage } from "../../.pi/extensions/hall-crew/crew-runtime/lib/main-delivery-notifier.mjs";
+import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
+import { connectComm } from "../../extensions/crew/crew-runtime/lib/comm-client.mjs";
+import { mainDeliveryMessage } from "../../extensions/crew/crew-runtime/lib/main-delivery-notifier.mjs";
 
 const runId = "22222222-2222-2222-2222-222222222222";
 const namespace = `crew-${runId}`;

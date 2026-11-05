@@ -2,8 +2,8 @@
 // lifecycle_update API is the sole writer of dependency state.
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { CommController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs";
-import { connectComm } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-client.mjs";
+import { CommController } from "../../extensions/crew/crew-runtime/lib/comm-controller.mjs";
+import { connectComm } from "../../extensions/crew/crew-runtime/lib/comm-client.mjs";
 
 const NAMESPACE = "crew-run-e2e";
 const qualified = (handle) => `${NAMESPACE}-${handle}`;

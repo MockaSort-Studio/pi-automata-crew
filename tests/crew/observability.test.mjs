@@ -10,7 +10,7 @@ import {
   crewResultSummaryLimit,
   resultBytes,
   summarizeCrewToolResult,
-} from "../../.pi/extensions/hall-crew/crew/lib/observability.mjs";
+} from "../../extensions/crew/crew/lib/observability.mjs";
 
 test("Crew artifact identity comes from the durable roster, not prompt content", () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-observability-"));

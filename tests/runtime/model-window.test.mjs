@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { resolveModelWindow } from "../../.pi/extensions/hall-crew/crew-runtime/lib/model-window.mjs";
+import { resolveModelWindow } from "../../extensions/crew/crew-runtime/lib/model-window.mjs";
 
 test("resolves a known model id to its context window", () => {
   assert.equal(resolveModelWindow("claude-sonnet-4-6"), 200_000);

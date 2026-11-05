@@ -10,7 +10,7 @@ import { test } from "node:test";
 test("pickActiveCrew opens a SelectList/DynamicBorder overlay and resolves the chosen roster path", async (t) => {
   let pickActiveCrew;
   try {
-    ({ pickActiveCrew } = await import("../../.pi/extensions/hall-crew/crew/lib/monitor-dashboard-picker.mjs"));
+    ({ pickActiveCrew } = await import("../../extensions/crew/crew/lib/monitor-dashboard-picker.mjs"));
   } catch (err) {
     t.skip(
       `@earendil-works/pi-tui / pi-coding-agent not resolvable from plain node --test in this repo (${err.code ?? err.message}); ` +

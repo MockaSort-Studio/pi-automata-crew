@@ -1,17 +1,11 @@
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { toGuestPath } from "../../.pi/extensions/hall-crew/env-runtime/lib/gondolin-worker-paths.mjs";
+import { toGuestPath } from "../../extensions/crew/env-runtime/lib/gondolin-worker-paths.mjs";
 
-const worker = readFileSync(
-  new URL("../../.pi/extensions/hall-crew/crew-runtime/lib/worker.mjs", import.meta.url),
-  "utf8",
-);
-const extension = new URL(
-  "../../.pi/extensions/hall-crew/env-runtime/lib/worker-gondolin-extension.mjs",
-  import.meta.url,
-);
-const paths = new URL("../../.pi/extensions/hall-crew/env-runtime/lib/gondolin-worker-paths.mjs", import.meta.url);
+const worker = readFileSync(new URL("../../extensions/crew/crew-runtime/lib/worker.mjs", import.meta.url), "utf8");
+const extension = new URL("../../extensions/crew/env-runtime/lib/worker-gondolin-extension.mjs", import.meta.url);
+const paths = new URL("../../extensions/crew/env-runtime/lib/gondolin-worker-paths.mjs", import.meta.url);
 
 test("maps host workspace paths into the sole guest workspace mount", () => {
   assert.equal(toGuestPath("/worker", "src/file.mjs"), "/workspace/src/file.mjs");
@@ -23,7 +17,7 @@ test("a gondolin sandbox worker loads the project-owned internal extension", () 
   assert.match(worker, /config\.sandbox\?\.kind === "gondolin"/);
   assert.match(
     worker,
-    /resolve\(\s*config\.extensionCwd,\s*"\.pi",\s*"extensions",\s*"hall-crew",\s*"env-runtime",\s*"lib",\s*"worker-gondolin-extension\.mjs",?\s*\)/,
+    /resolve\(\s*config\.extensionCwd,\s*"extensions",\s*"crew",\s*"env-runtime",\s*"lib",\s*"worker-gondolin-extension\.mjs",?\s*\)/,
   );
 });
 

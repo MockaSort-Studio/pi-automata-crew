@@ -15,7 +15,7 @@ export function requiredWorkerSkills(cwd, names) {
   if (unique.some((name) => typeof name !== "string" || !NAME.test(name)))
     throw new TypeError("Invalid worker skill name.");
   const sections = unique.map((name) => {
-    const source = readFileSync(join(cwd, ".pi", "skills", name, "SKILL.md"), "utf8");
+    const source = readFileSync(join(cwd, "skills", name, "SKILL.md"), "utf8");
     return `### ${name}\n${source}`;
   });
   const text = sections.length

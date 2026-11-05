@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { realizeOrFallback } from "../../.pi/extensions/hall-crew/crew/lib/armory-fallback.mjs";
+import { realizeOrFallback } from "../../extensions/crew/crew/lib/armory-fallback.mjs";
 
 const gondolin = { microvm: "gondolin", sandbox: { kind: "gondolin" } };
 const fail = async () => {

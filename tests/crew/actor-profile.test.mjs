@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { compileActorProfile } from "../../.pi/extensions/hall-crew/crew/lib/actor-profile.mjs";
+import { compileActorProfile } from "../../extensions/crew/crew/lib/actor-profile.mjs";
 
 test("actor profile derives a suite projection from granted operation names", () => {
   const profile = compileActorProfile({

@@ -1,5 +1,11 @@
 # Hall SDK worktree runtime
 
+> **Historical — Hall CLI.** This probe compares Fabric vs. SDK runtimes from the prior
+> `hall-of-automata-cli` repository and retains historical Armory references (including
+> `armory/collaboration/github/...`) that do not exist in this repository. Current,
+> canonical runtime design lives in [runtime-structure.md](../crew/runtime-structure.md).
+> Kept for provenance only.
+
 ## Token ledger
 
 | Case                          | System (est.) | Tool schemas (est.) | Tool calls (est.) | Tool results (est.) | Context after | Provider input/output | Wall time |
@@ -56,13 +62,13 @@ flowchart TB
 
 ## Source map
 
-| Concern                                                | Source                                                                                                                         |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| Main-facing lifecycle tools                            | [.pi/extensions/hall-crew/crew-runtime/index.ts](../../.pi/extensions/hall-crew/crew-runtime/index.ts)                         |
-| Current lifecycle manager and worktree/process control | [.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs](../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs)           |
-| SDK worker and JSONL telemetry                         | [.pi/extensions/hall-crew/crew-runtime/lib/worker.mjs](../../.pi/extensions/hall-crew/crew-runtime/lib/worker.mjs)             |
-| Named tool bundles                                     | [.pi/extensions/hall-crew/crew-runtime/lib/tool-bundles.mjs](../../.pi/extensions/hall-crew/crew-runtime/lib/tool-bundles.mjs) |
-| Native Discussion tools                                | [armory/collaboration/github/src/lib/discussions/tools.ts](../../armory/collaboration/github/src/lib/discussions/tools.ts)     |
+| Concern                                                | Source                                                                                                                     |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| Main-facing lifecycle tools                            | [extensions/crew/crew-runtime/index.ts](../../extensions/crew/crew-runtime/index.ts)                                       |
+| Current lifecycle manager and worktree/process control | [extensions/crew/crew-runtime/lib/runtime.mjs](../../extensions/crew/crew-runtime/lib/runtime.mjs)                         |
+| SDK worker and JSONL telemetry                         | [extensions/crew/crew-runtime/lib/worker.mjs](../../extensions/crew/crew-runtime/lib/worker.mjs)                           |
+| Named tool bundles                                     | [extensions/crew/crew-runtime/lib/tool-bundles.mjs](../../extensions/crew/crew-runtime/lib/tool-bundles.mjs)               |
+| Native Discussion tools                                | [armory/collaboration/github/src/lib/discussions/tools.ts](../../armory/collaboration/github/src/lib/discussions/tools.ts) |
 
 ## Observability
 

@@ -8,19 +8,18 @@
   ],
   "pi": {
     "extensions": [
-      ".pi/extensions/hall-crew/crew/index.ts",
-      ".pi/extensions/hall-crew/crew-runtime/index.ts",
-      ".pi/extensions/web/index.ts"
+      "extensions/crew.ts",
+      "extensions/web/index.ts"
     ],
     "skills": [
-      ".pi/skills"
+      "skills"
     ]
   },
   "scripts": {
     "test": "env -u PI_SDK_ACTOR_ID -u PI_CREW_WORKER_CONFIG -u PI_CREW_COMM_TOKEN -u PI_CREW_ROOT -u PI_SESSION_ID npm run test:suite",
     "test:suite": "node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/pi/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs && bash tests/pi/test-extension-load.sh",
-    "format": "prettier --write .pi/extensions tests docs README.md CONTRIBUTING.md",
-    "format:check": "prettier --check .pi/extensions tests docs README.md CONTRIBUTING.md"
+    "format": "prettier --write extensions tests docs README.md CONTRIBUTING.md",
+    "format:check": "prettier --check extensions tests docs README.md CONTRIBUTING.md"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.87.1",

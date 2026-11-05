@@ -4,14 +4,14 @@ import { openSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { credentialPolicyForSuites } from "../../.pi/extensions/hall-crew/env-runtime/credential-policy.mjs";
+import { credentialPolicyForSuites } from "../../extensions/crew/env-runtime/credential-policy.mjs";
 import {
   checkLaunchCredentials,
   consumeCredentialLease,
   leaseFromEnvironment,
   revokeCredentialLease,
   serializeLease,
-} from "../../.pi/extensions/hall-crew/env-runtime/lib/credentials.mjs";
+} from "../../extensions/crew/env-runtime/lib/credentials.mjs";
 
 const github = ["collaboration/pi-github-tools"];
 const bindings = credentialPolicyForSuites(github);
@@ -34,7 +34,7 @@ test("consumes and revokes a credential lease from a private descriptor", () => 
 });
 
 test("standalone use, with no descriptor 3, is tolerated on every platform (ENXIO on macOS)", () => {
-  const module = new URL("../../.pi/extensions/hall-crew/env-runtime/lib/credentials.mjs", import.meta.url).href;
+  const module = new URL("../../extensions/crew/env-runtime/lib/credentials.mjs", import.meta.url).href;
   const output = execFileSync(
     process.execPath,
     [

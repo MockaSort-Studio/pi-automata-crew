@@ -4,7 +4,7 @@ import {
   activeRosterEntries,
   crewPickerItems,
   MAX_ACTIVE_ROSTERS,
-} from "../../.pi/extensions/hall-crew/crew/lib/monitor-active-rosters.mjs";
+} from "../../extensions/crew/crew/lib/monitor-active-rosters.mjs";
 
 const ACTIVE = new Set(["queued", "launching", "starting", "started", "closing"]);
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createGuestSuiteRunner } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-suite.mjs";
+import { createGuestSuiteRunner } from "../../extensions/crew/env-runtime/lib/guest-suite.mjs";
 
 const rootPath = "/nix/store/0123456789abcdefghijklmnopqrstuv-github-guest";
 

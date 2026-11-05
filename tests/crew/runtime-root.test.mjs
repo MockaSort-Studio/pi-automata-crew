@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { assertOwnedRunId, crewRoot } from "../../.pi/extensions/hall-crew/crew/lib/runtime-root.mjs";
+import { assertOwnedRunId, crewRoot } from "../../extensions/crew/crew/lib/runtime-root.mjs";
 
 test("crewRoot returns only the explicit owned cwd, never an env-discovered host root", () => {
   const previous = process.env.PI_CREW_ROOT;

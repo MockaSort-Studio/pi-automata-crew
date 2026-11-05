@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { spawn } from "node:child_process";
 import test from "node:test";
 
-const server = new URL("../../.pi/extensions/hall-crew/crew-runtime/lib/comm-server.mjs", import.meta.url).pathname;
+const server = new URL("../../extensions/crew/crew-runtime/lib/comm-server.mjs", import.meta.url).pathname;
 const alive = (pid) => {
   try {
     process.kill(pid, 0);

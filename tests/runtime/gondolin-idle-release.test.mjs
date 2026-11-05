@@ -1,14 +1,11 @@
 import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { requiredQemuBinary } from "../../.pi/extensions/hall-crew/env-runtime/lib/sandbox-preflight.mjs";
-import { chooseVmm } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-vmm.mjs";
+import { requiredQemuBinary } from "../../extensions/crew/env-runtime/lib/sandbox-preflight.mjs";
+import { chooseVmm } from "../../extensions/crew/env-runtime/lib/guest-vmm.mjs";
 import { skipLiveGondolin } from "./live-gondolin.mjs";
 
-const extension = new URL(
-  "../../.pi/extensions/hall-crew/env-runtime/lib/worker-gondolin-extension.mjs",
-  import.meta.url,
-).href;
+const extension = new URL("../../extensions/crew/env-runtime/lib/worker-gondolin-extension.mjs", import.meta.url).href;
 const available = {
   qemu: () => spawnSync(requiredQemuBinary(), ["--version"], { stdio: "ignore" }).status === 0,
   krun: () => chooseVmm({ env: {} }) === "krun",

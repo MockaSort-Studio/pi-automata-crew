@@ -7,7 +7,7 @@ import {
   toolKind,
   toolResultTokens,
   toolWindowTotals,
-} from "../../.pi/extensions/hall-crew/crew/lib/observability-ledger.mjs";
+} from "../../extensions/crew/crew/lib/observability-ledger.mjs";
 
 test("ledger records native tool calls with model-facing token estimates", () => {
   assert.equal(toolKind("comm_notify"), "native");

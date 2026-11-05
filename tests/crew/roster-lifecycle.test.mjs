@@ -12,7 +12,7 @@ import {
   applyWorkerStatusToRosterFiles,
   outcomeForWorkerStatus,
   rosterStatusForTerminalMembers,
-} from "../../.pi/extensions/hall-crew/crew/lib/roster-lifecycle.mjs";
+} from "../../extensions/crew/crew/lib/roster-lifecycle.mjs";
 
 test("outcomeForWorkerStatus maps completed/failed/removed to the durable contract's outcomes", () => {
   assert.equal(outcomeForWorkerStatus("completed"), "PASS");

@@ -1,5 +1,10 @@
 # GitHub State-Management Audit
 
+> **Historical — Hall CLI.** This audit scoped `.pi/extensions/github` in the prior
+> `hall-of-automata-cli` repository, which this repository does not contain. Paths,
+> Discussion links, and issue references below point at that repository, not this one.
+> Kept for provenance only; it does not describe current `pi-automata-crew` behavior.
+
 **Snapshot:** 2026-08-31 at commit `71cc01303da9ba23dabba5277bbd931ac110d2f6`  
 **Scope:** `.pi/extensions/github`, the signed Crew Discussion wrappers, live Saga 2, and KR [#358](https://github.com/MockaSort-Studio/hall-of-automata-cli/issues/358).  
 **Discussion:** [#395](https://github.com/MockaSort-Studio/hall-of-automata-cli/discussions/395). Deleted solo Discussion #393 is not evidence.

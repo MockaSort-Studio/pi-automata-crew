@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { Runtime } from "../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs";
-import { listOwners, recordOwner } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-registry.mjs";
+import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
+import { listOwners, recordOwner } from "../../extensions/crew/crew-runtime/lib/lifecycle-registry.mjs";
 
 // Each test gets its own temp cwd, not the real repo root: listOwners()
 // scans a real directory on disk (.pi/runtime/lifecycle-owners under cwd),
