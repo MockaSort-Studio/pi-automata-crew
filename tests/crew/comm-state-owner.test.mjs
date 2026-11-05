@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { createCommStateOwner } from "../../.pi/extensions/hall-crew/crew/lib/comm-state-owner.mjs";
+import { createCommStateOwner } from "../../extensions/crew/crew/lib/comm-state-owner.mjs";
 
 const members = [
   { handle: "developer-alpha-00", task: "Do alpha work.", dependsOn: [] },

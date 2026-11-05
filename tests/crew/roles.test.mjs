@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { roleModule } from "../../.pi/extensions/hall-crew/crew/lib/automaton-body/lib/modules/role.mjs";
-import { assemble } from "../../.pi/extensions/hall-crew/crew/lib/assembly.mjs";
-import { GITHUB_BASE_TOOLS } from "../../.pi/extensions/hall-crew/crew/lib/github-base-tools.mjs";
+import { roleModule } from "../../extensions/crew/crew/lib/automaton-body/lib/modules/role.mjs";
+import { assemble } from "../../extensions/crew/crew/lib/assembly.mjs";
+import { GITHUB_BASE_TOOLS } from "../../extensions/crew/crew/lib/github-base-tools.mjs";
 
 test("roles provide bounded native capabilities", () => {
   for (const [role, tool, thinking] of [

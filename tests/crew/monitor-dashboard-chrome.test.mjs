@@ -17,7 +17,7 @@ import { test } from "node:test";
 test("wrapDashboardChrome adds a top rule, a background band, and a bottom rule around the content", async (t) => {
   let wrapDashboardChrome;
   try {
-    ({ wrapDashboardChrome } = await import("../../.pi/extensions/hall-crew/crew/lib/monitor-dashboard-chrome.mjs"));
+    ({ wrapDashboardChrome } = await import("../../extensions/crew/crew/lib/monitor-dashboard-chrome.mjs"));
   } catch (err) {
     t.skip(
       `@earendil-works/pi-tui / pi-coding-agent not resolvable from plain node --test in this repo (${err.code ?? err.message}); ` +

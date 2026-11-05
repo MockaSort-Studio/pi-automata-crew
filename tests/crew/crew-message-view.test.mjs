@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  renderCrewMessageMarkdown,
-  renderPayloadMarkdown,
-} from "../../.pi/extensions/hall-crew/crew/lib/crew-message-view.mjs";
+import { renderCrewMessageMarkdown, renderPayloadMarkdown } from "../../extensions/crew/crew/lib/crew-message-view.mjs";
 
 test("renders an object payload as a readable bullet list", () => {
   const message = {

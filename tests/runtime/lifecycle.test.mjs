@@ -6,11 +6,10 @@ import { join } from "node:path";
 import { once } from "node:events";
 import { test } from "node:test";
 import WebSocket from "ws";
-import { LifecycleController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-controller.mjs";
-import { connectLifecycle } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-client.mjs";
+import { LifecycleController } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
+import { connectLifecycle } from "../../extensions/crew/crew-runtime/lib/lifecycle-client.mjs";
 
-const serverPath = new URL("../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-server.mjs", import.meta.url)
-  .pathname;
+const serverPath = new URL("../../extensions/crew/crew-runtime/lib/lifecycle-server.mjs", import.meta.url).pathname;
 const waitForPort = async (child) => {
   const [data] = await once(child.stdout, "data");
   return JSON.parse(String(data)).port;
@@ -56,7 +55,7 @@ test("lifecycle shutdown terminates connected clients", async () => {
 
 test("lifecycle RPC returns results and protocol errors", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "lifecycle-rpc-"));
-  mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
+  mkdirSync(join(cwd, "extensions"), { recursive: true });
   const child = spawn(
     process.execPath,
     [serverPath, JSON.stringify({ cwd, sdkModule: "unused", workerModule: "unused" })],

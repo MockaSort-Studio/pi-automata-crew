@@ -3,11 +3,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { parse } from "yaml";
 
-const skillsDir = new URL("../../.pi/skills/", import.meta.url);
+const skillsDir = new URL("../../skills/", import.meta.url);
 // A skill that no Main procedure names cannot be supplied to an isolated worker.
 const referencedBy = [
-  "../../.pi/extensions/hall-crew/crew/prompts/roles/reviewer.md",
-  "../../.pi/skills/engineering-review/SKILL.md",
+  "../../extensions/crew/crew/prompts/roles/reviewer.md",
+  "../../skills/engineering-review/SKILL.md",
   "../../AGENTS.md",
 ]
   .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))

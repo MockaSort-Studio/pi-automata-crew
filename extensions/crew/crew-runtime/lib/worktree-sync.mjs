@@ -20,6 +20,6 @@ export async function syncWorkingTree(cwd, runRoot, worktree) {
       .split("\n")
       .filter(Boolean)
       .map((path) => cp(join(cwd, path), join(worktree, path), { recursive: true })),
-    cp(join(cwd, ".pi", "extensions"), join(worktree, ".pi", "extensions"), { recursive: true }),
+    cp(join(cwd, "extensions"), join(worktree, "extensions"), { recursive: true }),
   ]);
 }

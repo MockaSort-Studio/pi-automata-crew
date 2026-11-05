@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { RESOLVED_MODEL_MARKER } from "../../.pi/extensions/hall-crew/crew-runtime/lib/worker-events.mjs";
+import { RESOLVED_MODEL_MARKER } from "../../extensions/crew/crew-runtime/lib/worker-events.mjs";
 
 // Split out of worker-comm-extension.test.mjs to keep that file at its
 // original size: same loadExtension helper, but scoped to the one behavior
@@ -14,7 +14,7 @@ const loadExtension = async (config) => {
   writeFileSync(configPath, JSON.stringify(config));
   process.env.PI_CREW_WORKER_CONFIG = configPath;
   const module = await import(
-    `../../.pi/extensions/hall-crew/crew-runtime/lib/worker-comm-extension.mjs?t=${Date.now()}-${Math.random()}`
+    `../../extensions/crew/crew-runtime/lib/worker-comm-extension.mjs?t=${Date.now()}-${Math.random()}`
   );
   return module.default;
 };

@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { Runtime } from "../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs";
-import { connectComm } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-client.mjs";
-import { createDependentRelease } from "../../.pi/extensions/hall-crew/crew-runtime/lib/dependent-release.mjs";
+import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
+import { connectComm } from "../../extensions/crew/crew-runtime/lib/comm-client.mjs";
+import { createDependentRelease } from "../../extensions/crew/crew-runtime/lib/dependent-release.mjs";
 
 const members = [
   { handle: "developer-a-00", dependsOn: [], task: "A" },

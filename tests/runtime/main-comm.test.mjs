@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { Runtime } from "../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs";
-import { connectComm } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-client.mjs";
+import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
+import { connectComm } from "../../extensions/crew/crew-runtime/lib/comm-client.mjs";
 
 const runId = "11111111-1111-1111-1111-111111111111";
 const namespace = `crew-${runId}`;
@@ -47,7 +47,7 @@ test("Main receives a request and only its correlated reply acknowledges it", as
 });
 
 test("readiness barrier resolves after workers report ready and times out otherwise", async () => {
-  const { CommController } = await import("../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs");
+  const { CommController } = await import("../../extensions/crew/crew-runtime/lib/comm-controller.mjs");
   const comm = new CommController();
   comm.registerActor("ns-a", { role: "developer" });
   comm.registerPlan("ns", [{ handle: "developer-a-00", dependsOn: [], task: "" }]);
@@ -58,7 +58,7 @@ test("readiness barrier resolves after workers report ready and times out otherw
 });
 
 test("broker allows broadcast only from a lead", async () => {
-  const { CommController } = await import("../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs");
+  const { CommController } = await import("../../extensions/crew/crew-runtime/lib/comm-controller.mjs");
   const comm = new CommController({ broadcastStaggerMs: 0 });
   comm.registerActor("ns-lead", { role: "lead" });
   comm.registerActor("ns-dev", { role: "developer" });

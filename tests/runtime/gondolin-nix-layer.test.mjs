@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   createFilteredNixStoreProvider,
   createGondolinNixLayer,
-} from "../../.pi/extensions/hall-crew/env-runtime/lib/gondolin-nix-layer.mjs";
+} from "../../extensions/crew/env-runtime/lib/gondolin-nix-layer.mjs";
 
 const allowed = "/nix/store/0123456789abcdefghijklmnopqrstuv-gh-2.101.0";
 const hidden = "vutsrqponmlkjihgfedcba9876543210-secret-1";

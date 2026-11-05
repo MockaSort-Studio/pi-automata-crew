@@ -1,11 +1,11 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { createDependencyLedger } from "../../.pi/extensions/hall-crew/crew/lib/dependency-ledger.mjs";
+import { createDependencyLedger } from "../../extensions/crew/crew/lib/dependency-ledger.mjs";
 import {
   ledgerStatusByActor,
   readableDependencyLedgerSnapshot,
   seedDependencyLedgerFromSelectedCrew,
-} from "../../.pi/extensions/hall-crew/crew/lib/dependency-ledger-wiring.mjs";
+} from "../../extensions/crew/crew/lib/dependency-ledger-wiring.mjs";
 
 const selectedCrew = () => ({
   members: [

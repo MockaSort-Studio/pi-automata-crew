@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { validateArmorySuite } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-manifest.mjs";
+import { validateArmorySuite } from "../../extensions/crew/env-runtime/lib/armory-manifest.mjs";
 
 const manifest = () => ({
   format: "hall.armory-suite/v1",

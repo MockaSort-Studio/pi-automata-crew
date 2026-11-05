@@ -10,8 +10,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import test from "node:test";
-import { LifecycleController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-controller.mjs";
-import { applyWorkerStatusToRosterFiles } from "../../.pi/extensions/hall-crew/crew/lib/roster-lifecycle.mjs";
+import { LifecycleController } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
+import { applyWorkerStatusToRosterFiles } from "../../extensions/crew/crew/lib/roster-lifecycle.mjs";
 
 const stubWorker = new URL("./fixtures/stub-worker.mjs", import.meta.url).pathname;
 
@@ -20,7 +20,7 @@ function gitRepo() {
   execFileSync("git", ["init", "-q"], { cwd });
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd });
   execFileSync("git", ["config", "user.name", "test"], { cwd });
-  mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
+  mkdirSync(join(cwd, "extensions"), { recursive: true });
   writeFileSync(join(cwd, ".gitignore"), ".pi/runtime/\n");
   execFileSync("git", ["add", ".gitignore"], { cwd });
   execFileSync("git", ["commit", "-q", "-m", "init"], { cwd });

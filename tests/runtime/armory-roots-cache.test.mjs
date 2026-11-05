@@ -5,8 +5,8 @@ import {
   armoryRootsDir,
   explainMissingCache,
   guestNixSystem,
-} from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-nix.mjs";
-import { armoryCache } from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-artifacts.mjs";
+} from "../../extensions/crew/env-runtime/lib/armory-nix.mjs";
+import { armoryCache } from "../../extensions/crew/env-runtime/lib/armory-artifacts.mjs";
 
 test("roots are keyed by suite and system, never by revision, so a new revision replaces the old root", () => {
   const root = armoryRoot("collaboration/pi-github-tools", "aarch64-linux", "/home/u");

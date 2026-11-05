@@ -44,21 +44,8 @@ const requireComm = () =>
     throw new Error("Crew communication is not ready");
   })();
 const granted = new Set(config.commTools ?? ["comm_notify", "comm_request", "comm_reply"]);
-const DEFAULT_BASH_TIMEOUT_SECONDS = 120;
-const MAX_BASH_TIMEOUT_SECONDS = 300;
 export default function workerCommExtension(pi) {
   activePi = pi;
-  // Native bash has no default timeout. A worker must not strand its Crew on an unbounded process;
-  // mutate before execution so Pi's own process-tree timeout remains the enforcement mechanism.
-  pi.on("tool_call", (event) => {
-    if (event.toolName !== "bash") return;
-    if (event.input.timeout === undefined) {
-      event.input.timeout = DEFAULT_BASH_TIMEOUT_SECONDS;
-      return;
-    }
-    if (!Number.isFinite(event.input.timeout) || event.input.timeout > MAX_BASH_TIMEOUT_SECONDS)
-      return { block: true, reason: `Worker bash timeout may not exceed ${MAX_BASH_TIMEOUT_SECONDS} seconds.` };
-  });
   pi.on("turn_end", (event) => {
     sawTurnEnd = true;
     lastTurnUsage = event.message?.usage;

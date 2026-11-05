@@ -12,7 +12,7 @@ import {
   readLifecycleEvents,
   replayLifecycleState,
   runIdForConfig,
-} from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-log.mjs";
+} from "../../extensions/crew/crew-runtime/lib/lifecycle-log.mjs";
 
 const withTempCwd = async (run) => {
   const cwd = mkdtempSync(join(tmpdir(), "lifecycle-log-"));

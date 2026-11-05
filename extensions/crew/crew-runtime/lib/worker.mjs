@@ -74,15 +74,7 @@ const args = [
 if (config.sandbox?.kind === "gondolin") {
   args.push(
     "--extension",
-    resolve(
-      config.extensionCwd,
-      ".pi",
-      "extensions",
-      "hall-crew",
-      "env-runtime",
-      "lib",
-      "worker-gondolin-extension.mjs",
-    ),
+    resolve(config.extensionCwd, "extensions", "crew", "env-runtime", "lib", "worker-gondolin-extension.mjs"),
   );
 }
 for (const extensionPath of config.extensionPaths ?? []) args.push("--extension", resolve(config.cwd, extensionPath));

@@ -3,9 +3,9 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { launchPreparedCrew, prepareCrew } from "../../.pi/extensions/hall-crew/crew/lib/startup.mjs";
-import { activeRosterEntries } from "../../.pi/extensions/hall-crew/crew/lib/monitor-active-rosters.mjs";
-import { crewMonitorView } from "../../.pi/extensions/hall-crew/crew/lib/monitor-state.mjs";
+import { launchPreparedCrew, prepareCrew } from "../../extensions/crew/crew/lib/startup.mjs";
+import { activeRosterEntries } from "../../extensions/crew/crew/lib/monitor-active-rosters.mjs";
+import { crewMonitorView } from "../../extensions/crew/crew/lib/monitor-state.mjs";
 
 const pi = { getAllTools: () => [] };
 const prepare = (cwd, environment) =>

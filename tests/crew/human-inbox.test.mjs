@@ -1,9 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import {
-  acknowledgeHumanRequests,
-  queueHumanRequests,
-} from "../../.pi/extensions/hall-crew/crew/lib/human-inbox-state.mjs";
+import { acknowledgeHumanRequests, queueHumanRequests } from "../../extensions/crew/crew/lib/human-inbox-state.mjs";
 
 const roster = { lead: { name: "lead-old-major" }, members: [{ name: "architect-mergio" }] };
 const crew = { id: "crew", body: "Finding\n\n---\n@architect-mergio\nsigned" };

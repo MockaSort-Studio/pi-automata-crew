@@ -6,24 +6,23 @@ import { join } from "node:path";
 import { once } from "node:events";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { LifecycleController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-controller.mjs";
-import { connectLifecycle } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-client.mjs";
+import { LifecycleController } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
+import { connectLifecycle } from "../../extensions/crew/crew-runtime/lib/lifecycle-client.mjs";
 import {
   appendLifecycleEvent,
   lifecycleLogPath,
   readLifecycleEvents,
-} from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-log.mjs";
+} from "../../extensions/crew/crew-runtime/lib/lifecycle-log.mjs";
 
 const stubWorker = new URL("./fixtures/stub-worker.mjs", import.meta.url).pathname;
-const serverPath = new URL("../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-server.mjs", import.meta.url)
-  .pathname;
+const serverPath = new URL("../../extensions/crew/crew-runtime/lib/lifecycle-server.mjs", import.meta.url).pathname;
 
 function gitRepo() {
   const cwd = mkdtempSync(join(tmpdir(), "lifecycle-recovery-"));
   execFileSync("git", ["init", "-q"], { cwd });
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd });
   execFileSync("git", ["config", "user.name", "test"], { cwd });
-  mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
+  mkdirSync(join(cwd, "extensions"), { recursive: true });
   writeFileSync(join(cwd, ".gitignore"), ".pi/runtime/\n");
   execFileSync("git", ["add", ".gitignore"], { cwd });
   execFileSync("git", ["commit", "-q", "-m", "init"], { cwd });

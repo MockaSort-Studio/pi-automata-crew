@@ -1,11 +1,11 @@
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { crewMonitorView, isTerminalCrew } from "../../.pi/extensions/hall-crew/crew/lib/monitor-state.mjs";
+import { crewMonitorView, isTerminalCrew } from "../../extensions/crew/crew/lib/monitor-state.mjs";
 
-const source = readFileSync(new URL("../../.pi/extensions/hall-crew/crew/lib/monitor.ts", import.meta.url), "utf8");
+const source = readFileSync(new URL("../../extensions/crew/crew/lib/monitor.ts", import.meta.url), "utf8");
 const footerWidgetSource = readFileSync(
-  new URL("../../.pi/extensions/hall-crew/crew/lib/monitor-footer-widget.mjs", import.meta.url),
+  new URL("../../extensions/crew/crew/lib/monitor-footer-widget.mjs", import.meta.url),
   "utf8",
 );
 
@@ -111,7 +111,7 @@ test("the Crew dashboard is given real border/background chrome, not unframed te
   assert.match(source, /import \{ wrapDashboardChrome \} from "\.\/monitor-dashboard-chrome\.mjs"/);
   assert.match(source, /\},\s*wrapDashboardChrome,/);
   const chrome = readFileSync(
-    new URL("../../.pi/extensions/hall-crew/crew/lib/monitor-dashboard-chrome.mjs", import.meta.url),
+    new URL("../../extensions/crew/crew/lib/monitor-dashboard-chrome.mjs", import.meta.url),
     "utf8",
   );
   assert.match(chrome, /import \{ Box, matchesKey \} from "@earendil-works\/pi-tui"/);

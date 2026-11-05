@@ -1,9 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import {
-  crewEnvironment,
-  resolveCrewEnvironment,
-} from "../../.pi/extensions/hall-crew/crew-runtime/lib/crew-environment.mjs";
+import { crewEnvironment, resolveCrewEnvironment } from "../../extensions/crew/crew-runtime/lib/crew-environment.mjs";
 
 test("auto selects Gondolin after one successful preflight", async () => {
   const calls = [];

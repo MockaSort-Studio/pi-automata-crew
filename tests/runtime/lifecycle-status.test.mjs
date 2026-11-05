@@ -5,10 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import test from "node:test";
-import {
-  LifecycleController,
-  terminalStatus,
-} from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-controller.mjs";
+import { LifecycleController, terminalStatus } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
 
 const stubWorker = new URL("./fixtures/stub-worker.mjs", import.meta.url).pathname;
 
@@ -25,7 +22,7 @@ function gitRepo() {
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd });
   execFileSync("git", ["config", "user.name", "test"], { cwd });
   // Runtime state must never be treated as untracked worktree content.
-  mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
+  mkdirSync(join(cwd, "extensions"), { recursive: true });
   writeFileSync(join(cwd, ".gitignore"), ".pi/runtime/\n");
   execFileSync("git", ["add", ".gitignore"], { cwd });
   execFileSync("git", ["commit", "-q", "-m", "init"], { cwd });

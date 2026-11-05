@@ -3,10 +3,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { crewPaths, prepareCrew, queuedMessage } from "../../.pi/extensions/hall-crew/crew/lib/startup.mjs";
-import { assemble } from "../../.pi/extensions/hall-crew/crew/lib/assembly.mjs";
+import { crewPaths, prepareCrew, queuedMessage } from "../../extensions/crew/crew/lib/startup.mjs";
+import { assemble } from "../../extensions/crew/crew/lib/assembly.mjs";
 
-const source = readFileSync(new URL("../../.pi/extensions/hall-crew/crew/lib/startup.mjs", import.meta.url), "utf8");
+const source = readFileSync(new URL("../../extensions/crew/crew/lib/startup.mjs", import.meta.url), "utf8");
 
 test("crew paths include an immutable selected-party manifest", () =>
   assert.deepEqual(crewPaths(".pi", "run-1"), {
@@ -144,7 +144,7 @@ test("prepareCrew gives each worker its explicit model or the Crew model", async
 test("prepareCrew carries named skill procedures into an isolated worker prompt", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {
-    const skill = join(cwd, ".pi", "skills", "review-probe");
+    const skill = join(cwd, "skills", "review-probe");
     mkdirSync(skill, { recursive: true });
     writeFileSync(join(skill, "SKILL.md"), "---\nname: review-probe\ndescription: test\n---\nSKILL-BODY-MARKER\n");
     const prepared = await prepareCrew(

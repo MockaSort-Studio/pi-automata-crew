@@ -6,7 +6,7 @@ import { test } from "node:test";
 import {
   terminalizeRoster,
   terminalizeRostersForRemovedActors,
-} from "../../.pi/extensions/hall-crew/crew/lib/roster-terminal.mjs";
+} from "../../extensions/crew/crew/lib/roster-terminal.mjs";
 
 test("terminalizeRoster marks a non-terminal roster done and clears members", () => {
   const roster = { runId: "run-1", status: "started", members: [{ name: "snowball" }] };

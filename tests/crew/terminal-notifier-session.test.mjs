@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { registerTerminalNotifierSession } from "../../.pi/extensions/hall-crew/crew/lib/terminal-notifier-session.mjs";
+import { registerTerminalNotifierSession } from "../../extensions/crew/crew/lib/terminal-notifier-session.mjs";
 
 test("session binding forwards terminal notifications to Pi and tears down", () => {
   const handlers = new Map(),

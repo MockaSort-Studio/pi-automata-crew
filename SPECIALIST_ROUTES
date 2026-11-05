@@ -5,11 +5,11 @@
 /package.json @mergio @bollo
 /package-lock.json @mergio @bollo
 
-/.pi/extensions/hall-crew/env-runtime/** @bollo @snowball
-/.pi/extensions/hall-crew/crew-runtime/** @snowball @tomashco @bollo
-/.pi/extensions/hall-crew/crew/prompts/** @snowball
-/.pi/skills/** @snowball
-/.pi/extensions/hall-crew/crew/** @snowball
+/extensions/crew/env-runtime/** @bollo @snowball
+/extensions/crew/crew-runtime/** @snowball @tomashco @bollo
+/extensions/crew/crew/prompts/** @snowball
+/skills/** @snowball
+/extensions/crew/crew/** @snowball
 
 /**/credentials*.mjs @bollo
 /**/guest-network.mjs @bollo

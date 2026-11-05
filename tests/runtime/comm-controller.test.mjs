@@ -1,10 +1,10 @@
 import { strict as assert } from "node:assert";
 import { randomUUID } from "node:crypto";
-import { Runtime } from "../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs";
+import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
 import test from "node:test";
 import WebSocket from "ws";
-import { CommController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs";
-import { connectComm } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-client.mjs";
+import { CommController } from "../../extensions/crew/crew-runtime/lib/comm-controller.mjs";
+import { connectComm } from "../../extensions/crew/crew-runtime/lib/comm-client.mjs";
 
 const receive = (socket) => new Promise((resolve) => socket.once("message", (raw) => resolve(JSON.parse(String(raw)))));
 const connect = async (port, actorId) => {

@@ -6,10 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { skipLiveGondolin } from "./live-gondolin.mjs";
 
-const extension = new URL(
-  "../../.pi/extensions/hall-crew/env-runtime/lib/worker-gondolin-extension.mjs",
-  import.meta.url,
-).href;
+const extension = new URL("../../extensions/crew/env-runtime/lib/worker-gondolin-extension.mjs", import.meta.url).href;
 
 // Runs in a child with no inherited fd 3. Pi logs a handler error and keeps going, so the
 // extension must end the worker itself when its sandbox cannot be set up.

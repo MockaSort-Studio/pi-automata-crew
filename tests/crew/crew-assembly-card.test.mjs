@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assemblyCardData } from "../../.pi/extensions/hall-crew/crew/lib/crew-assembly-card.mjs";
+import { assemblyCardData } from "../../extensions/crew/crew/lib/crew-assembly-card.mjs";
 
 test("assembly card uses each explicit model, then the Crew default, without exposing grants", () => {
   const data = assemblyCardData(

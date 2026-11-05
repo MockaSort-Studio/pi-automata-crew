@@ -7,7 +7,7 @@ description: Run a bounded engineering change through a Crew, from plan to integ
 
 1. **Plan once.** Objective, members, each member's files and acceptance criteria, dependencies. One
    developer per disjoint file set; if two members need the same file, chain them with `dependsOn`.
-   Derive affected paths and call `crew_route`; it selects specialist personas from `.pi/crew/SPECIALIST_ROUTES`.
+   Derive affected paths and call `crew_route`; it selects specialist personas from `SPECIALIST_ROUTES`.
    Main still selects roles. Show the plan as a short table and proceed on the user's go
    (or immediately if they already approved).
 2. **Assign.** For each member give: objective, files in scope, acceptance criteria, tests required,

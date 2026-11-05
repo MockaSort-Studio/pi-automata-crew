@@ -5,13 +5,12 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-mkdir -p "$TMP/.pi"
-cp -R "$ROOT/.pi/extensions" "$TMP/.pi/extensions"
+cp -R "$ROOT/extensions" "$TMP/extensions"
 # The relocated extension tree must resolve the dependencies declared by this
 # package, just as an installed project does; do not accidentally test only
 # extensions whose imports happen to be bundled into Pi itself.
 ln -s "$ROOT/node_modules" "$TMP/node_modules"
-if rg -n '(/Users/|Workspace/|pi\.agents|pi\.tools\.call)' "$TMP/.pi/extensions"; then
+if rg -n '(/Users/|Workspace/|pi\.agents|pi\.tools\.call)' "$TMP/extensions"; then
   echo "Extension source contains a host-specific path or unsupported Pi API" >&2
   exit 1
 fi
@@ -37,9 +36,8 @@ PI_OFFLINE=1 pi \
   --no-skills \
   --no-prompt-templates \
   --no-themes \
-  -e .pi/extensions/hall-crew/crew/index.ts \
-  -e .pi/extensions/web/index.ts \
-  -e .pi/extensions/hall-crew/crew-runtime/index.ts \
+  -e extensions/crew.ts \
+  -e extensions/web/index.ts \
   -e ./assert-tools.ts \
   --list-models \
   --offline >/dev/null

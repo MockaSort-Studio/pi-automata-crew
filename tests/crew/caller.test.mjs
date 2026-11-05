@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { assertActorOwnsSender } from "../../.pi/extensions/hall-crew/crew/lib/caller.mjs";
+import { assertActorOwnsSender } from "../../extensions/crew/crew/lib/caller.mjs";
 
 const roster = {
   lead: { name: "lead-old-major", actorId: "lead-1" },

@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { projectEnvelope } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-envelope-observation.mjs";
+import { projectEnvelope } from "../../extensions/crew/crew-runtime/lib/comm-envelope-observation.mjs";
 
 const envelope = (payload) => ({ id: "e1", kind: "notify", from: "a", to: "b", replyTo: null, payload });
 

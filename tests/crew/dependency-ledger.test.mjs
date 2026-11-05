@@ -5,7 +5,7 @@ import {
   canTransition,
   isTerminalStatus,
   createDependencyLedger,
-} from "../../.pi/extensions/hall-crew/crew/lib/dependency-ledger.mjs";
+} from "../../extensions/crew/crew/lib/dependency-ledger.mjs";
 
 test("NODE_STATES exposes the durable ledger vocabulary", () => {
   assert.deepEqual(NODE_STATES, ["waiting", "ready", "running", "complete", "blocked", "failed"]);

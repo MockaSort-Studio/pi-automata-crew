@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
 
-const worker = readFileSync(
-  new URL("../../.pi/extensions/hall-crew/crew-runtime/lib/worker.mjs", import.meta.url),
-  "utf8",
-);
+const worker = readFileSync(new URL("../../extensions/crew/crew-runtime/lib/worker.mjs", import.meta.url), "utf8");
 
 test("resident workers prompt only after their correlated session bootstrap", () => {
   assert.match(worker, /id: "worker-session", type: "new_session"/);
@@ -17,6 +14,6 @@ test("resident workers prompt only after their correlated session bootstrap", ()
 test("worker.mjs is syntactically valid (a parse error silently prevents every launch)", () => {
   execFileSync(process.execPath, [
     "--check",
-    new URL("../../.pi/extensions/hall-crew/crew-runtime/lib/worker.mjs", import.meta.url).pathname,
+    new URL("../../extensions/crew/crew-runtime/lib/worker.mjs", import.meta.url).pathname,
   ]);
 });

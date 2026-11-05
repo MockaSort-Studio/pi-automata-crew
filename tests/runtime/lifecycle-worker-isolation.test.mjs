@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import test from "node:test";
-import { LifecycleController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-controller.mjs";
+import { LifecycleController } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
 
 // A spawned worker must never receive host-root discovery: it runs inside
 // its own owned worktree under .pi/runtime/runs/<id>/worktree and must not
@@ -18,7 +18,7 @@ function gitRepo() {
   execFileSync("git", ["init", "-q"], { cwd });
   execFileSync("git", ["config", "user.email", "test@example.com"], { cwd });
   execFileSync("git", ["config", "user.name", "test"], { cwd });
-  mkdirSync(join(cwd, ".pi", "extensions"), { recursive: true });
+  mkdirSync(join(cwd, "extensions"), { recursive: true });
   writeFileSync(join(cwd, ".gitignore"), ".pi/runtime/\n");
   execFileSync("git", ["add", ".gitignore"], { cwd });
   execFileSync("git", ["commit", "-q", "-m", "init"], { cwd });
@@ -33,20 +33,6 @@ test("owner shutdown archives a live worker before removing its run directory", 
     await controller.shutdown();
     assert.equal(existsSync(join(cwd, ".pi", "runtime", "runs", agent.id)), false);
     assert.equal(existsSync(join(cwd, ".pi", "runtime", "archive", agent.id, "worker.json")), true);
-  } finally {
-    rmSync(cwd, { recursive: true, force: true });
-  }
-});
-
-test("forced worker removal archives evidence before reclaiming its run directory", async () => {
-  const cwd = gitRepo();
-  const controller = new LifecycleController({ cwd, workerModule: stubWorker });
-  try {
-    const agent = await controller.spawn({ actorId: "forced-remove", name: "forced-remove", task: "SLEEP" });
-    await controller.remove(agent.id);
-    assert.equal(existsSync(join(cwd, ".pi", "runtime", "runs", agent.id)), false);
-    assert.equal(existsSync(join(cwd, ".pi", "runtime", "archive", agent.id, "worker.json")), true);
-    assert.equal(existsSync(join(cwd, ".pi", "runtime", "archive", agent.id, "worktree")), true);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

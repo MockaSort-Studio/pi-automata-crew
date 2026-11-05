@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildAutomataTab, buildPlanTab } from "../../.pi/extensions/hall-crew/crew/lib/monitor-dashboard.mjs";
+import { buildAutomataTab, buildPlanTab } from "../../extensions/crew/crew/lib/monitor-dashboard.mjs";
 
 test("buildAutomataTab passes through the snapshot's per-automaton detail rows", () => {
   const row = { actorId: "a1", name: "architect-a", bucket: "running" };

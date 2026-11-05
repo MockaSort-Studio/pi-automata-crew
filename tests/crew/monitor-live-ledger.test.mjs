@@ -10,9 +10,9 @@
 // for a snapshot/subscription.
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { CommController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs";
-import { connectComm } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-client.mjs";
-import { createLiveLedgerTracker } from "../../.pi/extensions/hall-crew/crew/lib/monitor-live-ledger.mjs";
+import { CommController } from "../../extensions/crew/crew-runtime/lib/comm-controller.mjs";
+import { connectComm } from "../../extensions/crew/crew-runtime/lib/comm-client.mjs";
+import { createLiveLedgerTracker } from "../../extensions/crew/crew/lib/monitor-live-ledger.mjs";
 
 const selectedCrew = (runId = "run-1") => ({
   runId,

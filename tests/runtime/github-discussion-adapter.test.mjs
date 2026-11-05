@@ -3,7 +3,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { startGithubDiscussionAdapter } from "../../.pi/extensions/hall-crew/crew-runtime/lib/github-discussion.mjs";
+import { startGithubDiscussionAdapter } from "../../extensions/crew/crew-runtime/lib/github-discussion.mjs";
 
 // A fake `gh` on PATH: enough GraphQL responses for discussion creation,
 // commenting, and the empty-comment poll, with every call logged so posted

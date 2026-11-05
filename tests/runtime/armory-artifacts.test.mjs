@@ -8,7 +8,7 @@ import {
   referenceFromArtifacts,
   resolveArmoryCatalog,
   validateArtifactCatalog,
-} from "../../.pi/extensions/hall-crew/env-runtime/lib/armory-artifacts.mjs";
+} from "../../extensions/crew/env-runtime/lib/armory-artifacts.mjs";
 
 const revision = "0123456789abcdef0123456789abcdef01234567";
 const path = (seed) => `/nix/store/${seed.repeat(32).slice(0, 32)}-x`;

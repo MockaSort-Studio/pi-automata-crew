@@ -5,7 +5,7 @@ import {
   STATIC_CONTEXT_MARKER,
   boundedText,
   mapWorkerEvent,
-} from "../../.pi/extensions/hall-crew/crew-runtime/lib/worker-events.mjs";
+} from "../../extensions/crew/crew-runtime/lib/worker-events.mjs";
 
 test("mapWorkerEvent produces a content-free tool_end record with a size, not the payload", () => {
   const entry = mapWorkerEvent({

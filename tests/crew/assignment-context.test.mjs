@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { assignmentContext } from "../../.pi/extensions/hall-crew/crew/lib/assignment-context.mjs";
+import { assignmentContext } from "../../extensions/crew/crew/lib/assignment-context.mjs";
 
 test("assignment context is omitted when no optional common fields are supplied", () => {
   assert.equal(assignmentContext({}), "");

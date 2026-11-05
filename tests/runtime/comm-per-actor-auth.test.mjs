@@ -2,8 +2,8 @@ import { strict as assert } from "node:assert";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 import WebSocket from "ws";
-import { CommController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs";
-import { connectComm } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-client.mjs";
+import { CommController } from "../../extensions/crew/crew-runtime/lib/comm-controller.mjs";
+import { connectComm } from "../../extensions/crew/crew-runtime/lib/comm-client.mjs";
 
 // Per-actor Comm authentication: each actor (Main plus every registered Crew
 // member) holds its own token, minted once and checked against the specific
@@ -98,7 +98,7 @@ test("the server overrides an envelope's from with the authenticated sender, ign
 });
 
 test("Runtime mints a distinct token per spawned actor, so one worker's config can never authenticate as another", async () => {
-  const { Runtime } = await import("../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs");
+  const { Runtime } = await import("../../extensions/crew/crew-runtime/lib/runtime.mjs");
   const runtime = new Runtime(process.cwd());
   const prefix = `tokens-${randomUUID()}`;
   try {
@@ -132,7 +132,7 @@ test("with Comm auth on, an actor registered without a token cannot connect with
 });
 
 test("the Comm connection info that launch writes to the roster and returns to the model carries no worker token", async () => {
-  const { Runtime } = await import("../../.pi/extensions/hall-crew/crew-runtime/lib/runtime.mjs");
+  const { Runtime } = await import("../../extensions/crew/crew-runtime/lib/runtime.mjs");
   const runtime = new Runtime(process.cwd());
   const actor = `roster-${randomUUID()}-a`;
   try {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createGuestNetwork } from "../../.pi/extensions/hall-crew/env-runtime/lib/guest-network.mjs";
+import { createGuestNetwork } from "../../extensions/crew/env-runtime/lib/guest-network.mjs";
 
 const externalRequest = (hostname) => ({
   hostname,

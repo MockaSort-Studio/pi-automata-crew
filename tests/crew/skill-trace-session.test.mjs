@@ -23,7 +23,7 @@ test(
     await new Promise((resolve) => model.listen(0, "127.0.0.1", resolve));
     let pi;
     try {
-      cpSync(join(root, ".pi", "extensions"), join(dir, ".pi", "extensions"), { recursive: true });
+      cpSync(join(root, "extensions"), join(dir, "extensions"), { recursive: true });
       symlinkSync(join(root, "node_modules"), join(dir, "node_modules"));
       mkdirSync(join(dir, "skills", "demo"), { recursive: true });
       writeFileSync(skillFile, "---\nname: demo\ndescription: Demo skill used only by this test.\n---\nDo the demo.\n");
@@ -54,7 +54,7 @@ test(
           "-e",
           join(dir, "mock-provider.mjs"),
           "-e",
-          join(dir, ".pi/extensions/hall-crew/crew/index.ts"),
+          join(dir, "extensions/crew/crew/index.ts"),
         ],
         { cwd: dir, env: { ...process.env, PI_OFFLINE: "1" }, stdio: ["pipe", "pipe", "ignore"] },
       );

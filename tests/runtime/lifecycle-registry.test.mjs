@@ -11,7 +11,7 @@ import {
   reapOrphans,
   recordOwner,
   removeOwner,
-} from "../../.pi/extensions/hall-crew/crew-runtime/lib/lifecycle-registry.mjs";
+} from "../../extensions/crew/crew-runtime/lib/lifecycle-registry.mjs";
 
 const spawnSleeper = () => spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
 const deadPid = async () => {

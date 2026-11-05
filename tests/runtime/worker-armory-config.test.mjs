@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { credentialPolicyForSuites } from "../../.pi/extensions/hall-crew/env-runtime/credential-policy.mjs";
-import { workerArmoryConfig } from "../../.pi/extensions/hall-crew/env-runtime/lib/worker-armory-config.mjs";
+import { credentialPolicyForSuites } from "../../extensions/crew/env-runtime/credential-policy.mjs";
+import { workerArmoryConfig } from "../../extensions/crew/env-runtime/lib/worker-armory-config.mjs";
 
 const path = "/nix/store/0123456789abcdefghijklmnopqrstuv-github";
 

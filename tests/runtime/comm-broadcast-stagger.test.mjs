@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { CommController } from "../../.pi/extensions/hall-crew/crew-runtime/lib/comm-controller.mjs";
+import { CommController } from "../../extensions/crew/crew-runtime/lib/comm-controller.mjs";
 
 // A synchronous broadcast delivers every resident worker's first prompt in
 // the same tick, which produced a real, reproducible collision: near-
