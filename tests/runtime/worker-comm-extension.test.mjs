@@ -194,6 +194,21 @@ test("an empty final turn after tool work blocks without replaying the assignmen
   assert.equal(comm.claim("main").payload.reason, "empty_provider_turn");
   assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "blocked");
 });
+test("a billed provider error blocks instead of being treated as successful work", async (t) => {
+  const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
+  comm.emit("lead", "ns-developer-worker-00", { ask: "work" });
+  await waitFor(() => pi.deliveries.length === 1);
+  pi.handlers.get("turn_end")({
+    message: { usage: { input: 20, output: 3 }, content: [], stopReason: "error", errorMessage: "HTTP 429 secret" },
+  });
+  pi.handlers.get("agent_settled")();
+  await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
+  const report = comm.claim("main");
+  assert.equal(report.payload.reason, "provider_error");
+  assert.equal(report.payload.providerFailure, "rate_limit_or_quota");
+  assert.doesNotMatch(JSON.stringify(report), /secret/);
+  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "blocked");
+});
 test("a degenerate turn blocks and notifies Main rather than claiming success", async (t) => {
   const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
   comm.emit("lead", "ns-developer-worker-00", { ask: "respond" }, true);

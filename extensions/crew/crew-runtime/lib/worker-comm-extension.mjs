@@ -111,18 +111,18 @@ export default function workerCommExtension(pi) {
           // An empty provider turn is not evidence of successful work. Preserve the worker and
           // its private workspace so Main can investigate or resume it; never report success.
           if (activeDelivery?.id === message.id && activeDelivery.state === "running") {
-            if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
+            if (sawTurnEnd && (lastProviderFailure || isDegenerateTurn(lastTurnUsage, lastTurnToolCalls))) {
               await comm.lifecycleUpdate(config.comm.namespace, "blocked");
               activeDelivery.state = "blocked";
               await comm.emit({
                 to: "main",
                 payload: {
                   kind: "delivery_blocked",
-                  reason: "empty_provider_turn",
+                  reason: lastProviderFailure ? "provider_error" : "empty_provider_turn",
                   ...(lastProviderFailure ? { providerFailure: lastProviderFailure } : {}),
                   deliveryId: message.id,
                   message:
-                    "Worker produced no tokens or tool calls in its final turn; work may be incomplete. Preserve its workspace before cleanup.",
+                    "Worker's final provider turn was unsuccessful; work may be incomplete. Preserve its workspace before cleanup.",
                 },
                 replyRequired: false,
               });
