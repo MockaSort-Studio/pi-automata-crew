@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { Type } from "typebox";
 import { connectComm } from "./comm-client.mjs";
 import { staticContextTokens } from "../../crew/lib/observability-ledger.mjs";
-import { isDegenerateTurn } from "./degenerate-turn.mjs";
+import { isDegenerateTurn, providerFailureCategory } from "./degenerate-turn.mjs";
 import { RESOLVED_MODEL_MARKER, STATIC_CONTEXT_MARKER } from "./worker-events.mjs";
 const config = JSON.parse(readFileSync(process.env.PI_CREW_WORKER_CONFIG, "utf8"));
 let comm;
@@ -20,7 +20,7 @@ let staticContextReported = false;
 let resolvedModel;
 // sawTurnEnd separates "a turn_end fired and it was empty" (degenerate, retry) from "none fired
 // before settling" (a legitimate reply-driven completion that must not trigger a retry).
-let sawTurnEnd, lastTurnUsage, lastTurnToolCalls;
+let sawTurnEnd, lastTurnUsage, lastTurnToolCalls, lastProviderFailure;
 let replyContext;
 let kickoffManifest;
 let firstDelivery = true;
@@ -49,6 +49,7 @@ export default function workerCommExtension(pi) {
   activePi = pi;
   pi.on("turn_end", (event) => {
     sawTurnEnd = true;
+    lastProviderFailure = providerFailureCategory(event.message);
     lastTurnUsage = event.message?.usage;
     lastTurnToolCalls = (event.message?.content ?? []).filter((part) => part.type === "toolCall").length;
   });
@@ -124,6 +125,7 @@ export default function workerCommExtension(pi) {
                 payload: {
                   kind: "delivery_blocked",
                   reason: "empty_provider_turn",
+                  ...(lastProviderFailure ? { providerFailure: lastProviderFailure } : {}),
                   deliveryId: message.id,
                   message:
                     "Worker produced no tokens or tool calls after retry; work may be incomplete. Preserve its workspace before cleanup.",

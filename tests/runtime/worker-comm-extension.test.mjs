@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { CommController } from "../../extensions/crew/crew-runtime/lib/comm-controller.mjs";
-import { isDegenerateTurn } from "../../extensions/crew/crew-runtime/lib/degenerate-turn.mjs";
+import { isDegenerateTurn, providerFailureCategory } from "../../extensions/crew/crew-runtime/lib/degenerate-turn.mjs";
 import { STATIC_CONTEXT_MARKER } from "../../extensions/crew/crew-runtime/lib/worker-events.mjs";
 
 const loadExtension = async (config) => {
@@ -147,6 +147,18 @@ test("isDegenerateTurn flags zero tokens and zero tool calls, nothing else", () 
   assert.equal(isDegenerateTurn({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, 0), true);
   assert.equal(isDegenerateTurn({ input: 0, output: 3, cacheRead: 0, cacheWrite: 0 }, 0), false);
   assert.equal(isDegenerateTurn(undefined, 1), false);
+});
+test("provider failure diagnostics expose only a fixed category, not the raw error", () => {
+  assert.equal(
+    providerFailureCategory({ stopReason: "error", errorMessage: "HTTP 429 private-token" }),
+    "rate_limit_or_quota",
+  );
+  assert.equal(
+    providerFailureCategory({ stopReason: "error", errorMessage: "HTTP 401 private-token" }),
+    "authentication_or_permission",
+  );
+  assert.equal(providerFailureCategory({ stopReason: "error", errorMessage: "private-token" }), "provider_error");
+  assert.equal(providerFailureCategory({ stopReason: "stop", errorMessage: "HTTP 401" }), undefined);
 });
 const fireTurn = (pi, { usage, toolCalls = 0 } = {}) => {
   pi.handlers.get("turn_end")({
