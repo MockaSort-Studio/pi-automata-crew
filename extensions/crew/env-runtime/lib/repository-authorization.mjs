@@ -9,21 +9,16 @@ const gitWorkspaceOperations = new Set([
   "github_git_commit",
   "github_git_push",
 ]);
-const guardedOperations = new Set([
-  ...gitWorkspaceOperations,
-  "github_workspace_snapshot",
-  "github_pull_request_create",
-]);
+const guardedOperations = new Set([...gitWorkspaceOperations, "github_pull_request_create"]);
 
 // Every guarded operation accepts exactly these fields. Anything else, including ref-like fields
 // such as sha/force/remote/refspec, is rejected before any field-level check runs.
 const allowedKeysByOperation = {
-  github_workspace_snapshot: new Set(["repo", "revision"]),
   github_workspace_checkout: new Set(["repo", "revision", "branch"]),
   github_git_status: new Set(["repo"]),
   github_git_diff: new Set(["repo", "paths"]),
   github_git_stage: new Set(["repo", "paths"]),
-  github_git_commit: new Set(["repo", "message", "paths"]),
+  github_git_commit: new Set(["repo", "message"]),
   github_git_push: new Set(["repo", "branch"]),
   github_pull_request_create: new Set(["repo", "head", "base", "title", "body", "draft"]),
 };
@@ -72,8 +67,6 @@ export function authorizeRepositoryOperation(operation, input, policy) {
   if (!policy) throw new Error(`Repository authorization is required for ${operation}`);
   assertKnownShape(operation, input);
   if (input.repo !== policy.repo) throw new Error("Repository operation is outside the worker authorization");
-  if (operation === "github_workspace_snapshot" && input.revision !== policy.revision)
-    throw new Error("Workspace snapshot revision is outside the worker authorization");
   if (
     operation === "github_workspace_checkout" &&
     (input.revision !== policy.revision || input.branch !== policy.branch)

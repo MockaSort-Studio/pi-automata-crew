@@ -24,7 +24,6 @@ test("typed Git workflow is authorized only for the worker's repo, revision and 
   allow("github_git_commit", { repo, message: "Change a" });
   allow("github_git_push", { repo, branch });
   allow("github_pull_request_create", { repo, head: branch, base: "main", title: "t", draft: true });
-  allow("github_workspace_snapshot", { repo, revision });
 });
 
 test("typed Git operations deny other repositories, revisions, branches and bases", () => {
@@ -43,6 +42,7 @@ test("widened inputs are rejected before policy checks", () => {
   deny("github_workspace_checkout", { repo, revision, branch, remote: "x" }, /does not accept "remote"/);
   deny("github_git_status", undefined, /input is required/);
   deny("github_git_commit", { repo, message: " " }, /requires a message/);
+  deny("github_git_commit", { repo, message: "m", paths: ["a"] }, /does not accept "paths"/);
 });
 
 test("staged and diffed paths must be plain workspace-relative paths", () => {

@@ -3,14 +3,17 @@ import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { buildShallowCheckout } from "./repository-seed-archive.mjs";
 
 const BLOCK = 512;
 const safePath = (value) =>
   typeof value === "string" && value && !value.startsWith("/") && !value.split("/").includes("..");
 
 export const repositorySeedCacheRoot = (home = homedir()) => join(home, ".cache", "pi-crew", "repositories");
+// The format is part of the key: a seed is a shallow checkout with .git, unlike earlier seeds.
+const SEED_FORMAT = "pi-crew-repository-seed/v2";
 export const repositorySeedKey = ({ repo, revision }) =>
-  createHash("sha256").update(`${repo}\0${revision}`).digest("hex");
+  createHash("sha256").update(`${SEED_FORMAT}\0${repo}\0${revision}`).digest("hex");
 export const repositorySeedPath = (authorization, home) =>
   join(repositorySeedCacheRoot(home), `${repositorySeedKey(authorization)}.tar`);
 
@@ -41,7 +44,7 @@ function assertPrivate(path, lstat, uid) {
     throw new Error(`Repository seed cache is not private to this user: ${path}`);
 }
 
-// git archive records the commit id in its pax global header; a cached seed must name its key's revision.
+// A seed's pax global header records its commit id (as git archive does); a cached seed must name its key's revision.
 export function archiveRevision(archive) {
   const header = archive.subarray(0, BLOCK);
   if (header.subarray(156, 157).toString() !== "g") return undefined;
@@ -51,7 +54,15 @@ export function archiveRevision(archive) {
 
 export function resolveRepositorySeed(
   authorization,
-  { cwd, home, exists = existsSync, execFile = execFileSync, lstat = lstatSync, uid = process.getuid?.() } = {},
+  {
+    cwd,
+    home,
+    exists = existsSync,
+    execFile = execFileSync,
+    build = buildShallowCheckout,
+    lstat = lstatSync,
+    uid = process.getuid?.(),
+  } = {},
 ) {
   if (!authorization) return undefined;
   const path = repositorySeedPath(authorization, home);
@@ -66,10 +77,7 @@ export function resolveRepositorySeed(
   assertSourceRepository(cwd, authorization.repo, execFile);
   let archive;
   try {
-    archive = execFile("git", ["-C", cwd, "archive", "--format=tar", authorization.revision], {
-      encoding: "buffer",
-      maxBuffer: 128 * 1024 * 1024,
-    });
+    archive = build({ cwd, repo: authorization.repo, revision: authorization.revision });
   } catch {
     throw new Error("Authorized repository revision is unavailable for the worker workspace");
   }
@@ -118,7 +126,7 @@ export async function populateRepositoryWorkspace(provider, archive) {
     const ustarName = `${field(header, 345, 155) ? `${field(header, 345, 155)}/` : ""}${field(header, 0, 100)}`;
     const name = paxPath ?? ustarName;
     const target = field(header, 157, 100);
-    // git archive writes a pax global header (commit id); pax records carry no file content.
+    // The pax global header carries the commit id; pax records carry no file content.
     if (type === "g" || type === "x") {
       if (type === "x")
         paxPath = /(?:^|\n)\d+ path=([^\n]*)\n/.exec(

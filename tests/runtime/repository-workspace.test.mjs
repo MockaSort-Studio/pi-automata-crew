@@ -1,5 +1,15 @@
 import { strict as assert } from "node:assert";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -9,6 +19,7 @@ import {
   repositorySeedPath,
   resolveRepositorySeed,
 } from "../../extensions/crew/env-runtime/lib/repository-workspace.mjs";
+import { buildShallowCheckout } from "../../extensions/crew/env-runtime/lib/repository-seed-archive.mjs";
 
 const authorization = { repo: "MockaSort-Studio/pi-automata-crew", revision: "a".repeat(40) };
 const header = (name, content = "", type = "0") => {
@@ -122,28 +133,77 @@ test("only GitHub remotes for exactly the authorized repository are accepted", (
     assert.equal(remoteMatchesRepository(remote, authorization.repo), false, remote);
 });
 
-test("a cache miss archives only from a matching origin and an available revision", () =>
+test("a cache miss builds only from a matching origin and an available revision", () =>
   withCache((home, cached) => {
-    const git = (origin, archived) => (_command, args) => {
-      if (args.includes("config")) return origin;
-      if (archived instanceof Error) throw archived;
-      return archived;
+    const origin = (url) => () => url;
+    const good = origin("https://github.com/MockaSort-Studio/pi-automata-crew.git");
+    const fail = () => {
+      throw new Error("bad object");
     };
-    const good = "https://github.com/MockaSort-Studio/pi-automata-crew.git";
     assert.throws(
       () =>
-        resolveRepositorySeed(authorization, { cwd: "/repo", home, execFile: git("https://evil.example/x/y", null) }),
+        resolveRepositorySeed(authorization, {
+          cwd: "/repo",
+          home,
+          execFile: origin("https://evil.example/x/y"),
+          build: () => assert.fail("must not build"),
+        }),
       /does not match the worker authorization/,
     );
     assert.throws(
-      () => resolveRepositorySeed(authorization, { cwd: "/repo", home, execFile: git(good, new Error("bad object")) }),
+      () => resolveRepositorySeed(authorization, { cwd: "/repo", home, execFile: good, build: fail }),
       /revision is unavailable/,
     );
     assert.throws(
-      () => resolveRepositorySeed(authorization, { cwd: "/repo", home, execFile: git(good, Buffer.alloc(100)) }),
+      () =>
+        resolveRepositorySeed(authorization, { cwd: "/repo", home, execFile: good, build: () => Buffer.alloc(100) }),
       /invalid workspace seed/,
     );
+    const other = archive(globalHeader("b".repeat(40)));
+    assert.throws(
+      () => resolveRepositorySeed(authorization, { cwd: "/repo", home, execFile: good, build: () => other }),
+      /different commit/,
+    );
     const seed = archive(globalHeader(authorization.revision), header("value", "fresh"));
-    assert.equal(resolveRepositorySeed(authorization, { cwd: "/repo", home, execFile: git(good, seed) }), cached);
+    assert.equal(
+      resolveRepositorySeed(authorization, { cwd: "/repo", home, execFile: good, build: () => seed }),
+      cached,
+    );
     assert.deepEqual(readFileSync(cached), seed);
   }));
+
+// A provider writing to a real directory, so host Git can inspect what a worker would receive.
+const directoryProvider = (root) => ({
+  mkdir: async (path) => mkdirSync(join(root, path), { recursive: true }),
+  writeFile: async (path, data, { mode }) => writeFileSync(join(root, path), data, { mode }),
+  symlink: async (target, path) => symlinkSync(target, join(root, path)),
+});
+
+test("a seed is a shallow Git checkout of exactly the revision, with a GitHub origin and no host leaks", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "crew-seed-real-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const source = join(root, "source");
+  const git = (cwd, ...args) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
+  execFileSync("git", ["init", "-q", source]);
+  mkdirSync(join(source, "deep/".repeat(30)), { recursive: true });
+  writeFileSync(join(source, "deep/".repeat(30), "long.txt"), "long\n");
+  writeFileSync(join(source, "run.sh"), "#!/bin/sh\n", { mode: 0o755 });
+  symlinkSync("run.sh", join(source, "link"));
+  git(source, "add", ".");
+  git(source, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "one");
+  writeFileSync(join(source, "run.sh"), "#!/bin/sh\necho two\n", { mode: 0o755 });
+  git(source, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qam", "two");
+  const revision = git(source, "rev-parse", "HEAD");
+  const seed = buildShallowCheckout({ cwd: source, repo: "owner/repo", revision });
+  const workspace = join(root, "workspace");
+  mkdirSync(workspace);
+  await populateRepositoryWorkspace(directoryProvider(workspace), seed);
+  assert.equal(git(workspace, "rev-parse", "HEAD"), revision);
+  assert.equal(git(workspace, "rev-parse", "--is-shallow-repository"), "true");
+  assert.equal(git(workspace, "status", "--porcelain"), "");
+  assert.equal(git(workspace, "config", "--get", "remote.origin.url"), "https://github.com/owner/repo.git");
+  assert.equal(readFileSync(join(workspace, "deep/".repeat(30), "long.txt"), "utf8"), "long\n");
+  for (const leak of ["hooks", "logs", "FETCH_HEAD"])
+    assert.equal(existsSync(join(workspace, ".git", leak)), false, leak);
+  assert.doesNotMatch(readFileSync(join(workspace, ".git", "config"), "utf8"), new RegExp(source));
+});
