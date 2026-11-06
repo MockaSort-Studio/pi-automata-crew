@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 const FORMAT = "pi-crew-repository-dependency-cache/v2";
 const HEX_SHA256 = /^[a-f0-9]{64}$/;
@@ -13,6 +13,47 @@ export const dependencyCacheKey = (lockfile, profile) => {
   return createHash("sha256").update(readFileSync(lockfile)).update("\0").update(profile).digest("hex");
 };
 export const dependencyCacheDirectory = (key, home) => join(dependencyCacheRoot(home), key);
+
+// Preserve npm's relative links and validate their entire resolution chain before publication.
+export function copyDependencyCacheModules(source, destination) {
+  cpSync(source, destination, { recursive: true, dereference: false, verbatimSymlinks: true });
+  const root = resolve(destination);
+  const inside = (path) => {
+    const rel = relative(root, path);
+    return rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+  };
+  const checkLink = (path) => {
+    let pending = [relative(root, path)];
+    let current = root;
+    let followed = 0;
+    try {
+      while (pending.length) {
+        const parts = pending.shift().split(sep).filter(Boolean);
+        for (let i = 0; i < parts.length; i++) {
+          current = resolve(current, parts[i]);
+          if (!inside(current)) throw new Error("outside cache");
+          if (lstatSync(current).isSymbolicLink()) {
+            const target = readlinkSync(current);
+            if (isAbsolute(target) || ++followed > 40) throw new Error("absolute or cyclic link");
+            pending.unshift(target, parts.slice(i + 1).join(sep));
+            current = dirname(current);
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      throw new Error(`Invalid dependency cache executable link ${path}: ${error.message}`);
+    }
+  };
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isSymbolicLink() && directory.endsWith(`${sep}.bin`)) checkLink(path);
+      else if (entry.isDirectory()) visit(path);
+    }
+  };
+  visit(root);
+}
 
 const unavailable = (key) =>
   new Error(

@@ -1,9 +1,10 @@
 import { strict as assert } from "node:assert";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  copyDependencyCacheModules,
   dependencyCacheDirectory,
   dependencyCacheKey,
   repositoryDependencyCacheFormat,
@@ -38,6 +39,54 @@ function cache({ home, key, profile: cacheProfile = profile }) {
   );
   return directory;
 }
+
+test("copied executable links remain relative and resolve after the build is removed", () => {
+  const item = fixture();
+  try {
+    const source = join(item.root, "build", "node_modules");
+    const destination = join(item.root, "cache", "node_modules");
+    mkdirSync(join(source, ".bin"), { recursive: true });
+    mkdirSync(join(source, "tool"), { recursive: true });
+    writeFileSync(join(source, "tool", "cli.js"), "tool");
+    symlinkSync("../tool/cli.js", join(source, ".bin", "tool"));
+    copyDependencyCacheModules(source, destination);
+    rmSync(join(item.root, "build"), { recursive: true });
+    assert.equal(readlinkSync(join(destination, ".bin", "tool")), "../tool/cli.js");
+    assert.equal(readFileSync(join(destination, ".bin", "tool"), "utf8"), "tool");
+  } finally {
+    rmSync(item.root, { recursive: true, force: true });
+  }
+});
+
+test("cache copy rejects broken, absolute, and escaping executable links", () => {
+  for (const target of ["../missing", "/tmp/outside", "../../../outside"]) {
+    const item = fixture();
+    try {
+      const source = join(item.root, "build", "node_modules");
+      mkdirSync(join(source, ".bin"), { recursive: true });
+      writeFileSync(join(item.root, "outside"), "outside");
+      symlinkSync(target, join(source, ".bin", "tool"));
+      assert.throws(() => copyDependencyCacheModules(source, join(item.root, "cache", "node_modules")), /link/i);
+    } finally {
+      rmSync(item.root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("nested executable links cannot escape through another symlink", () => {
+  const item = fixture();
+  try {
+    const source = join(item.root, "build", "node_modules");
+    const bin = join(source, "package", "node_modules", ".bin");
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(join(item.root, "outside"), "outside");
+    symlinkSync(join(item.root, "outside"), join(source, "redirect"));
+    symlinkSync("../../../redirect", join(bin, "tool"));
+    assert.throws(() => copyDependencyCacheModules(source, join(item.root, "cache", "node_modules")), /link/i);
+  } finally {
+    rmSync(item.root, { recursive: true, force: true });
+  }
+});
 
 test("a guest-profile and lockfile keyed cache resolves to a shared read-only mount source", () => {
   const item = fixture();
