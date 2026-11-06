@@ -108,6 +108,34 @@ test("settled running delivery completes even when the model sends no lifecycle 
   assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "complete");
 });
 
+test("explicit completion is deferred until successful settlement", async (t) => {
+  const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
+  comm.emit("lead", "ns-developer-worker-00", { ask: "work" });
+  await waitFor(() => pi.deliveries.length === 1);
+  const result = await pi.tools.get("lifecycle_update").execute("call", { state: "complete" });
+  assert.match(JSON.stringify(result), /deferred/);
+  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "running");
+  fireTurn(pi, { usage: { input: 2, output: 5 } });
+  await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
+  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "complete");
+});
+
+for (const explicit of ["complete", "waiting"]) {
+  test(`provider error after explicit ${explicit} blocks and reports`, async (t) => {
+    const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
+    comm.emit("lead", "ns-developer-worker-00", { ask: "work" });
+    await waitFor(() => pi.deliveries.length === 1);
+    await pi.tools.get("lifecycle_update").execute("call", { state: explicit });
+    pi.handlers.get("turn_end")({
+      message: { usage: { input: 3 }, content: [], stopReason: "error", errorMessage: "HTTP 429" },
+    });
+    pi.handlers.get("agent_settled")();
+    await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
+    assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "blocked");
+    assert.equal(comm.claim("main").payload.reason, "provider_error");
+  });
+}
+
 test("settlement preserves an explicit waiting state", async (t) => {
   const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
   comm.emit("lead", "ns-developer-worker-00", { ask: "wait" });

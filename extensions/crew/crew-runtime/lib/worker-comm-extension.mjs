@@ -108,12 +108,16 @@ export default function workerCommExtension(pi) {
           sawTurnEnd = false;
           await activePi.sendUserMessage(prompt, { deliverAs: "followUp" });
           await settled;
-          // An empty provider turn is not evidence of successful work. Preserve the worker and
-          // its private workspace so Main can investigate or resume it; never report success.
-          if (activeDelivery?.id === message.id && activeDelivery.state === "running") {
-            if (sawTurnEnd && (lastProviderFailure || isDegenerateTurn(lastTurnUsage, lastTurnToolCalls))) {
-              await comm.lifecycleUpdate(config.comm.namespace, "blocked");
-              activeDelivery.state = "blocked";
+          // Do not publish success until the final provider turn is known. Explicit failure is
+          // terminal; waiting and deferred complete become blocked on an unsuccessful turn.
+          if (activeDelivery?.id === message.id) {
+            const unsuccessful =
+              sawTurnEnd && (lastProviderFailure || isDegenerateTurn(lastTurnUsage, lastTurnToolCalls));
+            if (unsuccessful) {
+              if (!["blocked", "failed"].includes(activeDelivery.state)) {
+                await comm.lifecycleUpdate(config.comm.namespace, "blocked");
+                activeDelivery.state = "blocked";
+              }
               await comm.emit({
                 to: "main",
                 payload: {
@@ -126,7 +130,7 @@ export default function workerCommExtension(pi) {
                 },
                 replyRequired: false,
               });
-            } else {
+            } else if (["running", "complete"].includes(activeDelivery.state)) {
               await comm.lifecycleUpdate(config.comm.namespace, "complete");
               activeDelivery.state = "complete";
             }
@@ -154,15 +158,21 @@ export default function workerCommExtension(pi) {
         Type.Literal("failed"),
       ]),
     }),
-    execute: (_id, input) =>
-      result(
+    execute: (_id, input) => {
+      // Completion must not release dependents while the current provider turn can still fail.
+      if (input.state === "complete" && activeDelivery) {
+        activeDelivery.state = "complete";
+        return result(Promise.resolve({ updated: true, deferred: true }));
+      }
+      return result(
         requireComm()
           .lifecycleUpdate(config.comm.namespace, input.state)
           .then((value) => {
-            if (activeDelivery) activeDelivery.state = input.state;
+            if (activeDelivery && value.updated) activeDelivery.state = input.state;
             return value;
           }),
-      ),
+      );
+    },
   });
   if (granted.has("comm_notify"))
     pi.registerTool({
