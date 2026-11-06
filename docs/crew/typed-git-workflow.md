@@ -1,7 +1,7 @@
 # Typed Git workflow for Crew developers
 
-A Crew developer never runs a raw `git` binary and never touches host paths.
-Every Git action is a typed guest operation, authorized against one
+A Crew developer works in a private guest workspace with no Git binary and no
+host paths. Git actions are typed guest operations, authorized against one
 repository, one revision, one base branch and one worker branch.
 
 ## Seeded workspace
@@ -53,8 +53,14 @@ other combination is refused.
 
 `repositoryAuthorization` binds `repo`, `revision`, `base` and `branch` once,
 from trusted Env policy, not from worker input. `authorizeRepositoryOperation`
-re-checks every guarded call against that binding, so a worker can only ever
-check out, diff, stage, commit, push and open a PR for the one repository,
-revision, base and branch it was authorized for — nothing else is reachable.
+re-checks every guarded call against that binding, so the typed operations can
+only check out, diff, stage, commit, push and open a PR for the one repository,
+revision, base and branch the worker was authorized for.
 
-// Snowball 🐷
+## What this does not bound
+
+The authorization constrains the typed operations, not the guest. A worker
+with `bash` can run its own code, and the guest's `GITHUB_TOKEN` placeholder is
+substituted for any request to the suite's allowed GitHub hosts. The hard limits
+are therefore the token's own scope (grant a fine-grained token only the
+repositories and permissions the Crew needs) and the host allowlist.
