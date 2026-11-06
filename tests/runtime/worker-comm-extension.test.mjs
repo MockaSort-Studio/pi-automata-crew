@@ -183,32 +183,24 @@ test("acknowledges normally after one real turn, no retry", async (t) => {
   await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
   assert.equal(pi.deliveries.length, 1, "no retry for a real turn");
 });
-test("retries exactly once on a degenerate turn, then acknowledges once real work follows", async (t) => {
-  const { comm, pi } = await setup(t);
-  comm.emit("lead", "ns-worker", { ask: "respond" }, true);
+test("an empty final turn after tool work blocks without replaying the assignment", async (t) => {
+  const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
+  comm.emit("lead", "ns-developer-worker-00", { ask: "make changes" });
   await waitFor(() => pi.deliveries.length === 1);
+  pi.handlers.get("turn_end")({ message: { usage: { input: 2, output: 5 }, content: [{ type: "toolCall" }] } });
   fireTurn(pi, { usage: { input: 0, output: 0 }, toolCalls: 0 });
-  await waitFor(() => pi.deliveries.length === 2);
-  fireTurn(pi, { usage: { input: 2, output: 5 }, toolCalls: 1 });
   await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
-  assert.equal(pi.deliveries.length, 2, "exactly one retry, not a loop");
-  assert.equal(
-    comm
-      .events()
-      .some((event) => event.to === "main" && event.type === "message_emitted" && event.from === "ns-worker"),
-    false,
-    "no BLOCKED report when the retry succeeds",
-  );
+  assert.equal(pi.deliveries.length, 1, "the assignment must not be replayed after a side effect");
+  assert.equal(comm.claim("main").payload.reason, "empty_provider_turn");
+  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "blocked");
 });
-test("two degenerate turns block and notify Main rather than claiming success", async (t) => {
+test("a degenerate turn blocks and notifies Main rather than claiming success", async (t) => {
   const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
   comm.emit("lead", "ns-developer-worker-00", { ask: "respond" }, true);
   await waitFor(() => pi.deliveries.length === 1);
   fireTurn(pi, { usage: { input: 0, output: 0 }, toolCalls: 0 });
-  await waitFor(() => pi.deliveries.length === 2);
-  fireTurn(pi, { usage: { input: 0, output: 0 }, toolCalls: 0 });
   await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
-  assert.equal(pi.deliveries.length, 2, "never a third attempt: bounded, not a loop");
+  assert.equal(pi.deliveries.length, 1, "the assignment is not replayed");
   const report = comm.claim("main");
   assert.equal(report.payload.kind, "delivery_blocked");
   assert.equal(report.payload.reason, "empty_provider_turn");

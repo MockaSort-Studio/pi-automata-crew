@@ -104,16 +104,10 @@ export default function workerCommExtension(pi) {
             new Promise((resolve) => {
               activeDelivery = { id: message.id, state: "running", settled: false, resolve };
             });
-          let settled = settle();
+          const settled = settle();
           sawTurnEnd = false;
           await activePi.sendUserMessage(prompt, { deliverAs: "followUp" });
           await settled;
-          if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
-            settled = settle();
-            sawTurnEnd = false;
-            await activePi.sendUserMessage(prompt, { deliverAs: "followUp" });
-            await settled;
-          }
           // An empty provider turn is not evidence of successful work. Preserve the worker and
           // its private workspace so Main can investigate or resume it; never report success.
           if (activeDelivery?.id === message.id && activeDelivery.state === "running") {
@@ -128,7 +122,7 @@ export default function workerCommExtension(pi) {
                   ...(lastProviderFailure ? { providerFailure: lastProviderFailure } : {}),
                   deliveryId: message.id,
                   message:
-                    "Worker produced no tokens or tool calls after retry; work may be incomplete. Preserve its workspace before cleanup.",
+                    "Worker produced no tokens or tool calls in its final turn; work may be incomplete. Preserve its workspace before cleanup.",
                 },
                 replyRequired: false,
               });
