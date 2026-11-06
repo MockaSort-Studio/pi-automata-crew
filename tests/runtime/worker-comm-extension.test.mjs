@@ -188,7 +188,7 @@ test("retries exactly once on a degenerate turn, then acknowledges once real wor
     "no BLOCKED report when the retry succeeds",
   );
 });
-test("two degenerate turns complete without inferring a blocked lifecycle state", async (t) => {
+test("two degenerate turns block and notify Main rather than claiming success", async (t) => {
   const { comm, pi } = await setup(t, undefined, "ns-developer-worker-00");
   comm.emit("lead", "ns-developer-worker-00", { ask: "respond" }, true);
   await waitFor(() => pi.deliveries.length === 1);
@@ -197,8 +197,10 @@ test("two degenerate turns complete without inferring a blocked lifecycle state"
   fireTurn(pi, { usage: { input: 0, output: 0 }, toolCalls: 0 });
   await waitFor(() => comm.events().some((event) => event.type === "message_acknowledged"));
   assert.equal(pi.deliveries.length, 2, "never a third attempt: bounded, not a loop");
-  assert.equal(comm.claim("main"), undefined, "no lifecycle report is inferred from diagnostics");
-  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "complete");
+  const report = comm.claim("main");
+  assert.equal(report.payload.kind, "delivery_blocked");
+  assert.equal(report.payload.reason, "empty_provider_turn");
+  assert.equal(comm.stateSnapshot("ns-developer-worker-00", "ns").nodes[0].status, "blocked");
 });
 test("a same-process reload (new_session) never races a second Comm registration, and never calls a stale pi", async (t) => {
   const comm = new CommController();

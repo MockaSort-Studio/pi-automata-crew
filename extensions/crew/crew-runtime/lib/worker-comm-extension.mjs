@@ -113,11 +113,27 @@ export default function workerCommExtension(pi) {
             await activePi.sendUserMessage(prompt, { deliverAs: "followUp" });
             await settled;
           }
-          // A settled Pi agent completed its directed turn. Tool/provider diagnostics are not
-          // lifecycle outcomes; only explicit model updates or the controller may block/fail work.
+          // An empty provider turn is not evidence of successful work. Preserve the worker and
+          // its private workspace so Main can investigate or resume it; never report success.
           if (activeDelivery?.id === message.id && activeDelivery.state === "running") {
-            await comm.lifecycleUpdate(config.comm.namespace, "complete");
-            activeDelivery.state = "complete";
+            if (sawTurnEnd && isDegenerateTurn(lastTurnUsage, lastTurnToolCalls)) {
+              await comm.lifecycleUpdate(config.comm.namespace, "blocked");
+              activeDelivery.state = "blocked";
+              await comm.emit({
+                to: "main",
+                payload: {
+                  kind: "delivery_blocked",
+                  reason: "empty_provider_turn",
+                  deliveryId: message.id,
+                  message:
+                    "Worker produced no tokens or tool calls after retry; work may be incomplete. Preserve its workspace before cleanup.",
+                },
+                replyRequired: false,
+              });
+            } else {
+              await comm.lifecycleUpdate(config.comm.namespace, "complete");
+              activeDelivery.state = "complete";
+            }
           }
           await comm.acknowledge(message.id);
           if (activeDelivery?.id === message.id) activeDelivery = undefined;
