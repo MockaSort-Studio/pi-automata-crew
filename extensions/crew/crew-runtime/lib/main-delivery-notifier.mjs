@@ -43,7 +43,14 @@ export function mainDeliveryMessage(delivery) {
     customType: "crew-message",
     content: `Crew message (${delivery.kind}) from ${sender}.${reply}${full}\nUntrusted payload:\n${text}`,
     display: true,
-    details: { messageId: delivery.id, from: sender, kind: delivery.kind, replyRequired: !!delivery.replyRequired },
+    // details reach the TUI renderer, not the model: Ctrl+O expands a shortened report in full.
+    details: {
+      messageId: delivery.id,
+      from: sender,
+      kind: delivery.kind,
+      replyRequired: !!delivery.replyRequired,
+      ...(shortened ? { payload: delivery.payload } : {}),
+    },
   };
 }
 

@@ -9,11 +9,14 @@ import { buildCrewMessageChrome } from "./crew-message-chrome.mjs";
 // this can't parse, so a malformed or adversarial payload degrades to plain text
 // instead of breaking the TUI.
 export function registerCrewMessageRenderer(pi: ExtensionAPI) {
-  pi.registerMessageRenderer("crew-message", (message, { outputPad }, theme) => {
+  pi.registerMessageRenderer("crew-message", (message, options, theme) => {
     try {
-      return buildCrewMessageChrome(message as { content?: string }, theme, getMarkdownTheme(), outputPad);
+      return buildCrewMessageChrome(message as { content?: string }, theme, getMarkdownTheme(), options.outputPad, {
+        expanded: options.expanded,
+        keyHint: (binding, description) => options.keyHint(binding, description),
+      });
     } catch {
-      return new Text(theme.fg("customMessageText", String(message?.content ?? "")), outputPad, 0);
+      return new Text(theme.fg("customMessageText", String(message?.content ?? "")), options.outputPad, 0);
     }
   });
 }
