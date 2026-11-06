@@ -1,5 +1,5 @@
 import { appendFileSync, readFileSync } from "node:fs";
-import { MemoryProvider, ReadonlyProvider, RealFSProvider, VM } from "@earendil-works/gondolin";
+import { ReadonlyProvider, RealFSProvider, VM } from "@earendil-works/gondolin";
 import {
   createBashTool,
   createEditTool,
@@ -23,6 +23,7 @@ import { createGondolinNixLayer } from "./gondolin-nix-layer.mjs";
 import { readWorkerArmoryConfig } from "./worker-armory-config.mjs";
 import { verifyGuestDependencyCache, workerDependencyCache } from "./repository-dependency-cache.mjs";
 import { seedRepositoryWorkspace } from "./repository-workspace.mjs";
+import { WorkspaceProvider } from "./workspace-provider.mjs";
 import { consumeCredentialLease, revokeCredentialLease } from "./credentials.mjs";
 import { lazyGuest, registerArmoryWorkerProxies } from "./guest-suite.mjs";
 import { chooseVmm } from "./guest-vmm.mjs";
@@ -47,7 +48,7 @@ let inflight = 0;
 let warmSuites;
 // Source and edits are guest-private. Keep this provider across idle VM release so
 // a resident worker's workspace survives reboots, but never mount its host worktree.
-const workspace = new MemoryProvider();
+const workspace = new WorkspaceProvider();
 let workspaceSeed;
 
 function logDeniedHost(host) {

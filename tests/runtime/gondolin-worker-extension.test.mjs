@@ -22,7 +22,7 @@ test("a gondolin sandbox worker loads the project-owned internal extension", () 
 
 test("the Gondolin extension routes tools through a private persistent guest workspace", () => {
   const source = readFileSync(extension, "utf8");
-  assert.match(source, /const workspace = new MemoryProvider\(\)/);
+  assert.match(source, /const workspace = new WorkspaceProvider\(\)/);
   assert.match(source, /\[GUEST_WORKSPACE\]: workspace/);
   assert.doesNotMatch(source, /ShadowProvider|createShadowPathPredicate/);
   for (const tool of ["localRead", "localWrite", "localEdit", "localBash", "localLs", "localFind"])
