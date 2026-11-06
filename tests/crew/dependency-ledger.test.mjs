@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   NODE_STATES,
   canTransition,
+  isSettledStatus,
   isTerminalStatus,
   createDependencyLedger,
 } from "../../extensions/crew/crew/lib/dependency-ledger.mjs";
@@ -11,9 +12,11 @@ test("NODE_STATES exposes the durable ledger vocabulary", () => {
   assert.deepEqual(NODE_STATES, ["waiting", "ready", "running", "complete", "blocked", "failed"]);
 });
 
-test("isTerminalStatus is true only for complete, blocked, failed", () => {
+test("isTerminalStatus is true only for complete and failed; blocked is settled but resumable", () => {
   assert.equal(isTerminalStatus("complete"), true);
-  assert.equal(isTerminalStatus("blocked"), true);
+  assert.equal(isTerminalStatus("blocked"), false);
+  assert.equal(isSettledStatus("blocked"), true);
+  assert.equal(isSettledStatus("running"), false);
   assert.equal(isTerminalStatus("failed"), true);
   assert.equal(isTerminalStatus("waiting"), false);
   assert.equal(isTerminalStatus("ready"), false);
@@ -31,14 +34,53 @@ test("canTransition allows only the documented legal edges", () => {
   assert.equal(canTransition("complete", "ready"), false);
 });
 
-test("running may wait and resume, while blocked remains terminal", () => {
+test("a self-blocked node resumes to running and can then complete; failed stays terminal", () => {
   const ledger = createDependencyLedger();
   ledger.addNode("developer-alpha-01");
+  ledger.addNode("developer-bravo-01");
   ledger.start("developer-alpha-01");
   assert.equal(ledger.wait("developer-alpha-01"), "waiting");
   assert.equal(ledger.start("developer-alpha-01"), "running");
   assert.equal(ledger.block("developer-alpha-01"), "blocked");
-  assert.throws(() => ledger.start("developer-alpha-01"), /Illegal dependency ledger transition/);
+  assert.equal(ledger.start("developer-alpha-01"), "running");
+  assert.equal(ledger.block("developer-alpha-01"), "blocked");
+  assert.equal(ledger.wait("developer-alpha-01"), "waiting");
+  assert.equal(ledger.start("developer-alpha-01"), "running");
+  assert.equal(ledger.complete("developer-alpha-01"), "complete");
+  ledger.start("developer-bravo-01");
+  ledger.fail("developer-bravo-01");
+  assert.throws(() => ledger.start("developer-bravo-01"), /Illegal dependency ledger transition/);
+});
+
+test("dependents blocked by a prerequisite recover when it resumes, and are released once it completes", () => {
+  const ledger = createDependencyLedger();
+  for (const handle of ["developer-alpha-01", "developer-bravo-01", "developer-charlie-01"]) ledger.addNode(handle);
+  ledger.addDependency("developer-bravo-01", "developer-alpha-01");
+  ledger.addDependency("developer-charlie-01", "developer-bravo-01");
+  ledger.start("developer-alpha-01");
+  ledger.block("developer-alpha-01");
+  assert.equal(ledger.status("developer-charlie-01"), "blocked");
+  assert.throws(() => ledger.start("developer-bravo-01"), /blocked by a prerequisite/);
+  assert.throws(() => ledger.wait("developer-charlie-01"), /blocked by a prerequisite/);
+  ledger.start("developer-alpha-01");
+  assert.equal(ledger.status("developer-bravo-01"), "waiting");
+  assert.equal(ledger.status("developer-charlie-01"), "waiting");
+  ledger.complete("developer-alpha-01");
+  assert.equal(ledger.status("developer-bravo-01"), "ready");
+  assert.equal(ledger.status("developer-charlie-01"), "waiting");
+});
+
+test("a dependent stays blocked while any other prerequisite still holds it", () => {
+  const ledger = createDependencyLedger();
+  for (const handle of ["developer-alpha-01", "developer-bravo-01", "developer-charlie-01"]) ledger.addNode(handle);
+  ledger.addDependency("developer-charlie-01", "developer-alpha-01");
+  ledger.addDependency("developer-charlie-01", "developer-bravo-01");
+  ledger.start("developer-alpha-01");
+  ledger.start("developer-bravo-01");
+  ledger.block("developer-alpha-01");
+  ledger.fail("developer-bravo-01");
+  ledger.start("developer-alpha-01");
+  assert.equal(ledger.status("developer-charlie-01"), "blocked");
 });
 
 test("addNode rejects handles that are not canonical role-persona names", () => {

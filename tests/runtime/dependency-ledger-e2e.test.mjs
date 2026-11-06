@@ -84,3 +84,24 @@ test("typed blocked state propagates only through its dependency chain", async (
     await close();
   }
 });
+
+test("a blocked member resumes through the typed API and its dependent is then released", async () => {
+  const { comm, clients, close } = await harness();
+  try {
+    await clients["developer-beta-00"].lifecycleUpdate(NAMESPACE, "running");
+    await clients["developer-beta-00"].lifecycleUpdate(NAMESPACE, "blocked");
+    assert.equal((await state(comm))["developer-delta-00"], "blocked");
+    // A dependent blocked only by its prerequisite cannot start itself.
+    await clients["developer-delta-00"].lifecycleUpdate(NAMESPACE, "running");
+    assert.equal((await state(comm))["developer-delta-00"], "blocked");
+    // A reply delivered to the blocked member resumes it: the worker reports running.
+    await clients["developer-beta-00"].lifecycleUpdate(NAMESPACE, "running");
+    assert.equal((await state(comm))["developer-delta-00"], "waiting");
+    await clients["developer-beta-00"].lifecycleUpdate(NAMESPACE, "complete");
+    const current = await state(comm);
+    assert.equal(current["developer-beta-00"], "complete");
+    assert.equal(current["developer-delta-00"], "ready");
+  } finally {
+    await close();
+  }
+});

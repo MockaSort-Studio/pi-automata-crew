@@ -1,5 +1,7 @@
 // Read-only typed-state completion notifier. It never infers lifecycle from
 // prose, worker settlement, or process state; callers provide Comm snapshots.
+// A Crew whose nodes are all settled needs Main: to finish it, or to answer a blocked member,
+// which resumes on that reply. Settling again after a resume notifies again.
 const TERMINAL = new Set(["complete", "blocked", "failed"]);
 
 function nodesOf(snapshot) {
@@ -21,7 +23,9 @@ function terminalMessage(namespace, nodes) {
     .join(", ");
   return {
     customType: "crew-terminal",
-    content: `Crew ${namespace} reached terminal lifecycle state (${summary}).`,
+    content: counts.blocked
+      ? `Crew ${namespace} is waiting for input (${summary}). A blocked member resumes when it receives a reply or message.`
+      : `Crew ${namespace} reached terminal lifecycle state (${summary}).`,
     display: true,
     details: { namespace, counts },
   };
@@ -39,7 +43,11 @@ export function createCrewTerminalNotifier(sendMessage) {
       run = { seenSnapshot: true, notified: false };
       runs.set(namespace, run);
     }
-    if (run.notified || !terminal(snapshot)) return false;
+    if (!terminal(snapshot)) {
+      run.notified = false;
+      return false;
+    }
+    if (run.notified) return false;
     run.notified = true;
     Promise.resolve(
       sendMessage(terminalMessage(namespace, nodesOf(snapshot)), { triggerTurn: true, deliverAs: "steer" }),

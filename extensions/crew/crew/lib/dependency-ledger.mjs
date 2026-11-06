@@ -7,19 +7,28 @@ import { canonicalHandle } from "./discussion-templates.mjs";
 
 export const NODE_STATES = Object.freeze(["waiting", "ready", "running", "complete", "blocked", "failed"]);
 
-const TERMINAL_STATES = new Set(["complete", "blocked", "failed"]);
+// `blocked` is not terminal: a member that blocks itself awaits input and resumes when it
+// receives it. Only complete and failed end a node.
+const TERMINAL_STATES = new Set(["complete", "failed"]);
+// Every state a node can settle in without further work: a Crew whose nodes are all settled
+// needs Main, either to finish or to answer a blocked member.
+const SETTLED_STATES = new Set(["complete", "blocked", "failed"]);
 
 const TRANSITIONS = Object.freeze({
   waiting: Object.freeze(["ready", "running", "blocked"]),
   ready: Object.freeze(["running", "blocked"]),
   running: Object.freeze(["waiting", "complete", "failed", "blocked"]),
   complete: Object.freeze([]),
-  blocked: Object.freeze([]),
+  blocked: Object.freeze(["running", "waiting"]),
   failed: Object.freeze([]),
 });
 
 export function isTerminalStatus(status) {
   return TERMINAL_STATES.has(status);
+}
+
+export function isSettledStatus(status) {
+  return SETTLED_STATES.has(status);
 }
 
 export function canTransition(from, to) {
@@ -44,12 +53,16 @@ function hasPath(dependsOn, from, target) {
 
 // createDependencyLedger tracks a DAG of validated handles and the status
 // each one carries through waiting -> ready -> running -> complete, with
-// blocked/failed as terminal off-ramps. Ledger recomputes readiness for
-// direct dependents on completion, and propagates blocked on failure/block.
+// failed as the terminal off-ramp and blocked as a resumable one. Ledger recomputes
+// readiness for direct dependents on completion and propagates blocked on
+// failure/block. A node that blocked itself resumes to running; a node blocked only
+// because of a prerequisite returns to waiting once no prerequisite holds it.
 export function createDependencyLedger() {
   const status = new Map();
   const dependsOn = new Map();
   const dependents = new Map();
+  // Nodes that reported blocked themselves, as opposed to being blocked by a prerequisite.
+  const selfBlocked = new Set();
 
   function requireNode(handle) {
     if (!status.has(handle)) throw new Error(`Unknown dependency ledger node: ${handle}`);
@@ -101,21 +114,49 @@ export function createDependencyLedger() {
     const stack = [...dependents.get(handle)];
     while (stack.length) {
       const dependent = stack.pop();
-      if (!isTerminalStatus(status.get(dependent))) {
+      if (!isSettledStatus(status.get(dependent))) {
         moveTo(dependent, "blocked");
         stack.push(...dependents.get(dependent));
       }
     }
   }
 
+  const holds = (handle) => ["blocked", "failed"].includes(status.get(handle));
+
+  // After a prerequisite resumes, a dependent blocked only by propagation returns to waiting
+  // when none of its prerequisites still holds it, and that recovery continues downstream.
+  function restoreDependents(handle) {
+    const stack = [...dependents.get(handle)];
+    while (stack.length) {
+      const dependent = stack.pop();
+      if (status.get(dependent) !== "blocked" || selfBlocked.has(dependent)) continue;
+      if ([...dependsOn.get(dependent)].some(holds)) continue;
+      moveTo(dependent, "waiting");
+      refreshOne(dependent);
+      stack.push(...dependents.get(dependent));
+    }
+  }
+
   function start(rawHandle) {
     const handle = requireNode(canonicalHandle(rawHandle));
+    if (status.get(handle) === "blocked") return resume(handle, "running");
     refreshOne(handle);
     return moveTo(handle, "running");
   }
 
+  // Leaves a self-reported block; a node blocked only by a prerequisite cannot leave it itself.
+  function resume(handle, to) {
+    if (!selfBlocked.has(handle))
+      throw new Error(`${handle} is blocked by a prerequisite and cannot resume before it does`);
+    selfBlocked.delete(handle);
+    moveTo(handle, to);
+    restoreDependents(handle);
+    return to;
+  }
+
   function wait(rawHandle) {
-    const handle = canonicalHandle(rawHandle);
+    const handle = requireNode(canonicalHandle(rawHandle));
+    if (status.get(handle) === "blocked") return resume(handle, "waiting");
     return moveTo(handle, "waiting");
   }
 
@@ -136,6 +177,7 @@ export function createDependencyLedger() {
   function block(rawHandle) {
     const handle = canonicalHandle(rawHandle);
     const to = moveTo(handle, "blocked");
+    selfBlocked.add(handle);
     propagateBlocked(handle);
     return to;
   }
