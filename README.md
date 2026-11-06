@@ -18,8 +18,8 @@ See [Saga 2](docs/saga/Saga-2-The-Loosed-Harness-[open].md) and the
 ## Install
 
 This repository is a [Pi package](docs/crew/packaging.md): `package.json` declares a `pi` manifest
-that exposes the Crew extension (`extensions/crew.ts`), web extension, and reviewer skills under
-`skills/`. Required host tools: Node 24, npm, and the `pi` CLI.
+that exposes the Crew extension (`extensions/crew.ts`) and reviewer skills under `skills/`.
+Required host tools: Node 24, npm, and the `pi` CLI.
 
 Install straight from git (pin a tag once alpha releases start, e.g. `@v0.1.0-alpha.1`):
 

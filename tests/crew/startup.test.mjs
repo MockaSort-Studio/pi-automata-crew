@@ -60,7 +60,11 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
     // environment (default "auto"); launchPreparedCrew resolves it later and
     // threads a concrete `sandbox` into each agent only if Gondolin is
     // actually usable (see tests/crew/environment-startup.test.mjs).
-    assert.deepEqual(config.environment, { microvm: "auto" });
+    assert.deepEqual(config.environment, {
+      microvm: "auto",
+      dependencyCache: "none",
+      guestProfile: "gondolin-alpine-node24",
+    });
     assert.deepEqual(
       config.agents.map((agent) => agent.sandbox),
       [undefined, undefined],
@@ -298,6 +302,32 @@ test("no role, including a Lead, starts a turn at launch; every task arrives thr
         ["lead", "first-delivery", undefined],
         ["developer", "first-delivery", undefined],
       ],
+    );
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("prepareCrew rejects model sentinels before a worker can spawn", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  try {
+    await assert.rejects(
+      prepareCrew(
+        { getAllTools: () => [] },
+        { model: "inherit", members: [{ name: "snowball", role: "developer" }] },
+        { cwd },
+        ".pi",
+      ),
+      /Omit model to use Pi's current default/,
+    );
+    await assert.rejects(
+      prepareCrew(
+        { getAllTools: () => [] },
+        { members: [{ name: "snowball", role: "developer", model: "default" }] },
+        { cwd },
+        ".pi",
+      ),
+      /Omit model to use Pi's current default/,
     );
   } finally {
     rmSync(cwd, { recursive: true, force: true });

@@ -6,8 +6,17 @@ import {
   resolveNixGuestSuiteRequests,
 } from "../../env-runtime/lib/armory-nix.mjs";
 import { checkLaunchCredentials } from "../../env-runtime/lib/credentials.mjs";
+import { resolveRepositoryDependencyCache } from "../../env-runtime/lib/repository-dependency-cache.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
 import { realizeOrFallback } from "./armory-fallback.mjs";
+
+const repositoryAuthorizationFor = (repository, runId, handle) =>
+  repository && {
+    repo: repository.repo,
+    revision: repository.revision,
+    base: repository.base,
+    branch: `crew/${runId}/${handle}`,
+  };
 
 // Decides how a Crew runs (Gondolin or host), fetches the Armory suites a sandbox needs, and
 // gives each agent its resolved tools and profile. Only whether each credential is present is
@@ -30,6 +39,13 @@ export async function resolveLaunchEnvironment(config, dependencies = {}) {
   const suiteTools = resolution.sandbox
     ? await (dependencies.resolveArmoryToolSuites ?? resolveNixGuestSuiteRequests)({ catalog, requests: suiteRequests })
     : [];
+  const dependencyCache =
+    resolution.sandbox && config.environment.dependencyCache === "required"
+      ? (dependencies.resolveRepositoryDependencyCache ?? resolveRepositoryDependencyCache)({
+          cwd: dependencies.cwd ?? process.cwd(),
+          profile: config.environment.guestProfile,
+        })
+      : undefined;
   const agents = config.agents.map((agent) => {
     const suites = suiteTools.filter((suite) => (agent.suiteGrants ?? []).some((grant) => grant.suite === suite.suite));
     const tools = [...new Set([...(agent.tools ?? []), ...suites.flatMap((suite) => suite.tools)])];
@@ -44,6 +60,16 @@ export async function resolveLaunchEnvironment(config, dependencies = {}) {
               catalog: { release: catalog.release },
               requests: environmentProfile.suites.map(({ suite, tools }) => ({ suite, tools })),
             },
+          }
+        : {}),
+      ...(dependencyCache ? { dependencyCache: { key: dependencyCache.key, profile: dependencyCache.profile } } : {}),
+      ...(repositoryAuthorizationFor(config.environment.repository, config.runId, agent.name)
+        ? {
+            repositoryAuthorization: repositoryAuthorizationFor(
+              config.environment.repository,
+              config.runId,
+              agent.name,
+            ),
           }
         : {}),
       ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),

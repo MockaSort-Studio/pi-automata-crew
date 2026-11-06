@@ -54,6 +54,10 @@ function dispatchCommRequest(controller, socket, state, request) {
   }
   if (method === "comm.lifecycle_update")
     return controller.lifecycleUpdate(state.actorId, params.namespace, params.state);
+  if (method === "comm.lifecycle_update_for") {
+    if (state.actorId !== "main") throw new Error("Only Main may terminalize a worker delivery");
+    return controller.lifecycleUpdateFor(params.actorId, params.namespace, params.state);
+  }
   if (method === "comm.state_snapshot") return controller.stateSnapshot(state.actorId, params.namespace);
   if (method === "comm.observe_state") return controller.observeStateOverSocket(state.actorId, params.namespace);
   return undefined;

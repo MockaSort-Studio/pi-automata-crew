@@ -131,6 +131,10 @@ export class MainComm {
     return (await this.comm.claim(actorId)) ?? null;
   }
 
+  async readMain(messageId) {
+    return this.main.read(messageId);
+  }
+
   async acknowledgeMain(messageId) {
     return this.main.acknowledge(messageId);
   }
@@ -142,6 +146,26 @@ export class MainComm {
   async inspectComm() {
     if (!this.comm) throw new Error("Communication controller is not running");
     return this.comm.inspect();
+  }
+
+  // A worker that exits cannot send its own final Comm report. Preserve the
+  // ordinary Main-delivery shape so failure/cancellation is visible to the
+  // session instead of being reduced to a terminal lifecycle notification.
+  deliverTerminalReport({ actorId, namespace, status }) {
+    if (!actorId || !namespace || !status) return false;
+    this.main.deliver({
+      id: randomUUID(),
+      from: actorId,
+      to: "main",
+      replyRequired: false,
+      payload: {
+        kind: "terminal_report",
+        outcome: status === "removed" ? "cancelled" : "failed",
+        reason: status === "removed" ? "worker_removed" : "worker_exited",
+        namespace,
+      },
+    });
+    return true;
   }
 
   // Internal-facing, like CommController.observeRaw(): the full unfiltered

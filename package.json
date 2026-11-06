@@ -8,8 +8,7 @@
   ],
   "pi": {
     "extensions": [
-      "extensions/crew.ts",
-      "extensions/web/index.ts"
+      "extensions/crew.ts"
     ],
     "skills": [
       "skills"
@@ -18,17 +17,34 @@
   "scripts": {
     "test": "env -u PI_SDK_ACTOR_ID -u PI_CREW_WORKER_CONFIG -u PI_CREW_COMM_TOKEN -u PI_CREW_ROOT -u PI_SESSION_ID npm run test:suite",
     "test:suite": "node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/pi/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs && bash tests/pi/test-extension-load.sh",
+    "build:guest-cache": "node scripts/build-guest-dependency-cache.mjs",
     "format": "prettier --write extensions tests docs README.md CONTRIBUTING.md",
     "format:check": "prettier --check extensions tests docs README.md CONTRIBUTING.md"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.87.1",
     "prettier": "^3.5.3",
+    "typebox": "^1.3.32",
     "yaml": "^2.9.1"
   },
   "dependencies": {
     "@earendil-works/gondolin": "0.12.0",
-    "typebox": "^1.3.32",
     "ws": "^8.21.3"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
   }
 }

@@ -28,6 +28,12 @@ let deliveries = Promise.resolve();
 // Only the active directed delivery may consume agent_settled. Pi may reload this extension,
 // so delivery identity prevents a late settlement from completing later work.
 let activeDelivery;
+let deliveryTimer;
+const DELIVERY_TIMEOUT_MS = 15 * 60_000;
+const clearDeliveryDeadline = () => {
+  clearTimeout(deliveryTimer);
+  deliveryTimer = undefined;
+};
 // "main" is the one canonical, pre-registered actor id: it is never
 // namespace-qualified, unlike every other Crew recipient handle.
 const qualify = (id) =>
@@ -104,6 +110,16 @@ export default function workerCommExtension(pi) {
               activeDelivery = { id: message.id, state: "running", settled: false, resolve };
             });
           let settled = settle();
+          clearDeliveryDeadline();
+          deliveryTimer = setTimeout(() => {
+            if (activeDelivery?.id !== message.id || activeDelivery.settled) return;
+            activeDelivery.state = "failed";
+            activeDelivery.settled = true;
+            Promise.resolve(comm.lifecycleUpdate(config.comm.namespace, "failed"))
+              .catch(() => {})
+              .finally(() => process.exit(1));
+          }, DELIVERY_TIMEOUT_MS);
+          deliveryTimer.unref?.();
           sawTurnEnd = false;
           await activePi.sendUserMessage(prompt, { deliverAs: "followUp" });
           await settled;
@@ -121,6 +137,7 @@ export default function workerCommExtension(pi) {
           }
           await comm.acknowledge(message.id);
           if (activeDelivery?.id === message.id) activeDelivery = undefined;
+          clearDeliveryDeadline();
           replyContext = undefined;
           firstDelivery = false;
         });
@@ -218,6 +235,7 @@ export default function workerCommExtension(pi) {
   // worker's life.
   pi.on("session_shutdown", async (event) => {
     if (event.reason !== "quit") return;
+    clearDeliveryDeadline();
     await deliveries;
     comm?.close();
   });

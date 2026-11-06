@@ -43,12 +43,21 @@ const parameters = Type.Object({
   outputPath: Type.Optional(Type.String()),
   model: Type.Optional(Type.String()),
   thinking: Type.Optional(Type.String()),
-  completionMode: Type.Optional(Type.Union([Type.Literal("unattended"), Type.Literal("human-gated")])),
+  completionMode: Type.Optional(Type.Literal("unattended")),
   monitorIntervalMs: Type.Optional(Type.Integer({ minimum: 1000, maximum: 604800000 })),
   resultSummaryMaxBytes: Type.Optional(Type.Integer({ minimum: 512, maximum: 50000 })),
   environment: Type.Optional(
     Type.Object({
-      microvm: Type.Union([Type.Literal("auto"), Type.Literal("gondolin"), Type.Literal("none")]),
+      microvm: Type.Union([Type.Literal("auto"), Type.Literal("gondolin")]),
+      dependencyCache: Type.Optional(Type.Union([Type.Literal("none"), Type.Literal("required")])),
+      guestProfile: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
+      repository: Type.Optional(
+        Type.Object({
+          repo: Type.String(),
+          revision: Type.String({ minLength: 40, maxLength: 40 }),
+          base: Type.String(),
+        }),
+      ),
     }),
   ),
 });

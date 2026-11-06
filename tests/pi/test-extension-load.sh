@@ -21,7 +21,6 @@ export default function (pi) {
   const required = [
     "start_crew", "build_crew_member", "crew_register", "crew_unregister",
     "crew_begin_close", "crew_finish_close", "crew_close",
-    "web_fetch",
     "runtime_spawn_agent", "runtime_list_agents", "runtime_inspect_agent", "runtime_delete_agent",
   ];
   const missing = required.filter(name => !available.has(name));
@@ -37,7 +36,6 @@ PI_OFFLINE=1 pi \
   --no-prompt-templates \
   --no-themes \
   -e extensions/crew.ts \
-  -e extensions/web/index.ts \
   -e ./assert-tools.ts \
   --list-models \
   --offline >/dev/null

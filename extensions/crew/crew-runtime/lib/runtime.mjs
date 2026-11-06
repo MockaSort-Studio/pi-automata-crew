@@ -14,6 +14,7 @@ export class Runtime extends MainComm {
   #lifecycle;
   #lifecycleProcess;
   #releaseUnsubscribers = new Map();
+  #terminalBeforeRemoval = new Set();
 
   constructor(cwd) {
     super();
@@ -37,6 +38,20 @@ export class Runtime extends MainComm {
     const { port } = info;
     await recordOwner(this.cwd, { pid: child.pid, hostPid: process.pid, port }).catch(() => {});
     this.#lifecycle = await connectLifecycle(`ws://127.0.0.1:${port}`, { authToken });
+    // A worker process ending is never evidence that its directed work was
+    // accepted. Reconcile unexpected exits through Main's authenticated Comm
+    // connection so a dead worker cannot leave its dependency node running
+    // forever. Intentional removal has its own roster cleanup path.
+    this.#lifecycle.onTerminal(({ id, namespace, status }) => {
+      if (!namespace) return;
+      // Cleanup may remove a worker after its directed work already reached
+      // a terminal state. That process exit is not a cancellation and must
+      // not produce a second, contradictory terminal report.
+      const terminal = this.#terminalBeforeRemoval.delete(id);
+      if (status !== "completed" && !terminal) this.deliverTerminalReport({ actorId: id, namespace, status });
+      if (status !== "removed" && status !== "completed")
+        this.comm?.lifecycleUpdateFor(id, namespace, "failed").catch(() => {});
+    });
   }
 
   // `plan` ({ namespace, members: [{handle, dependsOn, task}] }) is
@@ -163,6 +178,8 @@ export class Runtime extends MainComm {
 
   async remove(id) {
     await this.#ensureLifecycle();
+    const agent = await this.inspect(id);
+    if (["complete", "failed"].includes(agent?.lifecycleStatus)) this.#terminalBeforeRemoval.add(id);
     return this.#lifecycle.remove(id);
   }
 

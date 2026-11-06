@@ -61,6 +61,8 @@ export async function connectComm({ url, actorId, namespace, authToken }) {
     // envelope itself. One connection observes at most one namespace.
     registerPlan: (namespace, members) => request("comm.register_plan", { namespace, members }),
     lifecycleUpdate: (namespace, state) => request("comm.lifecycle_update", { namespace, state }),
+    lifecycleUpdateFor: (actorId, namespace, state) =>
+      request("comm.lifecycle_update_for", { actorId, namespace, state }),
     getStateSnapshot: (namespace) => request("comm.state_snapshot", { namespace }),
     observeState: (namespace, listener) => {
       const entry = { namespace, listener };

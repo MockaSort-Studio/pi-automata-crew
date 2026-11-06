@@ -84,6 +84,9 @@ if (config.thinking) args.push("--thinking", config.thinking);
 // removes the variables, and hand the child Pi only the lease consumed by the Gondolin
 // extension.
 const credentialLease = leaseFromEnvironment(config.armory?.network?.credentials ?? []);
+// Pi's RPC stream can remain alive while a native tool never returns. The
+// supervisor is outside that stream, so it is the final liveness boundary.
+const TOOL_TIMEOUT_MS = 5 * 60_000;
 const child = spawn("pi", args, {
   cwd: config.cwd,
   // fd 3 is a one-shot private credential channel and fd 4 a one-shot Comm-token channel; neither is
@@ -98,6 +101,27 @@ child.stdio[3].end(serializeLease(credentialLease));
 child.stdio[4].end(commToken);
 let buffer = "";
 let startupSent = false;
+let activeTool;
+let toolTimer;
+const clearToolDeadline = () => {
+  clearTimeout(toolTimer);
+  toolTimer = undefined;
+  activeTool = undefined;
+};
+const terminateHungTool = () => {
+  if (!activeTool) return;
+  log({ type: "worker_timeout", phase: "tool", name: activeTool.name, timeoutMs: TOOL_TIMEOUT_MS });
+  child.kill("SIGTERM");
+  setTimeout(() => child.exitCode === null && child.kill("SIGKILL"), 5_000).unref();
+};
+const armToolDeadline = (event) => {
+  if (event.type === "tool_execution_end") return clearToolDeadline();
+  if (event.type !== "tool_execution_start") return;
+  clearToolDeadline();
+  activeTool = { id: event.toolCallId, name: event.toolName };
+  toolTimer = setTimeout(terminateHungTool, TOOL_TIMEOUT_MS);
+  toolTimer.unref();
+};
 const send = (message) => child.stdin.write(`${JSON.stringify(message)}\n`);
 const startsPrompt = !config.resident || config.initialTurn === "startup";
 const sendStartupPrompt = () => {
@@ -117,6 +141,7 @@ child.stdout.on("data", (chunk) => {
         log({ type: "worker_session", success: message.success });
         if (message.success) sendStartupPrompt();
       }
+      armToolDeadline(message);
       const entry = mapWorkerEvent(message);
       if (entry) log(entry);
     } catch {}
@@ -125,6 +150,7 @@ child.stdout.on("data", (chunk) => {
 child.stderr.on("data", (chunk) => log({ type: "agent_error", message: boundedError(chunk) }));
 child.once("error", (error) => log({ type: "agent_error", message: error.message }));
 child.once("exit", (code, signal) => {
+  clearToolDeadline();
   log({ type: code === 0 ? "agent_end" : "agent_error", elapsedMs: Date.now() - startedAt, code, signal });
   revokeCredentialLease(credentialLease);
   process.exitCode = code ?? 1;

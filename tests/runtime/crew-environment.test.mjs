@@ -12,33 +12,35 @@ test("auto selects Gondolin after one successful preflight", async () => {
   assert.deepEqual(resolved, { microvm: "gondolin", sandbox: { kind: "gondolin" } });
 });
 
-test("auto records a host fallback when Gondolin is unavailable", async () => {
-  const resolved = await resolveCrewEnvironment(
-    { microvm: "auto" },
-    { preflight: async () => Promise.reject(new Error("QEMU absent")) },
-  );
-  assert.deepEqual(resolved, { microvm: "none", fallbackReason: "QEMU absent" });
+test("unavailable Gondolin fails closed for auto and explicit requests", async () => {
+  for (const microvm of ["auto", "gondolin"]) {
+    await assert.rejects(
+      resolveCrewEnvironment({ microvm }, { preflight: async () => Promise.reject(new Error("QEMU absent")) }),
+      /Gondolin sandbox is required.*QEMU absent/,
+    );
+  }
 });
 
-test("explicit Gondolin rejects instead of creating a host fallback", async () => {
-  await assert.rejects(
-    resolveCrewEnvironment(
-      { microvm: "gondolin" },
-      { preflight: async () => Promise.reject(new Error("QEMU absent")) },
-    ),
-    /QEMU absent/,
+test("keeps repository dependency caches opt-in", () => {
+  assert.deepEqual(crewEnvironment({ microvm: "gondolin" }), {
+    microvm: "gondolin",
+    dependencyCache: "none",
+    guestProfile: "gondolin-alpine-node24",
+  });
+  assert.deepEqual(crewEnvironment({ dependencyCache: "required" }), {
+    microvm: "auto",
+    dependencyCache: "required",
+    guestProfile: "gondolin-alpine-node24",
+  });
+  assert.throws(() => crewEnvironment({ dependencyCache: "always" }), /Unsupported Crew dependency cache mode/);
+  assert.throws(
+    () => crewEnvironment({ repository: { repo: "invalid", revision: "a".repeat(40), base: "main" } }),
+    /repository/,
   );
 });
 
-test("rejects malformed environment selections", () => {
+test("rejects host and malformed environment selections", () => {
   assert.throws(() => crewEnvironment("none"), /Unsupported Crew microVM environment/);
+  assert.throws(() => crewEnvironment({ microvm: "none" }), /Unsupported Crew microVM environment/);
   assert.throws(() => crewEnvironment({ microvm: "host" }), /Unsupported Crew microVM environment/);
-});
-
-test("none never probes Gondolin", async () => {
-  const resolved = await resolveCrewEnvironment(
-    { microvm: "none" },
-    { preflight: () => assert.fail("must not probe") },
-  );
-  assert.deepEqual(resolved, { microvm: "none" });
 });

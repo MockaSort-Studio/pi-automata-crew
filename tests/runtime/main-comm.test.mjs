@@ -46,6 +46,26 @@ test("Main receives a request and only its correlated reply acknowledges it", as
   assert.deepEqual(replies[0]?.payload, { answer: "yes" });
 });
 
+test("Runtime delivers a bounded fallback report when a worker fails or is cancelled", async (t) => {
+  const { runtime } = await setup(t);
+  assert.equal(runtime.deliverTerminalReport({ actorId, namespace, status: "failed" }), true);
+  const failed = await runtime.receive();
+  assert.deepEqual(failed?.payload, {
+    kind: "terminal_report",
+    outcome: "failed",
+    reason: "worker_exited",
+    namespace,
+  });
+  assert.equal(runtime.deliverTerminalReport({ actorId, namespace, status: "removed" }), true);
+  const cancelled = await runtime.receive();
+  assert.deepEqual(cancelled?.payload, {
+    kind: "terminal_report",
+    outcome: "cancelled",
+    reason: "worker_removed",
+    namespace,
+  });
+});
+
 test("readiness barrier resolves after workers report ready and times out otherwise", async () => {
   const { CommController } = await import("../../extensions/crew/crew-runtime/lib/comm-controller.mjs");
   const comm = new CommController();

@@ -21,14 +21,18 @@ export function crewPaths(configDir, runId) {
 const handle = (role, name, ordinal) => `${role}-${name}-${String(ordinal).padStart(2, "0")}`;
 const runtimeIdentity = (name, directory) =>
   `## CREW IDENTITY\nYour exact Comm sender handle is ${name}.\n\n## CREW DIRECTORY\n${directory}`;
-const workerTask = (actor, runId, topic, directory) =>
-  `${actor.instructions}${actor.workerSkills ? `\n\n${actor.workerSkills}` : ""}\n\n${runtimeIdentity(actor.handle, directory)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.`;
+const workerTask = (actor, runId, topic, directory, repository) =>
+  `${actor.instructions}${actor.workerSkills ? `\n\n${actor.workerSkills}` : ""}${repository ? `\n\n## REPOSITORY AUTHORIZATION\nRepository: ${repository.repo}\nSnapshot revision: ${repository.revision}\nBase branch: ${repository.base}\nAuthorized worker branch: crew/${runId}/${actor.handle}` : ""}\n\n${runtimeIdentity(actor.handle, directory)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.`;
 export function queuedMessage(prepared) {
   return `Crew ${prepared.runId} launched on the SDK runtime.`;
 }
 export async function prepareCrew(pi, input, ctx, configDir) {
-  if (input.completionMode === "human-gated")
-    throw new Error("SDK Crew does not yet support scheduled human-gated mode");
+  if (input.completionMode && input.completionMode !== "unattended")
+    throw new Error(`Unsupported SDK Crew completion mode: ${input.completionMode}`);
+  for (const model of [input.model, ...input.members.map((member) => member.model)]) {
+    if (typeof model === "string" && ["", "inherit", "default"].includes(model.trim().toLowerCase()))
+      throw new Error('Omit model to use Pi\'s current default; "inherit" and "default" are not model IDs.');
+  }
   const environment = crewEnvironment(input.environment);
   const runId = crypto.randomUUID();
   const namespace = `crew-${runId}`;
@@ -82,7 +86,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     namespace,
     crewMembers: actors.map((item) => item.handle),
     crewLead: leads[0]?.handle,
-    task: workerTask(actor, runId, topic, directory),
+    task: workerTask(actor, runId, topic, directory, environment.repository),
     tools: actor.tools,
     commTools: actor.commTools,
     environmentProfile: actor.profile,
@@ -152,7 +156,7 @@ export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
   roster.status = "launching";
   writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
   try {
-    const { resolution, agents, credentials } = await resolveLaunchEnvironment(config, dependencies);
+    const { resolution, agents, credentials } = await resolveLaunchEnvironment(config, { ...dependencies, cwd });
     config.agents = agents;
     config.environmentResolution = {
       ...resolution,

@@ -40,12 +40,33 @@ export function renderPayloadMarkdown(payload) {
   return renderInline(payload);
 }
 
-// Formats a `crew-message` custom message as Markdown. Falls back to the original
-// content verbatim whenever the payload is missing, truncated, or not valid JSON.
-export function renderCrewMessageMarkdown(message) {
+// Collapsed, a shortened report shows each long field as its first few lines only.
+const COMPACT_LINES = 6;
+const COMPACT_CHARS = 600;
+function compact(value) {
+  if (typeof value === "string") {
+    const lines = value.split("\n");
+    const head = lines.slice(0, COMPACT_LINES).join("\n").slice(0, COMPACT_CHARS);
+    return head.length < value.length ? `${head}… [${value.length - head.length} more chars]` : value;
+  }
+  if (Array.isArray(value)) return value.map(compact);
+  if (value && typeof value === "object")
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, compact(item)]));
+  return value;
+}
+
+// True when the model-facing content was shortened and the full payload rides in details.
+export const isShortened = (message) => message?.details != null && "payload" in message.details;
+
+// Formats a `crew-message` custom message as Markdown. Expanded (Ctrl+O), a shortened
+// report shows its full payload from details. Falls back to the original content verbatim
+// whenever the payload is missing, truncated, or not valid JSON.
+export function renderCrewMessageMarkdown(message, { expanded = false } = {}) {
   const content = typeof message?.content === "string" ? message.content : "";
   if (!content) return "_(no content)_";
   const { header, payloadText } = splitPayload(content);
+  if (isShortened(message))
+    return `${header}\n\n${renderPayloadMarkdown(expanded ? message.details.payload : compact(message.details.payload))}`;
   if (payloadText == null) return content;
   const trimmed = payloadText.trim();
   if (!trimmed || trimmed.endsWith("[truncated]")) return content;

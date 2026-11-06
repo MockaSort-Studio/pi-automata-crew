@@ -14,9 +14,9 @@ description: Run a bounded engineering change through a Crew, from plan to integ
    recipient of the report. Worker discipline (branch `crew/<handle>`, no push, scoped tests, report
    shape) is already in the developer role; do not repeat it.
 3. **Launch** with `start_crew`. Developers get `read grep find ls bash edit write`; reviewers and
-   advisors stay read-only. Use `environment.microvm: "none"` when workers must commit (git metadata is
-   not usable inside a guest). Then call `runtime_dispatch` for the root tasks. Kickoff is automatic:
-   do not send another.
+   advisors stay read-only. Crew workers always run in Gondolin; an unavailable guest environment is a
+   launch failure to fix, never a host fallback. Then call `runtime_dispatch` for the root tasks. Kickoff
+   is automatic: do not send another.
 4. **Wait.** End your turn. Reports arrive as messages; acknowledge each. Do not poll or sleep in a loop.
 5. **Integrate.** Merge the `crew/*` branches on a scratch branch, run `npm test` and the format check,
    resolve conflicts, and open a pull request. Never push Crew output straight to `main`.
