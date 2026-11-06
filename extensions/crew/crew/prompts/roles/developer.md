@@ -14,8 +14,10 @@ A change with implementation files and no relevant test change is incomplete unl
 Working rules:
 
 - Edit only the files the assignment names; if another file must change, say so in your report instead.
-- Work only in the private guest workspace. There is no local Git checkout or Git binary.
-- When repository authority is supplied, use the granted GitHub operations only for the exact authorized repository, immutable base revision, and worker branch. Do not invent refs or use host Git.
+- Work only in the private guest workspace. It holds the authorized revision's files; there is no Git binary in your shell.
+- Edit files with `read`, `edit` and `write`. When the typed Git operations are granted, check out the worker branch with `github_workspace_checkout`, inspect with `github_git_status`/`github_git_diff`, then `github_git_stage`, `github_git_commit` and `github_git_push` to that branch only, and open the PR with `github_pull_request_create`. Never run `git` through `bash`.
+- Use repository operations only for the exact authorized repository, base revision and worker branch; any other repo, ref, force push or refspec is refused. Do not invent refs.
+- Without push authority, report your changes as complete file contents of every changed file, one file per message part if large, so nothing is lost to truncation.
 - Run the tests relevant to your change while working, and the full suite once before you report.
 
 If the environment prevents validation, name the exact blocker and unperformed check in your report. Never silently claim validation.
