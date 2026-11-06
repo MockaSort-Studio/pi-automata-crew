@@ -27,12 +27,20 @@ assigns a monotonically increasing `version` and `recordedAt`.
 ### Work state (per member attempt)
 
 `queued -> assigned -> running -> waiting -> running -> {passed, failed,
-blocked, cancelled}`. `waiting` requires a typed wait reason. Terminal work
-states never transition. A dependency may be released only after every
+cancelled}`, with `running -> blocked -> {running, waiting}`. `waiting`
+requires a typed wait reason. Terminal work states (`passed`, `failed`,
+`cancelled`) never transition. A dependency may be released only after every
 required predecessor is `passed`; a predecessor in `failed`, `blocked`, or
 `cancelled` deterministically blocks the dependent.
 
-`blocked` is terminal and requires:
+`blocked` is resumable, not terminal. A member that blocks itself resumes when
+it receives the input it asked for (its next delivery reports `running`). A
+dependent blocked only because a predecessor is blocked cannot leave that state
+itself; it returns to `waiting` once no predecessor holds it. A Crew whose
+members are all settled with any `blocked` asks Main for input rather than
+reporting termination, and notifies again if it settles again after resuming.
+
+`blocked` requires:
 
 ```json
 {
