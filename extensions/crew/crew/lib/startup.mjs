@@ -10,6 +10,7 @@ import { suiteGrants } from "./suite-grants.mjs";
 import { writeLaunchFiles } from "./launch-files.mjs";
 import { resolveLaunchEnvironment } from "./launch-environment.mjs";
 import { requiredWorkerSkills } from "./worker-skills.mjs";
+import { validateModelSelection } from "./model-selection.mjs";
 export function crewPaths(configDir, runId) {
   const root = join(configDir, "runtime", "crew-launch");
   return {
@@ -29,10 +30,9 @@ export function queuedMessage(prepared) {
 export async function prepareCrew(pi, input, ctx, configDir) {
   if (input.completionMode && input.completionMode !== "unattended")
     throw new Error(`Unsupported SDK Crew completion mode: ${input.completionMode}`);
-  for (const model of [input.model, ...input.members.map((member) => member.model)]) {
-    if (typeof model === "string" && ["", "inherit", "default"].includes(model.trim().toLowerCase()))
-      throw new Error('Omit model to use Pi\'s current default; "inherit" and "default" are not model IDs.');
-  }
+  // Reject a bad model selection here, before any roster/namespace/launch file exists, so
+  // rejection never leaves anything to clean up.
+  validateModelSelection([input.model, ...input.members.map((member) => member.model)], ctx);
   const environment = crewEnvironment(input.environment);
   const runId = crypto.randomUUID();
   const namespace = `crew-${runId}`;

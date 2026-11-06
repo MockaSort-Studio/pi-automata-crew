@@ -334,6 +334,61 @@ test("prepareCrew rejects model sentinels before a worker can spawn", async () =
   }
 });
 
+test("prepareCrew accepts an explicit model id that is in the SDK-visible catalog", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  const ctx = { cwd, modelRegistry: { getAll: () => [{ id: "claude-sonnet-4-5", provider: "anthropic" }] } };
+  try {
+    const prepared = await prepareCrew(
+      { getAllTools: () => [] },
+      { model: "claude-sonnet-4-5", members: [{ name: "snowball", role: "developer" }] },
+      ctx,
+      ".pi",
+    );
+    const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
+    assert.equal(config.agents[0].model, "claude-sonnet-4-5");
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+test("prepareCrew rejects an explicit model id absent from the SDK-visible catalog, before any spawn", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  const ctx = { cwd, modelRegistry: { getAll: () => [{ id: "claude-sonnet-4-5", provider: "anthropic" }] } };
+  try {
+    await assert.rejects(
+      prepareCrew(
+        { getAllTools: () => [] },
+        { members: [{ name: "snowball", role: "developer", model: "not-a-real-model" }] },
+        ctx,
+        ".pi",
+      ),
+      /not found in Pi's available model catalog/,
+    );
+    // Rejected before anything was created: no roster/launch files were written.
+    const { readdirSync, existsSync } = await import("node:fs");
+    assert.ok(
+      !existsSync(join(cwd, ".pi", "runtime", "crew-launch")) ||
+        readdirSync(join(cwd, ".pi", "runtime", "crew-launch")).length === 0,
+    );
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+test("prepareCrew treats an omitted model as Pi's current default, with or without a wired catalog", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  try {
+    const prepared = await prepareCrew(
+      { getAllTools: () => [] },
+      { members: [{ name: "snowball", role: "developer" }] },
+      { cwd, modelRegistry: { getAll: () => [{ id: "claude-sonnet-4-5", provider: "anthropic" }] } },
+      ".pi",
+    );
+    const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
+    assert.equal(config.agents[0].model, undefined);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("a Lead cannot depend on other members: it assigns their work and integrates", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {
