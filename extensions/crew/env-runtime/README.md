@@ -8,6 +8,8 @@ It exposes approved guest operations to `crew-runtime`; it never defines Crew
 roles or policy. Host-owned credential policy binds suites to secret slots and
 host destinations; Armory does not choose credential sources or network policy.
 
+See [docs/crew/typed-git-workflow.md](../../../docs/crew/typed-git-workflow.md) for how a developer works through the typed Git operations against a seeded workspace.
+
 ## Repository dependency cache
 
 The Gondolin rootfs remains minimal. Build a local shared cache on demand:
