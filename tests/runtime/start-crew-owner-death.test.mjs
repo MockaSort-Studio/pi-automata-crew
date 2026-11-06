@@ -46,7 +46,13 @@ async function until(check, message, timeoutMs = 30_000) {
 
 test(
   "killing the Pi that ran start_crew stops Comm, Lifecycle and the worker, and keeps the evidence",
-  { skip: !piAvailable() && "pi is not installed", timeout: 120_000 },
+  // Crew workers run only in Gondolin, so this launches a real VM.
+  {
+    skip:
+      (!piAvailable() && "pi is not installed") ||
+      (process.env.HALL_SKIP_GONDOLIN_LIVE_TESTS === "1" && "live Gondolin VM tests are disabled on this runner"),
+    timeout: 120_000,
+  },
   async () => {
     const crew = JSON.stringify({
       model: "mock/mock-model",

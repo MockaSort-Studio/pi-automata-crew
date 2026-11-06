@@ -137,6 +137,7 @@ test("preflight and Armory failures occur before Runtime creates a worker", asyn
     const armoryPrepared = await prepare(cwd);
     await assert.rejects(
       launchPreparedCrew(cwd, armoryPrepared, {
+        resolveEnvironment: async () => gondolin,
         resolveArmoryCatalog: async () => ({ release: "https://example.test/artifacts.json" }),
         realizeArmorySuites: async () => {
           throw new Error("Armory unavailable");
