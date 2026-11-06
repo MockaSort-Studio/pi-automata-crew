@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -14,18 +14,55 @@ export const repositorySeedKey = ({ repo, revision }) =>
 export const repositorySeedPath = (authorization, home) =>
   join(repositorySeedCacheRoot(home), `${repositorySeedKey(authorization)}.tar`);
 
-function assertSourceRepository(cwd, repo, execFile = execFileSync) {
-  const origin = String(
-    execFile("git", ["-C", cwd, "config", "--get", "remote.origin.url"], { encoding: "utf8" }),
-  ).trim();
-  if (!origin.endsWith(`/${repo}.git`) && !origin.endsWith(`/${repo}`))
+// Only GitHub's own HTTPS/SSH remote forms for exactly this owner/repo are accepted.
+const GITHUB_REMOTE =
+  /^(?:https:\/\/github\.com\/|ssh:\/\/git@github\.com\/|git@github\.com:)([^/\s]+\/[^/\s]+?)(?:\.git)?\/?$/i;
+export function remoteMatchesRepository(origin, repo) {
+  const match = GITHUB_REMOTE.exec(String(origin).trim());
+  return Boolean(match) && match[1].toLowerCase() === repo.toLowerCase();
+}
+
+function assertSourceRepository(cwd, repo, execFile) {
+  let origin;
+  try {
+    origin = execFile("git", ["-C", cwd, "config", "--get", "remote.origin.url"], { encoding: "utf8" });
+  } catch {
+    throw new Error("Repository seed source has no origin remote");
+  }
+  if (!remoteMatchesRepository(origin, repo))
     throw new Error("Repository seed source does not match the worker authorization");
 }
 
-export function resolveRepositorySeed(authorization, { cwd, home, exists = existsSync, execFile = execFileSync } = {}) {
+// The cache is trusted only while it is private to this user: every resolution, not only
+// creation, rejects a symlinked, foreign-owned, or group/other-writable directory or entry.
+function assertPrivate(path, lstat, uid) {
+  const info = lstat(path);
+  if (info.isSymbolicLink() || (uid !== undefined && info.uid !== uid) || info.mode & 0o022)
+    throw new Error(`Repository seed cache is not private to this user: ${path}`);
+}
+
+// git archive records the commit id in its pax global header; a cached seed must name its key's revision.
+export function archiveRevision(archive) {
+  const header = archive.subarray(0, BLOCK);
+  if (header.subarray(156, 157).toString() !== "g") return undefined;
+  const size = Number.parseInt(header.subarray(124, 136).toString().replace(/\0.*$/, "").trim() || "0", 8);
+  return /(?:^|\n)\d+ comment=([0-9a-f]{40})\n/.exec(archive.subarray(BLOCK, BLOCK + size).toString())?.[1];
+}
+
+export function resolveRepositorySeed(
+  authorization,
+  { cwd, home, exists = existsSync, execFile = execFileSync, lstat = lstatSync, uid = process.getuid?.() } = {},
+) {
   if (!authorization) return undefined;
   const path = repositorySeedPath(authorization, home);
-  if (exists(path)) return path;
+  const root = dirname(path);
+  if (exists(root)) assertPrivate(root, lstat, uid);
+  if (exists(path)) {
+    assertPrivate(path, lstat, uid);
+    if (archiveRevision(readFileSync(path)) !== authorization.revision.toLowerCase())
+      throw new Error("Repository seed cache does not match its authorized revision");
+    return path;
+  }
   assertSourceRepository(cwd, authorization.repo, execFile);
   let archive;
   try {
@@ -38,7 +75,10 @@ export function resolveRepositorySeed(authorization, { cwd, home, exists = exist
   }
   if (!Buffer.isBuffer(archive) || archive.length < BLOCK || archive.length % BLOCK)
     throw new Error("Authorized repository revision produced an invalid workspace seed");
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  if (archiveRevision(archive) !== authorization.revision.toLowerCase())
+    throw new Error("Authorized repository revision produced a seed for a different commit");
+  mkdirSync(root, { recursive: true, mode: 0o700 });
+  assertPrivate(root, lstat, uid);
   const temporary = `${path}.${process.pid}.tmp`;
   writeFileSync(temporary, archive, { mode: 0o600 });
   try {
