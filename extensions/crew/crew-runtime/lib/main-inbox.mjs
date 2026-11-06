@@ -26,6 +26,13 @@ export class MainInbox {
     return message;
   }
 
+  // The full, unshortened payload of a delivery Main has not yet replied to or acknowledged.
+  read(messageId) {
+    const message = this.#pending.get(messageId);
+    if (!message) throw new Error("Unknown Main delivery");
+    return { messageId, from: message.from, replyRequired: !!message.replyRequired, payload: message.payload };
+  }
+
   // Main deliveries are acknowledged by the broker on delivery; this only retires the local entry.
   acknowledge(messageId) {
     if (!this.#pending.delete(messageId)) throw new Error("Unknown Main delivery");

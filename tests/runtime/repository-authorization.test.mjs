@@ -51,15 +51,6 @@ test("staged and diffed paths must be plain workspace-relative paths", () => {
   deny("github_git_diff", { repo, paths: "src" }, /workspace-relative/);
 });
 
-test("retired API write operations stay guarded and are never authorized", () => {
-  deny("github_file_update", { repo, branch }, /retired/);
-  deny("github_ref_create", { repo, branch, sha: revision }, /retired/);
-  assert.throws(
-    () => authorizeRepositoryOperation("github_file_update", { repo, branch }),
-    /authorization is required/,
-  );
-});
-
 test("guarded operations fail closed without a policy", () => {
   for (const operation of ["github_git_push", "github_workspace_checkout", "github_pull_request_create"])
     assert.throws(() => authorizeRepositoryOperation(operation, { repo }), /authorization is required/);

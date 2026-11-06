@@ -128,6 +128,16 @@ export default function runtimeExtension(pi: any): void {
     },
   });
   pi.registerTool({
+    name: "runtime_read_message",
+    label: "Runtime: read message",
+    description: "Return the full payload of a pending Main delivery whose notification was shortened.",
+    parameters: Type.Object({ messageId: Type.String() }),
+    async execute(_id, input) {
+      const result = await runtime.readMain(input.messageId);
+      return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    },
+  });
+  pi.registerTool({
     name: "runtime_acknowledge_message",
     label: "Runtime: acknowledge",
     description: "Acknowledge one non-request delivery received by Main.",

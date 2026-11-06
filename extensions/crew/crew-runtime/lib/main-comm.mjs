@@ -131,6 +131,10 @@ export class MainComm {
     return (await this.comm.claim(actorId)) ?? null;
   }
 
+  async readMain(messageId) {
+    return this.main.read(messageId);
+  }
+
   async acknowledgeMain(messageId) {
     return this.main.acknowledge(messageId);
   }

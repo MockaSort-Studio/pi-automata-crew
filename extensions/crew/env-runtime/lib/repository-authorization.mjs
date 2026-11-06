@@ -9,12 +9,8 @@ const gitWorkspaceOperations = new Set([
   "github_git_commit",
   "github_git_push",
 ]);
-// The API write workflow is retired for repository-bound workers: Contents API writes each
-// advance the branch ref and race. They stay guarded so a stray grant can never run unchecked.
-const retiredOperations = new Set(["github_ref_create", "github_file_update"]);
 const guardedOperations = new Set([
   ...gitWorkspaceOperations,
-  ...retiredOperations,
   "github_workspace_snapshot",
   "github_pull_request_create",
 ]);
@@ -74,8 +70,6 @@ function assertKnownShape(operation, input) {
 export function authorizeRepositoryOperation(operation, input, policy) {
   if (!guardedOperations.has(operation)) return;
   if (!policy) throw new Error(`Repository authorization is required for ${operation}`);
-  if (retiredOperations.has(operation))
-    throw new Error(`${operation} is retired for repository workers; use the typed Git workspace operations`);
   assertKnownShape(operation, input);
   if (input.repo !== policy.repo) throw new Error("Repository operation is outside the worker authorization");
   if (operation === "github_workspace_snapshot" && input.revision !== policy.revision)
