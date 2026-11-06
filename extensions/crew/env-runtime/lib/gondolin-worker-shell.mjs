@@ -1,9 +1,11 @@
 import { toGuestPath } from "./gondolin-worker-paths.mjs";
+import { assertShellCommandAllowed } from "./gondolin-worker-shell-policy.mjs";
 
 export function bashOperations(vm, cwd) {
   return {
     async exec(command, commandCwd, { onData, signal, timeout }) {
       if (signal?.aborted) throw new Error("aborted");
+      assertShellCommandAllowed(command);
       const controller = new AbortController();
       const abort = () => controller.abort();
       signal?.addEventListener("abort", abort, { once: true });
