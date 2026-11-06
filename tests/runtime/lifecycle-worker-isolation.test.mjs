@@ -60,6 +60,33 @@ test("a worker that closes the token pipe unread does not crash the Lifecycle se
   }
 });
 
+test("Lifecycle preserves the trusted repository authorization in worker config", async () => {
+  const cwd = gitRepo();
+  const controller = new LifecycleController({ cwd, workerModule: stubWorker });
+  const dependencyCache = { key: "a".repeat(64), profile: "gondolin-alpine-node24" };
+  const repositoryAuthorization = {
+    repo: "MockaSort-Studio/pi-automata-crew",
+    revision: "a".repeat(40),
+    base: "main",
+    branch: "crew/run/actor",
+  };
+  try {
+    const agent = await controller.spawn({
+      actorId: "repository-auth",
+      name: "repository-auth",
+      task: "SLEEP",
+      dependencyCache,
+      repositoryAuthorization,
+    });
+    const config = JSON.parse(readFileSync(join(cwd, ".pi", "runtime", "runs", agent.id, "worker.json"), "utf8"));
+    assert.deepEqual(config.dependencyCache, dependencyCache);
+    assert.deepEqual(config.repositoryAuthorization, repositoryAuthorization);
+    await controller.remove(agent.id);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("a spawned worker's environment carries no host .pi/runtime discovery variable", async () => {
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });

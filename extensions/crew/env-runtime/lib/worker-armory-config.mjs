@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { repositoryAuthorization } from "./repository-authorization.mjs";
 
 const STORE_PATH = /^\/nix\/store\/[a-z0-9]{32}-[^/]+$/;
 
@@ -6,8 +7,15 @@ const STORE_PATH = /^\/nix\/store\/[a-z0-9]{32}-[^/]+$/;
 // deliberately limited to exact mount paths and operation grants; suite code,
 // flake locators, credentials, and descriptors are not read here.
 export function workerArmoryConfig(config) {
+  const authorization = repositoryAuthorization(config?.repositoryAuthorization);
   const armory = config?.armory;
-  if (!armory) return { paths: [], suites: [], network: undefined };
+  if (!armory)
+    return {
+      paths: [],
+      suites: [],
+      network: undefined,
+      ...(authorization ? { repositoryAuthorization: authorization } : {}),
+    };
   const paths = armory.nixPaths ?? [];
   const suites = armory.suites ?? [];
   const network = armory.network;
@@ -39,6 +47,7 @@ export function workerArmoryConfig(config) {
   return {
     paths,
     suites: suites.map((suite) => ({ rootPath: suite.rootPath, tools: [...new Set(suite.tools)] })),
+    ...(authorization ? { repositoryAuthorization: authorization } : {}),
     network: network && {
       allowedHosts: [...new Set(network.allowedHosts)].sort(),
       credentials: network.credentials.map((credential) => ({ ...credential, hosts: [...new Set(credential.hosts)] })),

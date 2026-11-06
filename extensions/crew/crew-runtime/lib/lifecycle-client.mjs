@@ -8,6 +8,7 @@ export async function connectLifecycle(url, { timeoutMs = 30_000, authToken } = 
   });
   let sequence = 0;
   const pending = new Map();
+  const terminalListeners = new Set();
   const fail = (error) => {
     for (const { reject, timer } of pending.values()) {
       clearTimeout(timer);
@@ -19,8 +20,12 @@ export async function connectLifecycle(url, { timeoutMs = 30_000, authToken } = 
   socket.on("close", () => fail(new Error("Lifecycle connection closed")));
   socket.on("message", (raw) => {
     try {
-      const message = JSON.parse(String(raw)),
-        entry = pending.get(message.id);
+      const message = JSON.parse(String(raw));
+      if (message.method === "lifecycle.terminal") {
+        for (const listener of terminalListeners) listener(message.params);
+        return;
+      }
+      const entry = pending.get(message.id);
       if (!entry) return;
       pending.delete(message.id);
       clearTimeout(entry.timer);
@@ -44,6 +49,10 @@ export async function connectLifecycle(url, { timeoutMs = 30_000, authToken } = 
     inspect: (id) => request("lifecycle.inspect", { id }),
     remove: (id) => request("lifecycle.remove", { id }),
     shutdown: () => request("lifecycle.shutdown"),
+    onTerminal: (listener) => {
+      terminalListeners.add(listener);
+      return () => terminalListeners.delete(listener);
+    },
     close: () => {
       fail(new Error("Lifecycle client closed"));
       socket.close();

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readWorkerArmoryConfig } from "./worker-armory-config.mjs";
+import { authorizeRepositoryOperation } from "./repository-authorization.mjs";
 
 const STORE_PATH = /^\/nix\/store\/[a-z0-9]{32}-[^/]+$/;
 const validName = (value) => typeof value === "string" && value.length > 0;
@@ -95,6 +96,7 @@ export async function registerArmoryWorkerProxies(pi, { config = readWorkerArmor
         description: descriptor.description,
         parameters: descriptor.parameters,
         async execute(_id, input) {
+          authorizeRepositoryOperation(descriptor.name, input, config.repositoryAuthorization);
           return toolResult(await runner.invoke(descriptor.name, input));
         },
       });

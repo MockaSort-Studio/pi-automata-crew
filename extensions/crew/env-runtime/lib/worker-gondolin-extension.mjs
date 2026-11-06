@@ -1,5 +1,5 @@
 import { appendFileSync, readFileSync } from "node:fs";
-import { RealFSProvider, ShadowProvider, VM, createShadowPathPredicate } from "@earendil-works/gondolin";
+import { MemoryProvider, ReadonlyProvider, RealFSProvider, VM } from "@earendil-works/gondolin";
 import {
   createBashTool,
   createEditTool,
@@ -9,7 +9,7 @@ import {
   createReadTool,
   createWriteTool,
 } from "@earendil-works/pi-coding-agent";
-import { HIDDEN_WORKSPACE_PATHS, GUEST_WORKSPACE } from "./gondolin-worker-paths.mjs";
+import { GUEST_WORKSPACE } from "./gondolin-worker-paths.mjs";
 import {
   editOperations,
   executeGrep,
@@ -21,6 +21,8 @@ import {
 import { bashOperations } from "./gondolin-worker-shell.mjs";
 import { createGondolinNixLayer } from "./gondolin-nix-layer.mjs";
 import { readWorkerArmoryConfig } from "./worker-armory-config.mjs";
+import { verifyGuestDependencyCache, workerDependencyCache } from "./repository-dependency-cache.mjs";
+import { seedRepositoryWorkspace } from "./repository-workspace.mjs";
 import { consumeCredentialLease, revokeCredentialLease } from "./credentials.mjs";
 import { lazyGuest, registerArmoryWorkerProxies } from "./guest-suite.mjs";
 import { chooseVmm } from "./guest-vmm.mjs";
@@ -37,12 +39,16 @@ const credentialLease = consumeCredentialLease();
 
 // A VM holds 300-450 MB of host memory, so it is released after IDLE_MS of idleness
 // (never mid-run or mid-tool) and booted again, about 0.8 s, on the next tool call.
-// Workspace files live on the host and the credential lease outlives the VM, so
-// nothing is lost. 0 disables release.
+// The guest-private workspace and credential lease outlive the VM, so idle release
+// loses neither. 0 disables release.
 const IDLE_MS = Number(process.env.HALL_VM_IDLE_MS ?? 20_000);
 let idleTimer;
 let inflight = 0;
 let warmSuites;
+// Source and edits are guest-private. Keep this provider across idle VM release so
+// a resident worker's workspace survives reboots, but never mount its host worktree.
+const workspace = new MemoryProvider();
+let workspaceSeed;
 
 function logDeniedHost(host) {
   try {
@@ -80,6 +86,18 @@ async function withVm(localCwd, use) {
 
 async function startVm(localCwd) {
   const armory = readWorkerArmoryConfig();
+  if (!workspaceSeed)
+    workspaceSeed = seedRepositoryWorkspace(workspace, armory.repositoryAuthorization, { cwd: localCwd }).catch(
+      (error) => {
+        workspaceSeed = undefined;
+        throw error;
+      },
+    );
+  await workspaceSeed;
+  const dependencyCache = workerDependencyCache({
+    ...(process.env.PI_CREW_WORKER_CONFIG ? JSON.parse(readFileSync(process.env.PI_CREW_WORKER_CONFIG, "utf8")) : {}),
+    cwd: localCwd,
+  });
   const secrets = Object.fromEntries(
     (armory.network?.credentials ?? [])
       .filter((credential) => credentialLease.credentials.has(credential.environment))
@@ -100,15 +118,28 @@ async function startVm(localCwd) {
     env: network.env,
     vfs: {
       mounts: {
-        [GUEST_WORKSPACE]: new ShadowProvider(new RealFSProvider(localCwd), {
-          shouldShadow: createShadowPathPredicate(HIDDEN_WORKSPACE_PATHS),
-        }),
+        [GUEST_WORKSPACE]: workspace,
+        // A required implementation cache is a lockfile-keyed, read-only child mount
+        // in the otherwise private guest workspace.
+        ...(dependencyCache
+          ? {
+              [`${GUEST_WORKSPACE}/node_modules`]: new ReadonlyProvider(
+                new RealFSProvider(dependencyCache.modulesPath),
+              ),
+            }
+          : {}),
         ...(armory.paths.length ? createGondolinNixLayer(armory.paths) : {}),
       },
     },
   });
-  vm = created;
-  return created;
+  try {
+    if (dependencyCache) await verifyGuestDependencyCache(created, dependencyCache);
+    vm = created;
+    return created;
+  } catch (error) {
+    await created.close();
+    throw error;
+  }
 }
 
 async function ensureVm(localCwd) {

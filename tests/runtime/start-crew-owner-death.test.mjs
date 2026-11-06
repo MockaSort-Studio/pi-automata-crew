@@ -58,7 +58,7 @@ test(
           tools: [{ suite: "system", operations: ["read"] }],
         },
       ],
-      environment: { microvm: "none" },
+      environment: { microvm: "auto" },
     });
     const model = mockModel((call) =>
       call === 1 ? { toolCall: { name: "start_crew", arguments: crew } } : { text: "launched" },

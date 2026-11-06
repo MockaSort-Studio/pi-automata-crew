@@ -3,14 +3,18 @@ import { LifecycleController } from "./lifecycle-controller.mjs";
 import { watchParent } from "./parent-watch.mjs";
 
 const config = JSON.parse(process.argv[2]);
-const controller = new LifecycleController(config);
 const authToken = config.authToken;
+const server = new WebSocketServer({ port: 0 });
+await new Promise((resolve) => server.once("listening", resolve));
+const publishTerminal = (event) => {
+  const message = JSON.stringify({ jsonrpc: "2.0", method: "lifecycle.terminal", params: event });
+  for (const socket of server.clients) if (socket.readyState === socket.OPEN) socket.send(message);
+};
+const controller = new LifecycleController({ ...config, onTerminal: publishTerminal });
 // Replay every run's durable log before accepting any RPC: a worker left
 // running by a prior Lifecycle server that died is recorded owner_lost and
 // its evidence archived, never silently forgotten or marked successful.
 await controller.recover();
-const server = new WebSocketServer({ port: 0 });
-await new Promise((resolve) => server.once("listening", resolve));
 const methods = {
   "lifecycle.spawn": (p) => controller.spawn(p),
   "lifecycle.list": () => controller.list(),

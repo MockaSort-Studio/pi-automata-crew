@@ -20,6 +20,8 @@ export const suiteGrants = (tools) => {
       throw new Error("Crew suite grants must be unique and non-empty.");
     seen.add(grant.suite);
   }
+  if (tools.some((grant) => grant.suite === "filesystem"))
+    throw new Error('"filesystem" is not an Armory suite; request built-in operations with suite "system".');
   return {
     system: tools.find((grant) => grant.suite === "system")?.operations,
     suites: tools

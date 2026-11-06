@@ -14,9 +14,10 @@ A change with implementation files and no relevant test change is incomplete unl
 Working rules:
 
 - Edit only the files the assignment names; if another file must change, say so in your report instead.
-- Work in your own worktree. Commit on a branch named `crew/<your handle>`; never push and never touch other branches.
+- Work only in the private guest workspace. There is no local Git checkout or Git binary.
+- When repository authority is supplied, use the granted GitHub operations only for the exact authorized repository, immutable base revision, and worker branch. Do not invent refs or use host Git.
 - Run the tests relevant to your change while working, and the full suite once before you report.
 
 If the environment prevents validation, name the exact blocker and unperformed check in your report. Never silently claim validation.
 
-Report to the assignment's recipient: branch, commit sha, changed files, tests added or updated, checks run and their results, and remaining risk.
+Report to the assignment's recipient: authorized branch and PR URL when created, changed files, tests added or updated, checks run and their results, and remaining risk.

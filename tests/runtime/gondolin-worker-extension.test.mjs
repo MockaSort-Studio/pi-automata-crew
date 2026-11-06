@@ -5,7 +5,6 @@ import { toGuestPath } from "../../extensions/crew/env-runtime/lib/gondolin-work
 
 const worker = readFileSync(new URL("../../extensions/crew/crew-runtime/lib/worker.mjs", import.meta.url), "utf8");
 const extension = new URL("../../extensions/crew/env-runtime/lib/worker-gondolin-extension.mjs", import.meta.url);
-const paths = new URL("../../extensions/crew/env-runtime/lib/gondolin-worker-paths.mjs", import.meta.url);
 
 test("maps host workspace paths into the sole guest workspace mount", () => {
   assert.equal(toGuestPath("/worker", "src/file.mjs"), "/workspace/src/file.mjs");
@@ -21,12 +20,11 @@ test("a gondolin sandbox worker loads the project-owned internal extension", () 
   );
 });
 
-test("the Gondolin extension routes every workspace tool through one hidden workspace VM", () => {
+test("the Gondolin extension routes tools through a private persistent guest workspace", () => {
   const source = readFileSync(extension, "utf8");
-  const pathSource = readFileSync(paths, "utf8");
-  assert.match(source, /new ShadowProvider\(new RealFSProvider\(localCwd\)/);
-  for (const path of ["/.env", "/.npmrc", "/node_modules", "/.venv", "/dist"])
-    assert.match(pathSource, new RegExp(`"${path}"`));
+  assert.match(source, /const workspace = new MemoryProvider\(\)/);
+  assert.match(source, /\[GUEST_WORKSPACE\]: workspace/);
+  assert.doesNotMatch(source, /ShadowProvider|createShadowPathPredicate/);
   for (const tool of ["localRead", "localWrite", "localEdit", "localBash", "localLs", "localFind"])
     assert.match(source, new RegExp(`routed\\(${tool}`));
   assert.match(source, /\.\.\.localGrep/);
@@ -34,6 +32,13 @@ test("the Gondolin extension routes every workspace tool through one hidden work
   assert.match(source, /pi\.on\("session_shutdown", async \(event\)/);
   assert.match(source, /if \(event\.reason !== "quit"\) return;/);
   assert.match(source, /await activeVm\.close\(\)/);
+});
+
+test("a required lockfile-keyed cache replaces only guest node_modules with a read-only mount", () => {
+  const source = readFileSync(extension, "utf8");
+  assert.match(source, /workerDependencyCache/);
+  assert.match(source, /GUEST_WORKSPACE}\/?node_modules/);
+  assert.match(source, /new ReadonlyProvider\(\s*new RealFSProvider\(dependencyCache\.modulesPath\)/);
 });
 
 test("VM state is module-level, so a same-process reload never boots a second VM", () => {

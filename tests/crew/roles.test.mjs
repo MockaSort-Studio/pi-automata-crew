@@ -70,9 +70,9 @@ test("rejects an assignment operation outside a role's capabilities", () =>
 
 test("the developer prompt carries the Crew working rules and no stale Lead or Discussion wording", () => {
   const { instructions } = roleModule({ role: "developer", override: {} });
-  assert.match(instructions, /crew\/<your handle>/);
-  assert.match(instructions, /never push/);
-  assert.match(instructions, /commit sha/);
+  assert.match(instructions, /private guest workspace/);
+  assert.match(instructions, /no local Git checkout/);
+  assert.match(instructions, /authorized branch and PR URL/);
   assert.doesNotMatch(instructions, /Lead|Discussion/);
 });
 

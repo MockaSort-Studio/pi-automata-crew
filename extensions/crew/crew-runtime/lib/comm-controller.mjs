@@ -171,6 +171,13 @@ export class CommController {
     this.#access.assertNamespace(actorId, namespace);
     return this.#observers.lifecycleUpdate(actorId, namespace, state);
   }
+  // Main is the only supervisor allowed to terminalize a worker after the
+  // Lifecycle server observed its process exit. Workers may still update only
+  // themselves through lifecycleUpdate above.
+  lifecycleUpdateFor(actorId, namespace, state) {
+    if (!actorId?.startsWith(`${namespace}-`)) throw new Error("Worker does not belong to this Crew namespace");
+    return this.#observers.lifecycleUpdate(actorId, namespace, state);
+  }
   stateSnapshot(actorId, namespace) {
     this.#access.assertNamespace(actorId, namespace);
     return this.#observers.stateSnapshot(namespace);

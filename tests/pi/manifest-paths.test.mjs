@@ -19,6 +19,12 @@ test("package.json declares a pi manifest with extensions and skills", () => {
   assert.ok(Array.isArray(packageJson.pi.skills) && packageJson.pi.skills.length > 0);
 });
 
+test("host-provided extension modules stay peer dependencies, not installed runtime copies", () => {
+  for (const name of ["@earendil-works/pi-coding-agent", "@earendil-works/pi-tui", "typebox"])
+    assert.equal(packageJson.peerDependencies?.[name], "*", `${name} must be a wildcard peer dependency`);
+  assert.equal(packageJson.dependencies?.typebox, undefined, "typebox must not be installed by the extension package");
+});
+
 test("every manifest extension path exists on disk", () => {
   for (const path of packageJson.pi.extensions) {
     assert.ok(existsSync(new URL(path, `file://${repoRoot}`)), `manifest extension path missing: ${path}`);

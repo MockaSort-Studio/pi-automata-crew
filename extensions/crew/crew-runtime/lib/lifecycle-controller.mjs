@@ -36,10 +36,11 @@ export class LifecycleController {
   #retainedMetrics = new Map();
   // Durable-log writes that failed after spawn (disk full, permissions); surfaced, never thrown.
   logFailures = 0;
-  constructor({ cwd, workerModule, preflight = preflightWorkerSandbox }) {
+  constructor({ cwd, workerModule, preflight = preflightWorkerSandbox, onTerminal = () => {} }) {
     this.cwd = cwd;
     this.workerModule = workerModule;
     this.preflight = preflight;
+    this.onTerminal = onTerminal;
   }
   async spawn(config) {
     await this.preflight(config);
@@ -80,6 +81,8 @@ export class LifecycleController {
           namespace: config.namespace,
           sandbox: config.sandbox,
           armory: config.armory,
+          dependencyCache: config.dependencyCache,
+          repositoryAuthorization: config.repositoryAuthorization,
           logFile,
         }),
       );
@@ -127,6 +130,10 @@ export class LifecycleController {
         reason: config.retryOf ? "retry" : "spawned",
         retryOf: config.retryOf,
         pid: child.pid,
+        // The detached worker is the leader of its own process group. Keep
+        // that durable identity so recovery can reap a surviving Pi/test
+        // descendant even after the wrapper itself has exited.
+        pgid: child.pid,
         // Recovery may only act on attempts whose owning server is gone.
         owner: process.pid,
       });
@@ -140,6 +147,9 @@ export class LifecycleController {
         agent.status = to;
         agent.exitCode = code;
         agent.signal = signal;
+        try {
+          this.onTerminal({ id, name: agent.name, namespace: agent.namespace, status: to });
+        } catch {}
       };
       child.once("exit", recordExit);
       // A short-lived worker can exit between its spawn event and listener
@@ -237,8 +247,12 @@ export class LifecycleController {
   // attempt gets its evidence archived and a recorded owner_lost event; it
   // never invents a passed/failed work result.
   async recover() {
-    for (const { runId, actor, from } of findOwnerLostAttempts(this.cwd)) {
+    for (const { runId, actor, from, pgid } of findOwnerLostAttempts(this.cwd)) {
       await preserveEvidence(this.cwd, [{ id: actor }]);
+      if (pgid)
+        try {
+          process.kill(-pgid, "SIGTERM");
+        } catch {}
       this.#record(runId, {
         actor,
         from,

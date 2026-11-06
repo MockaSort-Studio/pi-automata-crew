@@ -16,6 +16,32 @@ test("worker Armory config exposes only exact mount paths and grants", () => {
   );
 });
 
+test("worker config keeps only a validated repository authorization projection", () => {
+  const authorization = {
+    repo: "MockaSort-Studio/pi-automata-crew",
+    revision: "a".repeat(40),
+    base: "main",
+    branch: "crew/run/actor",
+  };
+  assert.deepEqual(
+    workerArmoryConfig({ armory: { nixPaths: [], suites: [] }, repositoryAuthorization: authorization })
+      .repositoryAuthorization,
+    authorization,
+  );
+  assert.deepEqual(
+    workerArmoryConfig({ repositoryAuthorization: authorization }).repositoryAuthorization,
+    authorization,
+  );
+  assert.throws(
+    () =>
+      workerArmoryConfig({
+        armory: { nixPaths: [], suites: [] },
+        repositoryAuthorization: { ...authorization, revision: "main" },
+      }),
+    /repository authorization/,
+  );
+});
+
 test("worker Armory config rejects a broad Nix mount", () => {
   assert.throws(() => workerArmoryConfig({ armory: { nixPaths: ["/nix/store"], suites: [] } }), /invalid Nix mount/);
 });
