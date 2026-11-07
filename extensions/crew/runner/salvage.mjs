@@ -6,14 +6,15 @@ const CHUNK = 500;
 export async function salvage({ ops, policy, member, reason }) {
   const { repo, revision, branch } = policy;
   try {
-    let status = await ops.call("github_git_status", { repo });
+    const status = await ops.call("github_git_status", { repo });
     const paths = (status.files ?? []).map((file) => file.path).filter((path) => !path.split("/").includes(".git"));
     // An agent that never touched Git (a reviewer, say) leaves nothing to rescue and gets no remote branch.
     if (!status.branch && !paths.length) return { branch, skipped: true };
-    if (!status.branch) {
-      await ops.call("github_workspace_checkout", { repo, revision, branch });
-      status = await ops.call("github_git_status", { repo });
-    }
+    // Checkout is idempotent: the first time it puts HEAD on the member's branch, afterwards it only says where
+    // HEAD is. An agent that checked out and then changed nothing is still at the base revision: pushing that
+    // would only leave an empty branch on the remote.
+    const where = await ops.call("github_workspace_checkout", { repo, revision, branch });
+    if (!paths.length && where?.head === revision) return { branch, skipped: true, reason: "no changes" };
     let committed;
     for (let index = 0; index < paths.length; index += CHUNK)
       await ops.call("github_git_stage", { repo, paths: paths.slice(index, index + CHUNK) });
