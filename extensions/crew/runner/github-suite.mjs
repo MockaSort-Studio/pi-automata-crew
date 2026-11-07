@@ -33,6 +33,35 @@ export function hostGhTransport({ token, exec = run }) {
 
 export const loadSuiteModule = (path) => import(pathToFileURL(path).href);
 
+const injection = ({ workspace, token, transport }) => ({
+  commandTransport: transport,
+  workspace: { fs: workspaceFs(workspace), dir: "/", env: { GITHUB_TOKEN: token } },
+});
+
+// The suite's operations as plain calls, for the runner's own use (salvage). Same code and injection as an
+// agent's tools, but independent of any session. Policy is the caller's responsibility here: the runner
+// only ever acts on the branch and revision it derived itself.
+export function createSuiteOperations({ module, workspace, token, transport = hostGhTransport({ token }) }) {
+  const registry = new Map();
+  module.activateSuite(
+    { registerTool: (tool) => registry.set(tool.name, tool), on() {} },
+    injection({ workspace, token, transport }),
+  );
+  return {
+    async call(name, input) {
+      const tool = registry.get(name);
+      if (!tool) throw new Error(`The suite has no operation ${name}`);
+      const result = await tool.execute(`runner-${name}`, input);
+      const text = (result?.content ?? []).map((part) => part.text ?? "").join("");
+      try {
+        return JSON.parse(text);
+      } catch {
+        return text;
+      }
+    },
+  };
+}
+
 // An extension factory that installs the GitHub suite for one agent. The suite is the Armory's generic
 // code; everything specific to this agent is injected: where Git acts (the environment's workspace), how gh
 // runs (the Crew token), and, here, the repository policy, enforced before any guarded call executes.
@@ -46,10 +75,7 @@ export function githubSuiteExtension({
   transport = hostGhTransport({ token }),
 }) {
   return (pi) => {
-    module.activateSuite(pi, {
-      commandTransport: transport,
-      workspace: { fs: workspaceFs(workspace), dir: "/", env: { GITHUB_TOKEN: token } },
-    });
+    module.activateSuite(pi, injection({ workspace, token, transport }));
     pi.on("tool_call", async (event) => {
       try {
         authorizeRepositoryOperation(event.toolName, event.input, policy);

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { runAgent } from "../../extensions/crew/runner/agent-run.mjs";
+import { createAgentRun, runAgent } from "../../extensions/crew/runner/agent-run.mjs";
 import { mockModel, providerFor } from "./mock-model.mjs";
 
 const call = (name, args = {}) => ({ toolCall: { name, arguments: JSON.stringify(args) } });
@@ -156,4 +156,39 @@ test("the transcript is persisted when a session directory is given", async (t) 
   const result = await run({ sessionDir: join(dir, "sessions") });
   assert.ok(result.transcriptRef && existsSync(result.transcriptRef));
   assert.match(readFileSync(result.transcriptRef, "utf8"), /recorded/);
+});
+
+test("after request_input the same session continues with the answer, and each turn is classified on its own", async (t) => {
+  const { server, dir } = await scenario(t, (n) =>
+    n === 1 ? call("request_input", { question: "Which file?" }) : { text: "summarized x.txt" },
+  );
+  const modelRuntime = await ModelRuntime.create({
+    authPath: join(dir, "auth.json"),
+    modelsPath: join(dir, "models.json"),
+  });
+  modelRuntime.registerProvider("mock", providerFor(server));
+  const run = await createAgentRun({
+    name: "dev",
+    cwd: dir,
+    model: "mock/mock-model",
+    settings: noRetry,
+    modelRuntime,
+  });
+  const first = await run.prompt("summarize a file");
+  assert.equal(first.status, "needs_input");
+  assert.equal(run.busy, false);
+  const second = await run.prompt("x.txt");
+  assert.equal(second.status, "completed");
+  assert.equal(second.finalText, "summarized x.txt");
+  const lastRequest = JSON.parse(server.requests.at(-1));
+  const roles = lastRequest.messages.map((m) => m.role).join(",");
+  assert.match(
+    roles,
+    /user,assistant,tool,user$/,
+    "the history, the recorded question and the answer are all in the conversation",
+  );
+  const answer = lastRequest.messages.at(-1).content;
+  assert.equal(typeof answer === "string" ? answer : answer.map((part) => part.text).join(""), "x.txt");
+  await assert.rejects(Promise.all([run.prompt("a"), run.prompt("b")]), /already working/);
+  run.dispose();
 });
