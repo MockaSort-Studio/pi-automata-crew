@@ -68,6 +68,15 @@ test("a run that ends with a final message is completed", async (t) => {
   assert.equal(result.model, "mock/mock-model");
 });
 
+test("turn events carry the session context usage", async (t) => {
+  const { run } = await scenario(t, () => ({ text: "ok" }));
+  const events = [];
+  await run({ onEvent: (event) => events.push(event) });
+  const turn = events.find((event) => event.type === "turn");
+  assert.ok(turn?.context);
+  assert.equal(typeof turn.context.contextWindow, "number");
+});
+
 test("the agent sees exactly the granted tools: no user extension, skill or built-in leaks in", async (t) => {
   const { run, server } = await scenario(t, () => ({ text: "ok" }));
   await run({ tools: ["read"] });
