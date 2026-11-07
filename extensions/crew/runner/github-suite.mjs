@@ -12,6 +12,16 @@ import { workspaceFs } from "./workspace-fs.mjs";
 
 const run = promisify(execFile);
 
+// These operations target projects or opaque review IDs whose repository cannot be established here.
+const unverifiedTargetOperations = new Set([
+  "github_project_fields",
+  "github_project_item_add",
+  "github_project_item_find",
+  "github_project_field_set",
+  "github_pull_request_review_inline_comment",
+  "github_pull_request_review_submit",
+]);
+
 // How the suite's `gh` runs on the host. The Crew's own token is the only credential: it is set explicitly,
 // and gh's own config directory is an empty private one, so the user's stored login can never be used and
 // the agent's VM never sees the token at all. Asynchronous, so a slow GitHub call never blocks other agents.
@@ -88,6 +98,10 @@ export function githubSuiteExtension({
           (!policy || event.input.repo.toLowerCase() !== policy.repo.toLowerCase())
         )
           throw new Error("Repository operation is outside the worker authorization");
+        if (unverifiedTargetOperations.has(event.toolName))
+          throw new Error(`Repository policy cannot verify the target for ${event.toolName}`);
+        if (event.toolName.startsWith("github_") && typeof event.input?.repo !== "string")
+          throw new Error("A repository string is required for GitHub operations");
         authorizeRepositoryOperation(event.toolName, event.input, policy);
       } catch (error) {
         return { block: true, reason: error.message };

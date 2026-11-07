@@ -371,8 +371,19 @@ test("every GitHub suite repository input is confined to the authorized reposito
       ].includes(name)
     )
       extra = { pullNumber: 1, ...(name === "github_pull_request_update" ? { title: "x" } : {}) };
-    for (const repo of [policy.repo, policy.repo.toUpperCase()])
-      assert.equal(await guard({ toolName: name, input: { repo, ...extra } }), undefined, `${name}: ${repo}`);
+    const unverified = [
+      "github_project_fields",
+      "github_project_item_add",
+      "github_project_item_find",
+      "github_project_field_set",
+      "github_pull_request_review_inline_comment",
+      "github_pull_request_review_submit",
+    ].includes(name);
+    for (const repo of [policy.repo, policy.repo.toUpperCase()]) {
+      const result = await guard({ toolName: name, input: { repo, ...extra } });
+      if (unverified) assert.match(result?.reason ?? "", /cannot verify/, name);
+      else assert.equal(result, undefined, `${name}: ${repo}`);
+    }
     for (const repo of ["other/repo", `${policy.repo} `, `${policy.repo}/x`])
       assert.match(
         (await guard({ toolName: name, input: { repo, ...extra } }))?.reason ?? "",
@@ -380,5 +391,76 @@ test("every GitHub suite repository input is confined to the authorized reposito
         `${name}: ${repo}`,
       );
   }
-  assert.equal(await guard({ toolName: "github_pull_request_review_submit", input: { reviewId: 1 } }), undefined);
+  assert.match(
+    (await guard({ toolName: "github_pull_request_review_submit", input: { reviewId: 1 } })).reason,
+    /cannot verify/,
+  );
+});
+
+test("registered suite dispatch denies unverified project and review targets before execution", async () => {
+  const handlers = new Map();
+  const tools = new Map();
+  const executed = [];
+  const shapes = {
+    github_project_item_add: Type.Object({ org: Type.String(), project: Type.Number(), url: Type.String() }),
+    github_pull_request_review_submit: Type.Object({ reviewId: Type.String() }),
+    github_pull_request_review_start: Type.Object({
+      repo: Type.String(),
+      pullNumber: Type.Number(),
+      body: Type.Optional(Type.String()),
+    }),
+    github_pull_request_review_inline_comment: Type.Object({
+      repo: Type.String(),
+      pullNumber: Type.Number(),
+      reviewId: Type.String(),
+      path: Type.String(),
+      line: Type.Number(),
+      side: Type.Optional(Type.String()),
+      body: Type.String(),
+    }),
+    github_issue_view: Type.Object({ repo: Type.String() }),
+  };
+  const module = {
+    activateSuite(pi) {
+      for (const [name, parameters] of Object.entries(shapes))
+        pi.registerTool({ name, parameters, execute: async () => executed.push(name) });
+    },
+  };
+  githubSuiteExtension({ module, workspace: new MemoryProvider(), token: "t", policy, transport: {} })({
+    registerTool: (tool) => tools.set(tool.name, tool),
+    on: (name, handler) => handlers.set(name, handler),
+  });
+  const dispatch = async (toolName, input) => {
+    const blocked = await handlers.get("tool_call")({ toolName, input });
+    if (blocked?.block) return blocked;
+    await tools.get(toolName).execute("test", input);
+  };
+  for (const url of [`https://github.com/${policy.repo}/issues/1`, "https://github.com/other/repo/issues/1"])
+    assert.match(
+      (await dispatch("github_project_item_add", { org: "other", project: 1, url })).reason,
+      /cannot verify/,
+    );
+  for (const reviewId of ["own-review", "other-repository-review"])
+    assert.match((await dispatch("github_pull_request_review_submit", { reviewId })).reason, /cannot verify/);
+  assert.match(
+    (
+      await dispatch("github_pull_request_review_inline_comment", {
+        repo: policy.repo,
+        pullNumber: 1,
+        reviewId: "other-repository-review",
+        path: "src/a.mjs",
+        line: 1,
+        body: "comment",
+      })
+    ).reason,
+    /cannot verify/,
+  );
+  for (const input of [{}, { repo: 1 }, { repo: null }])
+    assert.match((await dispatch("github_issue_view", input)).reason, /repository.*required/i);
+  assert.match(
+    (await dispatch("github_issue_view", { repo: "other/repo" })).reason,
+    /outside the worker authorization/,
+  );
+  assert.equal(await dispatch("github_pull_request_review_start", { repo: policy.repo, pullNumber: 1 }), undefined);
+  assert.deepEqual(executed, ["github_pull_request_review_start"]);
 });
