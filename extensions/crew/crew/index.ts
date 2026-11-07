@@ -50,8 +50,6 @@ const parameters = Type.Object({
   environment: Type.Optional(
     Type.Object({
       microvm: Type.Union([Type.Literal("auto"), Type.Literal("gondolin")]),
-      dependencyCache: Type.Optional(Type.Union([Type.Literal("none"), Type.Literal("required")])),
-      guestProfile: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
       repository: Type.Optional(
         Type.Object({
           repo: Type.String(),

@@ -81,7 +81,7 @@ test("everything that can be known up front is validated before any agent or VM 
   }
 });
 
-test("an unavailable repository revision, a missing credential and a missing cache fail the launch before any agent", async () => {
+test("an unavailable repository revision and a missing credential fail the launch before any agent", async () => {
   const github = [{ suite: "collaboration/pi-github-tools", operations: ["github_git_push"] }];
   const bad = host({
     deps: {
@@ -100,19 +100,7 @@ test("an unavailable repository revision, a missing credential and a missing cac
     (await noToken.call("launch", launch({ members: [member(A, { suiteGrants: github })] }))).error.message,
     /no Crew credential/,
   );
-  const noCache = host({
-    deps: {
-      resolveDependencyCache: () => {
-        throw new Error("Repository dependency cache abc is unavailable.");
-      },
-    },
-  });
-  assert.match(
-    (await noCache.call("launch", launch({ environment: { dependencyCache: "required", guestProfile: "p" } }))).error
-      .message,
-    /cache abc is unavailable/,
-  );
-  for (const h of [bad, noToken, noCache]) assert.deepEqual(h.created, []);
+  for (const h of [bad, noToken]) assert.deepEqual(h.created, []);
 });
 
 test("a valid launch starts the crew, forwards results and states tagged with the run, and tracks activity", async () => {

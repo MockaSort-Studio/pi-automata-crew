@@ -14,7 +14,7 @@ const WRITE_OPERATIONS = ["github_git_commit", "github_git_push"];
 // Everything one member needs, from its spec (the role's tools and grants, unchanged) and the crew's shared
 // context: its own VM environment seeded from the repository revision, the routed built-in tools, the GitHub
 // suite on the host if it was granted, and, only if it may write, a host-side rescue of its work.
-// `crew`: { runId, dir, repository?, seedArchive?, github?: { module, token }, dependencyCache?, modelRuntime, idleMs }
+// `crew`: { runId, dir, repository?, seedArchive?, github?: { module, token }, modelRuntime, idleMs }
 export async function createMemberAgent({ member, crew, onEvent }) {
   const cwd = join(crew.dir, "agents", member.handle, "cwd");
   mkdirSync(cwd, { recursive: true });
@@ -24,7 +24,6 @@ export async function createMemberAgent({ member, crew, onEvent }) {
   const environment = createEnvironment({
     localCwd: cwd,
     label: member.handle,
-    dependencyCache: crew.dependencyCache,
     idleMs: crew.idleMs,
     seed: crew.seedArchive ? (workspace) => populateRepositoryWorkspace(workspace, crew.seedArchive) : undefined,
   });

@@ -6,7 +6,6 @@ import {
   resolveNixGuestSuiteRequests,
 } from "../../env-runtime/lib/armory-nix.mjs";
 import { checkLaunchCredentials } from "../../env-runtime/lib/credentials.mjs";
-import { resolveRepositoryDependencyCache } from "../../env-runtime/lib/repository-dependency-cache.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
 import { realizeOrFallback } from "./armory-fallback.mjs";
 
@@ -39,13 +38,6 @@ export async function resolveLaunchEnvironment(config, dependencies = {}) {
   const suiteTools = resolution.sandbox
     ? await (dependencies.resolveArmoryToolSuites ?? resolveNixGuestSuiteRequests)({ catalog, requests: suiteRequests })
     : [];
-  const dependencyCache =
-    resolution.sandbox && config.environment.dependencyCache === "required"
-      ? (dependencies.resolveRepositoryDependencyCache ?? resolveRepositoryDependencyCache)({
-          cwd: dependencies.cwd ?? process.cwd(),
-          profile: config.environment.guestProfile,
-        })
-      : undefined;
   const agents = config.agents.map((agent) => {
     const suites = suiteTools.filter((suite) => (agent.suiteGrants ?? []).some((grant) => grant.suite === suite.suite));
     const tools = [...new Set([...(agent.tools ?? []), ...suites.flatMap((suite) => suite.tools)])];
@@ -62,7 +54,6 @@ export async function resolveLaunchEnvironment(config, dependencies = {}) {
             },
           }
         : {}),
-      ...(dependencyCache ? { dependencyCache: { key: dependencyCache.key, profile: dependencyCache.profile } } : {}),
       ...(repositoryAuthorizationFor(config.environment.repository, config.runId, agent.name)
         ? {
             repositoryAuthorization: repositoryAuthorizationFor(

@@ -1,5 +1,5 @@
 import { appendFileSync, readFileSync } from "node:fs";
-import { MemoryProvider, ReadonlyProvider, RealFSProvider } from "@earendil-works/gondolin";
+import { MemoryProvider } from "@earendil-works/gondolin";
 import {
   createBashTool,
   createEditTool,
@@ -21,7 +21,6 @@ import {
 import { bashOperations } from "./gondolin-worker-shell.mjs";
 import { createGondolinNixLayer } from "./gondolin-nix-layer.mjs";
 import { readWorkerArmoryConfig } from "./worker-armory-config.mjs";
-import { verifyGuestDependencyCache, workerDependencyCache } from "./repository-dependency-cache.mjs";
 import { seedRepositoryWorkspace } from "./repository-workspace.mjs";
 import { createTrackedVm } from "./vm-lifecycle.mjs";
 import { consumeCredentialLease, revokeCredentialLease } from "./credentials.mjs";
@@ -95,10 +94,6 @@ async function startVm(localCwd) {
       },
     );
   await workspaceSeed;
-  const dependencyCache = workerDependencyCache({
-    ...(process.env.PI_CREW_WORKER_CONFIG ? JSON.parse(readFileSync(process.env.PI_CREW_WORKER_CONFIG, "utf8")) : {}),
-    cwd: localCwd,
-  });
   const secrets = Object.fromEntries(
     (armory.network?.credentials ?? [])
       .filter((credential) => credentialLease.credentials.has(credential.environment))
@@ -120,27 +115,12 @@ async function startVm(localCwd) {
     vfs: {
       mounts: {
         [GUEST_WORKSPACE]: workspace,
-        // A required implementation cache is a lockfile-keyed, read-only child mount
-        // in the otherwise private guest workspace.
-        ...(dependencyCache
-          ? {
-              [`${GUEST_WORKSPACE}/node_modules`]: new ReadonlyProvider(
-                new RealFSProvider(dependencyCache.modulesPath),
-              ),
-            }
-          : {}),
         ...(armory.paths.length ? createGondolinNixLayer(armory.paths) : {}),
       },
     },
   });
-  try {
-    if (dependencyCache) await verifyGuestDependencyCache(created, dependencyCache);
-    vm = created;
-    return created;
-  } catch (error) {
-    await created.close();
-    throw error;
-  }
+  vm = created;
+  return created;
 }
 
 async function ensureVm(localCwd) {

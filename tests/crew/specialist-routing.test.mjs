@@ -97,8 +97,6 @@ test("routing sends current-layout paths to the persona whose domain they belong
   assert.equal(first("extensions/crew/runner/agent-run.mjs"), "snowball");
   assert.equal(first("extensions/crew/crew/lib/host-monitor.ts"), "frontenzo");
   assert.equal(first("extensions/crew/crew/lib/member-authority.mjs"), "bollo");
-  assert.equal(first("extensions/crew/env-runtime/lib/repository-dependency-cache.mjs"), "bollo");
-  assert.equal(first("scripts/build-guest-dependency-cache.mjs"), "mergio");
   assert.equal(first("tests/runtime/shell-policy.test.mjs"), "bollo");
   assert.equal(first("tests/runtime/crew-battle.test.mjs"), "tomashco");
   assert.equal(first("README.md"), "indiana-docs");

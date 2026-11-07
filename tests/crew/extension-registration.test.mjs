@@ -30,10 +30,6 @@ test("the package entry point loads Crew only, not the earlier runtime", () => {
 test("start_crew schema exposes the bounded microVM environment contract", () => {
   assert.match(source, /environment: Type\.Optional\(\s*Type\.Object\(/);
   for (const value of ["auto", "gondolin"]) assert.match(source, new RegExp(`Type\\.Literal\\("${value}"\\)`));
-  assert.match(
-    source,
-    /dependencyCache: Type\.Optional\(Type\.Union\(\[Type\.Literal\("none"\), Type\.Literal\("required"\)\]\)\)/,
-  );
 });
 
 test("the extension wires session shutdown to stopHostOnQuit (its behavior is tested in crew-host.test.mjs)", () => {

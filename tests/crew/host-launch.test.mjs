@@ -27,8 +27,6 @@ const config = (agents, extra = {}) => ({
     task: i ? "" : "the assignment",
   })),
   environment: {
-    dependencyCache: "required",
-    guestProfile: "gondolin-alpine-node24",
     repository: { repo: "o/r", revision: "a".repeat(40), base: "main" },
   },
   ...extra,
@@ -44,7 +42,7 @@ test("assembly output becomes a host launch: instructions, assignment, ordering,
   assert.equal(spec.runId, "11111111-1111-1111-1111-111111111111");
   assert.equal(spec.crewDir, "/crews/x");
   assert.deepEqual(spec.repository, { repo: "o/r", revision: "a".repeat(40), base: "main" });
-  assert.deepEqual(spec.environment, { dependencyCache: "required", guestProfile: "gondolin-alpine-node24" });
+  assert.equal(spec.environment, undefined);
   const [a, b] = spec.members;
   assert.deepEqual(
     [a.handle, a.instructions, a.task, a.dependsOn],

@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { resolveArmoryCatalog } from "../env-runtime/lib/armory-artifacts.mjs";
-import { resolveRepositoryDependencyCache } from "../env-runtime/lib/repository-dependency-cache.mjs";
 import { resolveRepositorySeed } from "../env-runtime/lib/repository-workspace.mjs";
 import { fetchSuiteExtension } from "./armory-source.mjs";
 import { createDispatcher } from "./dispatcher.mjs";
@@ -48,7 +47,6 @@ const defaults = {
   resolveModel,
   // The repository's seed archive for an exact revision, built from the local repository before any VM exists.
   buildSeed: ({ repo, revision }, cwd) => readFileSync(resolveRepositorySeed({ repo, revision }, { cwd })),
-  resolveDependencyCache: ({ cwd, profile }) => resolveRepositoryDependencyCache({ cwd, profile }),
   async loadGithubModule() {
     const catalog = await resolveArmoryCatalog();
     return loadSuiteModule(await fetchSuiteExtension({ catalog, suiteId: GITHUB_SUITE }));
@@ -68,7 +66,7 @@ export function createHostCore({ send, deps = {} }) {
   const secretsOf = () => [d.env.HALL_GITHUB_TOKEN].filter(Boolean);
   const scrub = (text) => secretsOf().reduce((out, secret) => out.split(secret).join("[redacted]"), String(text));
 
-  async function launch({ runId, crewDir, repository, members, environment = {}, maxParallel, idleMs }) {
+  async function launch({ runId, crewDir, repository, members, maxParallel, idleMs }) {
     if (!runId || crews.has(runId)) throw new Error(`Crew ${runId} already exists`);
     if (!Array.isArray(members) || !members.length) throw new Error("A crew needs at least one member");
     for (const member of members)
@@ -122,8 +120,6 @@ export function createHostCore({ send, deps = {} }) {
       githubModule ??= await d.loadGithubModule();
       crew.github = { module: githubModule, token };
     }
-    if (environment.dependencyCache === "required")
-      crew.dependencyCache = d.resolveDependencyCache({ cwd: d.cwd, profile: environment.guestProfile });
 
     crews.set(runId, { dispatcher, activity, live });
     dispatcher.start();

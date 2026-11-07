@@ -1,8 +1,7 @@
-import { MemoryProvider, ReadonlyProvider, RealFSProvider } from "@earendil-works/gondolin";
+import { MemoryProvider } from "@earendil-works/gondolin";
 import { createGuestNetwork } from "../env-runtime/lib/guest-network.mjs";
 import { GUEST_WORKSPACE } from "../env-runtime/lib/gondolin-worker-paths.mjs";
 import { chooseVmm } from "../env-runtime/lib/guest-vmm.mjs";
-import { verifyGuestDependencyCache } from "../env-runtime/lib/repository-dependency-cache.mjs";
 import { createTrackedVm } from "../env-runtime/lib/vm-lifecycle.mjs";
 
 // VM creation is serialized process-wide: a VM's own process is identified among this process's children
@@ -19,7 +18,6 @@ export function createEnvironment({
   allowedHosts = [],
   secrets = {},
   onDenied,
-  dependencyCache,
   idleMs = 20_000,
   createVm = createTrackedVm,
   vmm = chooseVmm(),
@@ -59,24 +57,10 @@ export function createEnvironment({
       vfs: {
         mounts: {
           [GUEST_WORKSPACE]: workspace,
-          // A lockfile-keyed, read-only cache replaces only node_modules inside the private workspace.
-          ...(dependencyCache
-            ? {
-                [`${GUEST_WORKSPACE}/node_modules`]: new ReadonlyProvider(
-                  new RealFSProvider(dependencyCache.modulesPath),
-                ),
-              }
-            : {}),
         },
       },
     });
-    try {
-      if (dependencyCache) await verifyGuestDependencyCache(created, dependencyCache);
-      return created;
-    } catch (error) {
-      await created.close();
-      throw error;
-    }
+    return created;
   }
 
   const api = {

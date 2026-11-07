@@ -65,8 +65,6 @@ test("prepareCrew preserves a selected lead instead of synthesizing one", async 
     // actually usable (see tests/crew/environment-startup.test.mjs).
     assert.deepEqual(config.environment, {
       microvm: "auto",
-      dependencyCache: "none",
-      guestProfile: "gondolin-alpine-node24",
     });
     assert.deepEqual(
       config.agents.map((agent) => agent.sandbox),
