@@ -44,6 +44,7 @@ export function copyDependencyCacheModules(source, destination) {
           }
         }
       }
+      if (statSync(current).isDirectory()) throw new Error("target is a directory");
     } catch (error) {
       throw new Error(`Invalid dependency cache executable link ${path}: ${error.message}`);
     }
@@ -51,6 +52,8 @@ export function copyDependencyCacheModules(source, destination) {
   const visit = (directory) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
+      if (entry.name === ".bin" && entry.isSymbolicLink())
+        throw new Error(`Invalid dependency cache executable link ${path}: .bin is a symbolic link`);
       if (directory.endsWith(`${sep}.bin`)) check(path);
       if (entry.isDirectory()) visit(path);
     }
