@@ -28,7 +28,7 @@ export function queuedMessage(prepared) {
 }
 export async function prepareCrew(pi, input, ctx, configDir) {
   if (input.completionMode && input.completionMode !== "unattended")
-    throw new Error(`Unsupported SDK Crew completion mode: ${input.completionMode}`);
+    throw new Error(`Unsupported Crew completion mode: ${input.completionMode}`);
   for (const model of [input.model, ...input.members.map((member) => member.model)]) {
     if (typeof model === "string" && ["", "inherit", "default"].includes(model.trim().toLowerCase()))
       throw new Error('Omit model to use Pi\'s current default; "inherit" and "default" are not model IDs.');

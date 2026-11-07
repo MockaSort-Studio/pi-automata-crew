@@ -5,7 +5,7 @@ import { Type } from "typebox";
 import { assemble } from "./lib/assembly.mjs";
 import { prepareCrew, queuedMessage } from "./lib/startup.mjs";
 import { launchOnHost } from "./lib/host-launch.mjs";
-import { bindCrewHost, crewHost } from "./lib/crew-host.mjs";
+import { bindCrewHost, crewHost, stopHostOnQuit } from "./lib/crew-host.mjs";
 import { registerHostMonitor } from "./lib/host-monitor.ts";
 import { registerCrewDoctor } from "./lib/crew-doctor.ts";
 import { registerCrewHostTools } from "./lib/crew-host-tools.ts";
@@ -74,10 +74,7 @@ export default function crewExtension(pi: ExtensionAPI) {
   registerCrewHostTools(pi, host);
   registerCrewDoctor(pi);
   const monitor = registerHostMonitor(pi, host);
-  // Quitting stops the host, which closes every VM. A reload leaves running crews alone.
-  pi.on("session_shutdown", async (event: any, ctx: any) => {
-    if (event?.reason === "quit") await host(ctx).stop();
-  });
+  pi.on("session_shutdown", (event: any, ctx: any) => stopHostOnQuit(event, host(ctx)));
 
   pi.registerTool({
     name: "crew_route",
@@ -122,7 +119,7 @@ export default function crewExtension(pi: ExtensionAPI) {
       return new Text(theme.fg("toolTitle", theme.bold("Crew ")) + theme.fg("muted", label), 0, 0);
     },
     renderResult(result, { isPartial }, theme) {
-      if (isPartial) return new Text(theme.fg("warning", "Launching SDK Crew..."), 0, 0);
+      if (isPartial) return new Text(theme.fg("warning", "Launching crew..."), 0, 0);
       const details = result.details as { runId?: string; status?: string } | undefined;
       if (!details?.runId) return new Text(theme.fg("error", "Crew launch failed"), 0, 0);
       // Launch success is already shown by the TUI-only assembled-Crew card appended before

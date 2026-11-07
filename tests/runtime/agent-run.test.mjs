@@ -5,7 +5,8 @@ import { join } from "node:path";
 import test from "node:test";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { createAgentRun, runAgent } from "../../extensions/crew/runner/agent-run.mjs";
+import { createAgentRun } from "../../extensions/crew/runner/agent-run.mjs";
+import { runAgent } from "./run-agent.mjs";
 import { mockModel, providerFor } from "./mock-model.mjs";
 
 const call = (name, args = {}) => ({ toolCall: { name, arguments: JSON.stringify(args) } });

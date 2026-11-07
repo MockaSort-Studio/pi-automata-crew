@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { beforeEach } from "node:test";
-import { bindCrewHost, crewHost } from "../../extensions/crew/crew/lib/crew-host.mjs";
+import { bindCrewHost, crewHost, stopHostOnQuit } from "../../extensions/crew/crew/lib/crew-host.mjs";
 
 // The module keeps one holder for the life of the process (that is what survives /reload); each test starts it empty.
 beforeEach(() => {
@@ -152,4 +152,14 @@ test("a report that cannot be formatted still reaches Main, and is still recorde
     /developer-a-00 reported: completed\. The full report could not be formatted/,
   );
   assert.deepEqual(pi.sent[0].options, { triggerTurn: true, deliverAs: "steer" });
+});
+
+test("quitting Pi stops the host and closing every VM; a reload and other reasons leave running crews alone", async () => {
+  const stops = [];
+  const host = { stop: async () => stops.push("stop") };
+  for (const reason of ["reload", "new", "resume", "fork", undefined]) await stopHostOnQuit({ reason }, host);
+  await stopHostOnQuit(undefined, host);
+  assert.deepEqual(stops, [], "nothing but a quit stops the host");
+  await stopHostOnQuit({ reason: "quit" }, host);
+  assert.deepEqual(stops, ["stop"]);
 });

@@ -144,13 +144,3 @@ export async function createAgentRun({
     },
   };
 }
-
-// One agent, one assignment, then it is disposed.
-export async function runAgent({ task, signal, ...options }) {
-  const run = await createAgentRun(options);
-  try {
-    return await run.prompt(task, { signal });
-  } finally {
-    run.dispose();
-  }
-}
