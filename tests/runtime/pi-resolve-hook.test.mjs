@@ -53,6 +53,26 @@ test("the host process resolves Pi's packages from the user's Pi, not from where
   assert.equal(withHook.stdout.trim(), "the user's Pi / Pi's typebox");
 });
 
+test("only Pi's peers are redirected: the extension's own dependencies, even under the same scope, resolve normally", (t) => {
+  const { root, manifest } = world(t);
+  // Gondolin shares Pi's npm scope but is this extension's own dependency, not one Pi provides.
+  const own = join(root, "app", "node_modules", "@earendil-works", "gondolin");
+  mkdirSync(own, { recursive: true });
+  writeFileSync(
+    join(own, "package.json"),
+    JSON.stringify({ name: "@earendil-works/gondolin", type: "module", exports: "./index.mjs" }),
+  );
+  writeFileSync(join(own, "index.mjs"), 'export const who = "our own gondolin";\n');
+  writeFileSync(
+    join(root, "app", "entry.mjs"),
+    'import { who } from "@earendil-works/gondolin";\nimport { who as pi } from "@earendil-works/pi-coding-agent";\nconsole.log(who, "/", pi);\n',
+  );
+  const result = run(root, { CREW_PI_PARENT_URL: manifest });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), "our own gondolin / the user's Pi");
+  assert.doesNotMatch(result.stderr, /DEP0205/, "uses the supported in-thread hooks API");
+});
+
 test("only Pi's packages are redirected: other bare imports resolve normally", (t) => {
   const { root, manifest } = world(t);
   writeFileSync(join(root, "app", "entry.mjs"), 'import "some-other-package";\n');

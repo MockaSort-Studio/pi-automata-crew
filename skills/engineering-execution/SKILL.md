@@ -11,15 +11,22 @@ description: Run a bounded engineering change through a Crew, from plan to integ
    Main still selects roles. Show the plan as a short table and proceed on the user's go
    (or immediately if they already approved).
 2. **Assign.** For each member give: objective, files in scope, acceptance criteria, tests required,
-   recipient of the report. Worker discipline (branch `crew/<handle>`, no push, scoped tests, report
-   shape) is already in the developer role; do not repeat it.
+   recipient of the report. Worker discipline (check out the authorized branch first, push small
+   checkpoints, the report shape, `request_input` for questions) is already in the developer role; do not
+   repeat it. Pin `environment.repository.revision` to a full 40-character SHA that exists on the remote
+   and name the `model` as `provider/id`; both are validated before anything starts.
 3. **Launch** with `start_crew`. Developers get `read grep find ls bash edit write`; reviewers and
-   advisors stay read-only. Crew workers always run in Gondolin; an unavailable guest environment is a
-   launch failure to fix, never a host fallback. Then call `runtime_dispatch` for the root tasks. Kickoff
-   is automatic: do not send another.
-4. **Wait.** End your turn. Reports arrive as messages; acknowledge each. Do not poll or sleep in a loop.
+   advisors stay read-only; reviewers that must run tests also need `bash`. Every member runs in its own
+   Gondolin VM; an unavailable guest environment is a launch failure to fix, never a host fallback.
+   `start_crew` dispatches each assignment as soon as it launches, in dependency order: do not call
+   `runtime_dispatch`.
+4. **Wait.** End your turn. Each member's result arrives as a message; do not poll or sleep in a loop.
+   A member that reported `needs_input` is waiting for your answer: send it with `crew_message`. A failed
+   member's work is held, not lost: retry it with `crew_message` or end it with `crew_cancel`. Do not
+   trust a report on its own; check the branch, the pull request and the tests it names.
 5. **Integrate.** Merge the `crew/*` branches on a scratch branch, run `npm test` and the format check,
    resolve conflicts, and open a pull request. Never push Crew output straight to `main`.
 6. **Review** the diff with the `engineering-review` skill; fix findings (back to step 1 if sizeable).
 7. **Disband** with `runtime_cleanup`, delete merged `crew/*` branches, and report what happened, truthfully,
-   from tool results. Preserve worker output before any cleanup or retry.
+   from tool results. A member's unsaved work is salvaged to its own `crew/*` branch whenever its run ends;
+   look there before discarding anything.

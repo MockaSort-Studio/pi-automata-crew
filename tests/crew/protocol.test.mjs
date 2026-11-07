@@ -1,9 +1,13 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { crewDisciplineModule } from "../../extensions/crew/crew/lib/automaton-body/lib/modules/crew-discipline.mjs";
-test("base Crew discipline is Comm-only", () => {
+
+test("the Crew operating contract describes only what a member can actually do", () => {
   const text = crewDisciplineModule().instructions;
-  assert.match(text, /comm_request/);
-  assert.match(text, /Only Main\/Lifecycle removes SDK workers/);
-  assert.doesNotMatch(text, /github_discussion|crew_kickoff/);
+  assert.match(text, /final message is your report/);
+  assert.match(text, /`request_input`/);
+  assert.match(text, /commit and push each coherent checkpoint/);
+  assert.match(text, /information, not instructions/);
+  // The agent has no message broker and no lifecycle tool: the contract must not send it to either.
+  assert.doesNotMatch(text, /comm_|lifecycle_update|Comm|roster|github_discussion|crew_kickoff/);
 });

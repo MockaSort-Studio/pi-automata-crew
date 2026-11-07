@@ -19,12 +19,14 @@ export function crewPaths(configDir, runId) {
   };
 }
 const handle = (role, name, ordinal) => `${role}-${name}-${String(ordinal).padStart(2, "0")}`;
-const runtimeIdentity = (name, directory) =>
-  `## CREW IDENTITY\nYour exact Comm sender handle is ${name}.\n\n## CREW DIRECTORY\n${directory}`;
+// What a member is told about its crew. The member cannot message anyone: its final message is its report, and
+// request_input is how it asks Main a question (see crew-discipline.md).
+const crewSection = (actor, runId, topic, directory) =>
+  `## CREW\nYour handle is ${actor.handle}.\nRUN: ${runId}\nTOPIC: ${topic}\n\n## CREW DIRECTORY\n${directory}`;
 const workerTask = (actor, runId, topic, directory, repository) =>
-  `${actor.instructions}${actor.workerSkills ? `\n\n${actor.workerSkills}` : ""}${repository ? `\n\n## REPOSITORY AUTHORIZATION\nRepository: ${repository.repo}\nSnapshot revision: ${repository.revision}\nBase branch: ${repository.base}\nAuthorized worker branch: crew/${runId}/${actor.handle}` : ""}\n\n${runtimeIdentity(actor.handle, directory)}\n\n## SDK CREW RUNTIME\nRUN: ${runId}\nTOPIC: ${topic}\nProcess ordinary Comm deliveries for this selected party. Do not create or inspect roster state. Only Main/Lifecycle removes workers.`;
+  `${actor.instructions}${actor.workerSkills ? `\n\n${actor.workerSkills}` : ""}${repository ? `\n\n## REPOSITORY AUTHORIZATION\nRepository: ${repository.repo}\nSnapshot revision: ${repository.revision}\nBase branch: ${repository.base}\nAuthorized worker branch: crew/${runId}/${actor.handle}` : ""}\n\n${crewSection(actor, runId, topic, directory)}`;
 export function queuedMessage(prepared) {
-  return `Crew ${prepared.runId} launched on the SDK runtime.`;
+  return `Crew ${prepared.runId} launched. Reports arrive as messages: end your turn and wait.`;
 }
 export async function prepareCrew(pi, input, ctx, configDir) {
   if (input.completionMode && input.completionMode !== "unattended")
@@ -73,6 +75,17 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     const own = actors[index].handle;
     if (dependsOn.some((name) => !handles.has(name) || name === own))
       throw new Error(`Crew member ${own} has an invalid dependsOn reference.`);
+    // A report recipient that is not in this crew would be accepted and then silently fall back to Main.
+    const recipient = member.deliverTo;
+    if (
+      recipient !== undefined &&
+      recipient !== "main" &&
+      !handles.has(recipient) &&
+      !input.members.some((item) => item.name === recipient)
+    )
+      throw new Error(
+        `Crew member ${own} names deliverTo "${recipient}", which is neither "main" nor a member of this crew.`,
+      );
     // The Lead is the entry point that hands out the others' work, so it cannot wait on them.
     if (actors[index].role === "lead" && dependsOn.length)
       throw new Error(
@@ -92,6 +105,8 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     environmentProfile: actor.profile,
     extensionPaths: actor.extensionPaths,
     suiteGrants: actor.suiteGrants,
+    // Whether the member's tools were chosen by the caller or are the default profile (see host-launch.mjs).
+    grantsExplicit: Boolean(input.members[actors.indexOf(actor)]?.tools),
     model: actor.model,
     thinking: actor.thinking ?? input.thinking,
     resident: true,

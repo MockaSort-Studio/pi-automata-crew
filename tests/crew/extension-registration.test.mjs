@@ -4,10 +4,27 @@ import { test } from "node:test";
 
 const source = readFileSync(new URL("../../extensions/crew/crew/index.ts", import.meta.url), "utf8");
 
-test("crew extension imports all tool registration functions", () => {
-  assert.match(source, /runtimeFor/);
-  assert.doesNotMatch(source, /registerCommunicationTools/);
-  assert.match(source, /import.*registerRosterTools.*from.*roster-tools/);
+test("crew extension is wired to the crew host, not to the earlier runtime", () => {
+  assert.match(source, /import.*registerCrewHostTools.*from.*crew-host-tools/);
+  assert.match(source, /import.*launchOnHost.*from.*host-launch/);
+  assert.match(source, /import.*bindCrewHost.*from.*crew-host/);
+  // Comm, Lifecycle, the monitor and the roster tools belong to the earlier runtime: kept, not loaded.
+  for (const old of [
+    /runtimeFor/,
+    /shared-runtime/,
+    /registerCrewMonitor/,
+    /registerRosterTools/,
+    /registerTerminalNotifierSession/,
+    /launchPreparedCrew/,
+  ])
+    assert.doesNotMatch(source, old);
+});
+
+test("the package entry point loads Crew only, not the earlier runtime", () => {
+  const entry = readFileSync(new URL("../../extensions/crew.ts", import.meta.url), "utf8");
+  assert.match(entry, /import crew from/);
+  assert.doesNotMatch(entry, /^import .*crew-runtime/m);
+  assert.doesNotMatch(entry, /runtime\(pi\)/);
 });
 
 test("start_crew schema exposes the bounded microVM environment contract", () => {
@@ -19,23 +36,23 @@ test("start_crew schema exposes the bounded microVM environment contract", () =>
   );
 });
 
-test("crew extension wires terminal notifications through Main session flow", () => {
-  assert.match(source, /attachTerminalNotifier/);
-  assert.match(source, /attachTerminalNotifier\(ctx\)/);
+test("quitting stops the host (closing every VM) and a reload does not", () => {
+  assert.match(source, /pi\.on\("session_shutdown"/);
+  assert.match(source, /event\?\.reason === "quit"/);
+  assert.match(source, /host\(ctx\)\.stop\(\)/);
+  assert.match(source, /bindCrewHost\(pi\)/);
 });
 
 test("Crew assembly preview is a TUI-only entry before runtime launch, not a Main message", () => {
   assert.match(source, /registerCrewAssemblyCard\(pi\)/);
   assert.match(source, /pi\.appendEntry\(CREW_ASSEMBLED_ENTRY, assemblyCardData\(prepared, input\)\)/);
-  assert.ok(
-    source.indexOf("pi.appendEntry(CREW_ASSEMBLED_ENTRY") < source.indexOf("launchPreparedCrew(ctx.cwd, prepared)"),
-  );
+  assert.ok(source.indexOf("pi.appendEntry(CREW_ASSEMBLED_ENTRY") < source.indexOf("launchOnHost({"));
   assert.doesNotMatch(source, /sendMessage\([^)]*CREW_ASSEMBLED_ENTRY/);
 });
 
-test("crew extension calls all tool registration functions", () => {
+test("crew extension registers the host tools", () => {
   assert.doesNotMatch(source, /registerCommunicationTools\(pi\)/);
-  assert.match(source, /registerRosterTools\(pi\)/);
+  assert.match(source, /registerCrewHostTools\(pi, host\)/);
 });
 
 test("start_crew no longer renders a redundant final success line", () => {
