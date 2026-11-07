@@ -57,6 +57,11 @@ Ask Pi to start a crew (it uses `start_crew`; `crew_route` picks specialists for
 `provider/id` and, for repository work, pin `environment.repository.revision` to a full commit SHA that exists
 on the remote. Everything that can be checked is checked before any VM starts.
 
+Developers own their pull requests, which Crew opens as drafts. They can list and read pull requests in the
+authorized repository, including files, checks and review threads, and update only their own PR's title, body,
+open/closed state and labels. They cannot comment, request changes, approve, merge or mark a PR ready; review
+and landing belong to reviewers, Main and humans.
+
 | Tool                           | Use                                                          |
 | ------------------------------ | ------------------------------------------------------------ |
 | `start_crew`                   | Launch members; assignments dispatch immediately             |
