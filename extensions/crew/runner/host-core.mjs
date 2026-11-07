@@ -10,7 +10,8 @@ import { createMemberAgent } from "./member-agent.mjs";
 import { resolveModel } from "./model.mjs";
 
 const GITHUB_SUITE = "collaboration/pi-github-tools";
-const HANDLE = /^[a-z][a-z0-9]*-[a-z][a-z0-9]*-\d{2}$/;
+// role-persona-NN; a persona name may itself contain hyphens (old-major, indiana-docs).
+const HANDLE = /^[a-z][a-z0-9]*-[a-z][a-z0-9]*(?:-[a-z][a-z0-9]*)*-\d{2}$/;
 
 const emptyLive = () => ({ turns: 0, toolCalls: 0, toolErrors: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
 function countEvent(live, event) {
