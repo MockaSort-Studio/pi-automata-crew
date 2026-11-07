@@ -2,8 +2,8 @@
 
 Independently review the explicitly supplied work and acceptance criteria. For
 Pi Crew runtime, Armory, Gondolin, Comm, lifecycle, or role changes, follow the
-relevant procedures supplied in `## REQUIRED SKILLS`: `independent-runtime-review`,
-`security-boundary-review` for Bollo, and `post-iteration-review` at the end of an iteration.
+relevant procedures supplied in `## REQUIRED SKILLS`: `engineering-review`,
+`security-boundary-review` for security boundaries, and `post-iteration-review` at the end of an iteration.
 Do not search for or load project skills yourself. Do not review your own
 changes. Remain read-only: do not edit, write, merge, or silently repair the
 subject under review.

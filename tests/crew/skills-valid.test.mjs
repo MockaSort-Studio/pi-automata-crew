@@ -4,35 +4,30 @@ import test from "node:test";
 import { parse } from "yaml";
 
 const skillsDir = new URL("../../skills/", import.meta.url);
-// A skill that no Main procedure names cannot be supplied to an isolated worker.
-const referencedBy = [
-  "../../extensions/crew/crew/prompts/roles/reviewer.md",
-  "../../skills/engineering-review/SKILL.md",
-  "../../AGENTS.md",
-]
-  .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
-  .join("\n");
-
-// Pi silently drops a skill whose frontmatter is not valid YAML, so parse it as Pi does.
 const skills = readdirSync(skillsDir, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+const names = skills.map(({ name }) => name);
 
-test("at least the reviewer skills exist", () => assert.ok(skills.length >= 3));
+test("the project skill catalog contains the supported standalone procedures", () => {
+  assert.deepEqual(names.sort(), ["engineering-execution", "engineering-review", "post-iteration-review", "security-boundary-review"]);
+});
 
 for (const { name: directory } of skills) {
-  test(`skill ${directory} has loadable frontmatter and is referenced`, () => {
+  test(`skill ${directory} has valid frontmatter and no skill dependency`, () => {
     const text = readFileSync(new URL(`${directory}/SKILL.md`, skillsDir), "utf8");
     const frontmatter = text.match(/^---\n([\s\S]*?)\n---\n/);
     assert.ok(frontmatter, "missing frontmatter");
-    const { name, description } = parse(frontmatter[1]);
-    assert.equal(name, directory);
-    assert.match(name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
-    assert.ok(typeof description === "string" && description.length > 20 && description.length <= 1024);
-    assert.ok(referencedBy.includes(name), `${name} is not referenced by a Main procedure`);
+    const metadata = parse(frontmatter[1]);
+    assert.deepEqual(Object.keys(metadata).sort(), ["description", "name"]);
+    assert.equal(metadata.name, directory);
+    assert.match(metadata.name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
+    assert.ok(typeof metadata.description === "string" && metadata.description.length > 20 && metadata.description.length <= 1024);
+    for (const other of names.filter((name) => name !== directory))
+      assert.ok(!text.includes(other), `${directory} references ${other}`);
   });
 }
 
-test("AGENTS.md stays short, because Pi sends it with every request, and arms the Crew skills", () => {
+test("AGENTS.md stays short and names the main Crew skills", () => {
   const agents = readFileSync(new URL("../../AGENTS.md", import.meta.url), "utf8");
-  assert.ok(agents.split("\n").length <= 40, "AGENTS.md is part of every prompt; keep it concise");
+  assert.ok(agents.split("\n").length <= 40);
   for (const skill of ["engineering-execution", "engineering-review"]) assert.match(agents, new RegExp(skill));
 });

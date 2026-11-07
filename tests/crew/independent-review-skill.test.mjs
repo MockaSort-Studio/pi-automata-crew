@@ -1,25 +1,25 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { requiredWorkerSkills } from "../../extensions/crew/crew/lib/worker-skills.mjs";
 
-const skillPath = new URL("../../skills/independent-runtime-review/SKILL.md", import.meta.url);
-const reviewerPath = new URL("../../extensions/crew/crew/prompts/roles/reviewer.md", import.meta.url);
-const iterationSkillPath = new URL("../../skills/post-iteration-review/SKILL.md", import.meta.url);
-const securitySkillPath = new URL("../../skills/security-boundary-review/SKILL.md", import.meta.url);
+const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("the reviewer role invokes the project independent-runtime-review skill", () => {
-  const skill = readFileSync(skillPath, "utf8");
-  const reviewer = readFileSync(reviewerPath, "utf8");
-  const securitySkill = readFileSync(securitySkillPath, "utf8");
-  assert.match(skill, /worker launch failure/);
-  assert.match(skill, /network, credential/);
-  assert.match(skill, /would regress/);
-  assert.match(reviewer, /independent-runtime-review/);
-  const iteration = readFileSync(iterationSkillPath, "utf8");
-  assert.match(reviewer, /post-iteration-review/);
-  for (const section of ["Over-engineering", "Dead code and tests", "Weak spots", "Vulnerabilities"])
-    assert.match(iteration, new RegExp(section));
-  assert.match(reviewer, /security-boundary-review/);
-  assert.match(securitySkill, /deny-by-default/);
-  assert.match(securitySkill, /credential cannot broaden/);
+test("reviewer guidance and worker embedding use the standalone catalog", () => {
+  const review = read("../../skills/engineering-review/SKILL.md");
+  const reviewer = read("../../extensions/crew/crew/prompts/roles/reviewer.md");
+  const iteration = read("../../skills/post-iteration-review/SKILL.md");
+  const security = read("../../skills/security-boundary-review/SKILL.md");
+  for (const phrase of ["worker launch failure", "network, credential", "would regress"]) assert.ok(review.includes(phrase));
+  for (const name of ["engineering-review", "post-iteration-review", "security-boundary-review"]) {
+    assert.ok(reviewer.includes(name));
+    const embedded = requiredWorkerSkills(process.cwd(), [name]);
+    assert.deepEqual(embedded.names, [name]);
+    assert.ok(embedded.text.includes(read(`../../skills/${name}/SKILL.md`)));
+  }
+  for (const section of ["Over-engineering", "Dead code and tests", "Weak spots", "Vulnerabilities"]) assert.ok(iteration.includes(section));
+  assert.match(iteration, /deny-by-default/);
+  assert.match(security, /deny-by-default/);
+  assert.match(security, /credential cannot broaden/);
+  assert.doesNotMatch(security, /Bollo/i);
 });

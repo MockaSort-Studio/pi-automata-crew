@@ -1,7 +1,6 @@
 ---
 name: post-iteration-review
 description: Consistent end-of-iteration review of a Pi Crew change for over-engineering, dead code or tests, weak spots, and vulnerabilities. Use after every development iteration, before it is called done.
-allowed-tools: read grep find ls bash
 ---
 
 # Post-iteration review
@@ -19,8 +18,10 @@ Always report all four sections, even when empty, so reviews stay comparable.
 3. **Weak spots.** Unhandled failure paths, races, unbounded output or retries, state that
    survives a crash or owner death, error messages that hide the cause, behavior documented
    but not enforced.
-4. **Vulnerabilities.** Apply `security-boundary-review`: grants, credentials, network,
-   isolation, supply chain.
+4. **Vulnerabilities.** Identify assets, principals, grants, trust boundaries and attacker actions.
+   Test deny-by-default, absent grants, stale identities and an allowed path. Check least-privilege
+   operations and network, credential scope and secret leakage, isolation and cleanup, and supply
+   chain risks. Record exploitability and evidence; a test must fail if the boundary is removed.
 
 Each finding: file/line, why it matters, minimal fix, severity (blocking/major/minor).
 Finish with `APPROVE`, `REQUEST_CHANGES` or `BLOCKED` and the commands run. Do not edit the work.
