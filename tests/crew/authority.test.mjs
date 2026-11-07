@@ -62,6 +62,29 @@ test("developer PR authority permits ownership operations but not review or merg
   }
 });
 
+test("developer and integrator personas cannot grant review, comment, or merge authority", () => {
+  const prohibited = [
+    "github_pull_request_comment",
+    "github_pull_request_review",
+    "github_pull_request_review_start",
+    "github_pull_request_review_inline_comment",
+    "github_pull_request_review_submit",
+    "github_pull_request_merge",
+  ];
+  const persona = { tools: [...prohibited, "github_pull_request_review_threads"] };
+  for (const role of ["developer", "integrator"]) {
+    const defaults = validateMemberAuthority(persona, role).suiteGrants[0].tools;
+    for (const operation of prohibited) {
+      assert.ok(!defaults.includes(operation));
+      assert.throws(() => validateMemberAuthority(persona, role, grants(github, operation)), /outside/);
+    }
+    assert.ok(defaults.includes("github_pull_request_review_threads"));
+  }
+  for (const operation of prohibited.slice(2, 5)) {
+    assert.doesNotThrow(() => validateMemberAuthority(persona, "reviewer", grants(github, operation)));
+  }
+});
+
 test("persona capabilities union with role policy without widening other personas", () => {
   const domain = { tools: ["edit", "github_project_fields"] };
   assert.deepEqual(

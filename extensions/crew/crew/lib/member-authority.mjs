@@ -6,6 +6,14 @@ import { GITHUB_BASE_TOOL_SET } from "./github-base-tools.mjs";
 const roles = JSON.parse(readFileSync(new URL("../prompts/roles.json", import.meta.url), "utf8"));
 const native = new Set(["read", "grep", "find", "ls", "bash", "edit", "write"]);
 const github = "collaboration/pi-github-tools";
+const implementationRoleCeiling = new Set([
+  "github_pull_request_comment",
+  "github_pull_request_review",
+  "github_pull_request_review_start",
+  "github_pull_request_review_inline_comment",
+  "github_pull_request_review_submit",
+  "github_pull_request_merge",
+]);
 export function validateMemberAuthority(automaton, role, requested) {
   const policy = roles[role];
   if (!policy) throw new Error(`Unknown role "${role}".`);
@@ -13,8 +21,9 @@ export function validateMemberAuthority(automaton, role, requested) {
   const operations = new Set();
   for (const tool of [...policy.tools, ...automaton.tools]) {
     if (native.has(tool)) system.add(tool);
-    else if (GITHUB_BASE_TOOL_SET.has(tool)) operations.add(tool);
-    else throw new Error(`Unknown policy capability "${tool}".`);
+    else if (GITHUB_BASE_TOOL_SET.has(tool)) {
+      if (!(["developer", "integrator"].includes(role) && implementationRoleCeiling.has(tool))) operations.add(tool);
+    } else throw new Error(`Unknown policy capability "${tool}".`);
   }
   const defaults = [
     ...(system.size ? [{ suite: "system", operations: [...system] }] : []),
