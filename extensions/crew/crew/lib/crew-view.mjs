@@ -21,6 +21,7 @@ const metricsOf = (live = {}) => ({
   turns: live.turns,
   toolCalls: live.toolCalls,
   toolErrors: live.toolErrors,
+  compactions: live.compactions,
   ...(live.context && {
     sessionContext: {
       lastPercent: live.context.percent == null ? null : Math.round(live.context.percent),
