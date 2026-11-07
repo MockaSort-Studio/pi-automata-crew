@@ -262,3 +262,19 @@ test("a malformed suite grant fails the launch instead of silently granting noth
   }
   assert.deepEqual(h.created, [], "no agent was created");
 });
+
+test("a persona whose name contains hyphens can launch, while a malformed handle is still refused", async () => {
+  const h = host();
+  const ok = await h.call(
+    "launch",
+    launch({ members: [member("reviewer-indiana-docs-00"), member("lead-old-major-00")] }),
+  );
+  assert.deepEqual(
+    ok.result.members.map((m) => m.handle),
+    ["reviewer-indiana-docs-00", "lead-old-major-00"],
+  );
+  for (const bad of ["indiana-docs", "reviewer--docs-00", "reviewer-docs-0", "Reviewer-docs-00", "reviewer-9docs-00"]) {
+    const reply = await h.call("launch", launch({ runId: `r-${bad}`, members: [member(bad)] }));
+    assert.match(reply.error.message, /Invalid member handle/, bad);
+  }
+});
