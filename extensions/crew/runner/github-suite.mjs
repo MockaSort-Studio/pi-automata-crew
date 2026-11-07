@@ -82,11 +82,18 @@ export function githubSuiteExtension({
       } catch (error) {
         return { block: true, reason: error.message };
       }
+      if (event.toolName === "github_pull_request_create") event.input.draft = true;
       try {
         await ready?.();
       } catch (error) {
         return { block: true, reason: `The workspace could not be prepared: ${error.message}` };
       }
+    });
+    pi.on("tool_result", (event) => {
+      if (event.toolName === "github_pull_request_create" && !event.isError)
+        return {
+          content: [...event.content, { type: "text", text: "Crew policy created this pull request as a draft." }],
+        };
     });
   };
 }
