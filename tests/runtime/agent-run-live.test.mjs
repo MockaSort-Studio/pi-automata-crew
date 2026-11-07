@@ -142,3 +142,34 @@ test("two agents in one process get separate VMs and workspaces", { timeout: 240
   assert.equal((await a.environment.workspace.readFile("/who")).toString(), "alpha\n");
   assert.equal((await b.environment.workspace.readFile("/who")).toString(), "beta\n");
 });
+
+test(
+  "the workspace is seeded without booting the VM, so host-side tools see it first",
+  { timeout: 60_000 },
+  async (t) => {
+    const dir = mkdtempSync(join(tmpdir(), "env-ready-"));
+    t.after(() => rmSync(dir, { recursive: true, force: true }));
+    let seeds = 0;
+    const environment = createEnvironment({
+      localCwd: dir,
+      idleMs: 0,
+      seed: async (ws) => ((seeds += 1), ws.writeFile("/seeded.txt", "yes\n")),
+    });
+    assert.equal(environment.isRunning(), false);
+    await Promise.all([environment.ready(), environment.ready()]);
+    assert.equal(environment.isRunning(), false, "no VM was needed");
+    assert.equal((await environment.workspace.readFile("/seeded.txt")).toString(), "yes\n");
+    assert.equal(seeds, 1, "seeding runs once");
+    let attempts = 0;
+    const flaky = createEnvironment({
+      localCwd: dir,
+      idleMs: 0,
+      seed: async () => {
+        if ((attempts += 1) === 1) throw new Error("first fails");
+      },
+    });
+    await assert.rejects(flaky.ready(), /first fails/);
+    await flaky.ready();
+    assert.equal(attempts, 2, "a failed seed can be retried");
+  },
+);

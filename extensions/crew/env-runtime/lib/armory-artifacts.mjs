@@ -10,6 +10,8 @@ export const pinnedReleaseUrl = (revision) =>
 const STORE_PATH = /^\/nix\/store\/[a-z0-9]{32}-[^/]+$/;
 const NAR_HASH = /^sha256-[A-Za-z0-9+/]{43}=$/;
 const SYSTEMS = ["x86_64-linux", "aarch64-linux"];
+const SOURCE_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]*\.mjs$/;
+export const MAX_SOURCE_BYTES = 8 * 1024 * 1024;
 
 // This is the trust boundary for a downloaded catalog. It is deliberately strict
 // and independent of the producer's own validation.
@@ -26,6 +28,17 @@ export function validateArtifactCatalog(doc, cache = armoryCache) {
   for (const [id, suite] of Object.entries(doc.suites ?? {})) {
     if (suite.manifest?.format !== "hall.armory-suite/v1" || typeof suite.manifestPath !== "string")
       fail(`${id}: embedded manifest is missing`);
+    if (suite.source !== undefined) {
+      const { file, sha256, size } = suite.source;
+      if (
+        !SOURCE_FILE.test(file ?? "") ||
+        !/^[0-9a-f]{64}$/.test(sha256 ?? "") ||
+        !Number.isInteger(size) ||
+        size <= 0 ||
+        size > MAX_SOURCE_BYTES
+      )
+        fail(`${id}: bad source bundle entry`);
+    }
     for (const [system, artifact] of Object.entries(suite.systems ?? {})) {
       if (!SYSTEMS.includes(system)) fail(`${id}: unknown system ${system}`);
       const closure = artifact.closure ?? [];
@@ -53,6 +66,12 @@ export function referenceFromArtifacts(doc) {
     catalog: doc.catalog,
     manifests: Object.fromEntries(Object.values(doc.suites).map((suite) => [suite.manifestPath, suite.manifest])),
     artifacts: Object.fromEntries(Object.entries(doc.suites).map(([id, suite]) => [id, suite.systems])),
+    // Each suite's extension source bundle (file name + sha256), when the release carries one.
+    sources: Object.fromEntries(
+      Object.entries(doc.suites)
+        .filter(([, suite]) => suite.source)
+        .map(([id, suite]) => [id, suite.source]),
+    ),
     release: pinnedReleaseUrl(doc.revision),
   };
 }

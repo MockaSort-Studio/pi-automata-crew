@@ -18,7 +18,8 @@ function recordEvidence(evidence, event) {
   const text = (event.result?.content ?? []).map((part) => part.text ?? "").join("");
   try {
     const result = JSON.parse(text);
-    if (event.toolName === "github_git_commit" && result.commit) evidence.commits.push(result.commit);
+    if (event.toolName === "github_git_commit" && result.commit && !evidence.commits.includes(result.commit))
+      evidence.commits.push(result.commit);
     if (event.toolName === "github_git_push") evidence.pushed = { branch: result.branch, commit: result.commit };
     if (event.toolName === "github_pull_request_create" && result.url) evidence.pullRequest = result.url;
   } catch {}
