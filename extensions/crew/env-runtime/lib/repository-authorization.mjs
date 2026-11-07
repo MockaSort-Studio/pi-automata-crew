@@ -9,7 +9,24 @@ const gitWorkspaceOperations = new Set([
   "github_git_commit",
   "github_git_push",
 ]);
-const guardedOperations = new Set([...gitWorkspaceOperations, "github_pull_request_create"]);
+export const readPullRequestOperations = new Set([
+  "github_pull_requests_list",
+  "github_pull_request_view",
+  "github_pull_request_files",
+  "github_pull_request_checks",
+  "github_pull_request_review_threads",
+]);
+export const ownPullRequestOperations = new Set([
+  "github_pull_request_update",
+  "github_pull_request_add_label",
+  "github_pull_request_remove_label",
+]);
+const guardedOperations = new Set([
+  ...gitWorkspaceOperations,
+  "github_pull_request_create",
+  ...readPullRequestOperations,
+  ...ownPullRequestOperations,
+]);
 
 // Every guarded operation accepts exactly these fields. Anything else, including ref-like fields
 // such as sha/force/remote/refspec, is rejected before any field-level check runs.
@@ -21,6 +38,14 @@ const allowedKeysByOperation = {
   github_git_commit: new Set(["repo", "message"]),
   github_git_push: new Set(["repo", "branch"]),
   github_pull_request_create: new Set(["repo", "head", "base", "title", "body", "draft"]),
+  github_pull_requests_list: new Set(["repo", "state", "limit"]),
+  github_pull_request_view: new Set(["repo", "pullNumber"]),
+  github_pull_request_files: new Set(["repo", "pullNumber"]),
+  github_pull_request_checks: new Set(["repo", "pullNumber"]),
+  github_pull_request_review_threads: new Set(["repo", "pullNumber", "includeResolved"]),
+  github_pull_request_update: new Set(["repo", "pullNumber", "title", "body", "state"]),
+  github_pull_request_add_label: new Set(["repo", "pullNumber", "labels"]),
+  github_pull_request_remove_label: new Set(["repo", "pullNumber", "label"]),
 };
 
 export function repositoryAuthorization(value) {
@@ -67,6 +92,23 @@ export function authorizeRepositoryOperation(operation, input, policy) {
   if (!policy) throw new Error(`Repository authorization is required for ${operation}`);
   assertKnownShape(operation, input);
   if (input.repo !== policy.repo) throw new Error("Repository operation is outside the worker authorization");
+  if (
+    (readPullRequestOperations.has(operation) || ownPullRequestOperations.has(operation)) &&
+    operation !== "github_pull_requests_list" &&
+    (!Number.isInteger(input.pullNumber) || input.pullNumber <= 0)
+  )
+    throw new Error("pullNumber must be a positive integer");
+  if (operation === "github_pull_requests_list") {
+    if ("state" in input && !["open", "closed", "merged", "all"].includes(input.state))
+      throw new Error("Invalid list state");
+    if ("limit" in input && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100))
+      throw new Error("Invalid list limit");
+  }
+  if (operation === "github_pull_request_update") {
+    if (!["title", "body", "state"].some((key) => key in input))
+      throw new Error("Update requires title, body or state");
+    if ("state" in input && !["open", "closed"].includes(input.state)) throw new Error("Invalid update state");
+  }
   if (
     operation === "github_workspace_checkout" &&
     (input.revision !== policy.revision || input.branch !== policy.branch)

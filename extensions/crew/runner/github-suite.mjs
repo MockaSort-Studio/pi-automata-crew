@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import { authorizeRepositoryOperation } from "../env-runtime/lib/repository-authorization.mjs";
+import {
+  authorizeRepositoryOperation,
+  ownPullRequestOperations,
+} from "../env-runtime/lib/repository-authorization.mjs";
 import { workspaceFs } from "./workspace-fs.mjs";
 
 const run = promisify(execFile);
@@ -75,12 +78,33 @@ export function githubSuiteExtension({
   transport = hostGhTransport({ token }),
 }) {
   return (pi) => {
+    const ownedPullRequests = new Set();
     module.activateSuite(pi, injection({ workspace, token, transport }));
     pi.on("tool_call", async (event) => {
       try {
         authorizeRepositoryOperation(event.toolName, event.input, policy);
       } catch (error) {
         return { block: true, reason: error.message };
+      }
+      if (ownPullRequestOperations.has(event.toolName) && !ownedPullRequests.has(event.input.pullNumber)) {
+        try {
+          const pr = JSON.parse(
+            await transport.run([
+              "pr",
+              "view",
+              String(event.input.pullNumber),
+              "--repo",
+              policy.repo,
+              "--json",
+              "headRefName,baseRefName,isCrossRepository",
+            ]),
+          );
+          if (pr.headRefName !== policy.branch || pr.baseRefName !== policy.base || pr.isCrossRepository !== false)
+            throw new Error("not owned");
+          ownedPullRequests.add(event.input.pullNumber);
+        } catch {
+          return { block: true, reason: "A worker can only change its own pull request" };
+        }
       }
       if (event.toolName === "github_pull_request_create") event.input.draft = true;
       try {
