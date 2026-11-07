@@ -15,14 +15,14 @@ test("guest shell commands receive writable cache locations under /tmp", async (
   });
   try {
     await environment.withVm(async () => {});
-    for (const key of ["XDG_CACHE_HOME", "npm_config_cache"]) {
+    for (const key of ["XDG_CACHE_HOME", "npm_config_cache", "CACHE_DIR"]) {
       assert.match(options.env[key], /^\/tmp\//);
     }
     execFileSync(
       "/bin/sh",
       [
         "-c",
-        'a=$(mktemp "$XDG_CACHE_HOME/crew-test.XXXXXX") && b=$(mktemp "$npm_config_cache/crew-test.XXXXXX") && rm "$a" "$b"',
+        'a=$(mktemp "$XDG_CACHE_HOME/crew-test.XXXXXX") && b=$(mktemp "$npm_config_cache/crew-test.XXXXXX") && c=$(mktemp "$CACHE_DIR/crew-test.XXXXXX") && rm "$a" "$b" "$c"',
       ],
       { env: options.env },
     );
