@@ -14,6 +14,7 @@ export const readPullRequestOperations = new Set([
   "github_pull_request_view",
   "github_pull_request_files",
   "github_pull_request_checks",
+  "github_pull_request_checks_wait",
   "github_pull_request_review_threads",
 ]);
 export const ownPullRequestOperations = new Set([
@@ -26,10 +27,13 @@ const guardedOperations = new Set([
   "github_pull_request_create",
   ...readPullRequestOperations,
   ...ownPullRequestOperations,
+  "github_workflow_runs_list",
+  "github_workflow_run_view",
+  "github_workflow_run_failed_log",
 ]);
 
 // Every guarded operation accepts exactly these fields. Anything else, including ref-like fields
-// such as sha/force/remote/refspec, is rejected before any field-level check runs.
+// such as force/remote/refspec, is rejected before any field-level check runs.
 const allowedKeysByOperation = {
   github_workspace_checkout: new Set(["repo", "revision", "branch"]),
   github_git_status: new Set(["repo"]),
@@ -42,6 +46,10 @@ const allowedKeysByOperation = {
   github_pull_request_view: new Set(["repo", "pullNumber"]),
   github_pull_request_files: new Set(["repo", "pullNumber"]),
   github_pull_request_checks: new Set(["repo", "pullNumber"]),
+  github_pull_request_checks_wait: new Set(["repo", "pullNumber", "sha", "intervalSeconds", "failFast"]),
+  github_workflow_runs_list: new Set(["repo", "workflow", "limit"]),
+  github_workflow_run_view: new Set(["repo", "runId"]),
+  github_workflow_run_failed_log: new Set(["repo", "runId", "maxChars"]),
   github_pull_request_review_threads: new Set(["repo", "pullNumber", "includeResolved"]),
   github_pull_request_update: new Set(["repo", "pullNumber", "title", "body", "state"]),
   github_pull_request_add_label: new Set(["repo", "pullNumber", "labels"]),
@@ -91,7 +99,8 @@ export function authorizeRepositoryOperation(operation, input, policy) {
   if (!guardedOperations.has(operation)) return;
   if (!policy) throw new Error(`Repository authorization is required for ${operation}`);
   assertKnownShape(operation, input);
-  if (input.repo !== policy.repo) throw new Error("Repository operation is outside the worker authorization");
+  if (typeof input.repo !== "string" || input.repo.toLowerCase() !== policy.repo.toLowerCase())
+    throw new Error("Repository operation is outside the worker authorization");
   if (
     (readPullRequestOperations.has(operation) || ownPullRequestOperations.has(operation)) &&
     operation !== "github_pull_requests_list" &&
@@ -104,6 +113,30 @@ export function authorizeRepositoryOperation(operation, input, policy) {
     if ("limit" in input && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100))
       throw new Error("Invalid list limit");
   }
+  if (operation === "github_pull_request_checks_wait") {
+    if ("sha" in input && (typeof input.sha !== "string" || !/^[0-9a-f]{7,64}$/i.test(input.sha)))
+      throw new Error("Invalid sha");
+    if (
+      "intervalSeconds" in input &&
+      (!Number.isInteger(input.intervalSeconds) || input.intervalSeconds < 5 || input.intervalSeconds > 120)
+    )
+      throw new Error("Invalid intervalSeconds");
+    if ("failFast" in input && typeof input.failFast !== "boolean") throw new Error("Invalid failFast");
+  }
+  if (operation === "github_workflow_runs_list") {
+    if ("workflow" in input && typeof input.workflow !== "string") throw new Error("Invalid workflow");
+    if ("limit" in input && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100))
+      throw new Error("Invalid list limit");
+  }
+  if (operation === "github_workflow_run_view" || operation === "github_workflow_run_failed_log") {
+    if (!Number.isInteger(input.runId) || input.runId <= 0) throw new Error("runId must be a positive integer");
+  }
+  if (
+    operation === "github_workflow_run_failed_log" &&
+    "maxChars" in input &&
+    (!Number.isInteger(input.maxChars) || input.maxChars < 1 || input.maxChars > 12000)
+  )
+    throw new Error("Invalid maxChars");
   if (operation === "github_pull_request_update") {
     if (!["title", "body", "state"].some((key) => key in input))
       throw new Error("Update requires title, body or state");

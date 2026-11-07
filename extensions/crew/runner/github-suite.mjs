@@ -82,6 +82,12 @@ export function githubSuiteExtension({
     module.activateSuite(pi, injection({ workspace, token, transport }));
     pi.on("tool_call", async (event) => {
       try {
+        if (
+          event.toolName.startsWith("github_") &&
+          typeof event.input?.repo === "string" &&
+          (!policy || event.input.repo.toLowerCase() !== policy.repo.toLowerCase())
+        )
+          throw new Error("Repository operation is outside the worker authorization");
         authorizeRepositoryOperation(event.toolName, event.input, policy);
       } catch (error) {
         return { block: true, reason: error.message };

@@ -147,13 +147,10 @@ test("the suite is installed with the injected workspace, transport and credenti
   assert.equal((await workspace.readFile("/probe")).toString(), "x", "the injected fs is the environment's workspace");
   assert.deepEqual(
     calls.executed.map(({ name, input }) => [name, input.branch ?? input.repo]),
-    [
-      ["github_git_push", policy.branch],
-      ["github_issue_view", "anyone/anything"],
-    ],
-    "the push to main was blocked before it ran; the authorized push and an unguarded tool executed",
+    [["github_git_push", policy.branch]],
+    "unauthorized calls were blocked before execution",
   );
-  assert.equal(result.usage.toolErrors, 1, "the blocked call surfaced to the agent as an error");
+  assert.equal(result.usage.toolErrors, 2, "the blocked call surfaced to the agent as an error");
 });
 
 test("pull requests are forced to drafts without changing other calls or bypassing authorization", async () => {
@@ -257,7 +254,7 @@ test("PR ownership applies only to writes and fails closed", async () => {
     "github_pull_request_review_submit",
     "github_pull_request_merge",
   ])
-    assert.equal(await call(name, { repo: "other/repo", pullNumber: 2 }), undefined);
+    assert.match((await call(name, { repo: "other/repo", pullNumber: 2 })).reason, /outside the worker authorization/);
   assert.equal(calls.length, count);
 });
 
@@ -299,4 +296,89 @@ test("a host-side tool call waits for the workspace to be seeded, and fails clos
     input: { repo: policy.repo },
   });
   assert.match(blocked.reason, /could not be prepared: seed failed/);
+});
+
+test("every GitHub suite repository input is confined to the authorized repository", async () => {
+  const handlers = new Map();
+  githubSuiteExtension({
+    module: { activateSuite() {} },
+    workspace: new MemoryProvider(),
+    token: "t",
+    policy,
+    transport: {
+      run: async () =>
+        JSON.stringify({ headRefName: policy.branch, baseRefName: policy.base, isCrossRepository: false }),
+    },
+  })({ registerTool() {}, on: (name, handler) => handlers.set(name, handler) });
+  const guard = handlers.get("tool_call");
+  const names = [
+    "github_repo_discussions_set",
+    "github_discussion_comments",
+    "github_discussion_post",
+    "github_discussion_view",
+    "github_discussions_list",
+    "github_discussion_delete",
+    "github_issue_create",
+    "github_issue_view",
+    "github_subissue_add",
+    "github_subissues_list",
+    "github_dependency_add",
+    "github_issues_list",
+    "github_dependency_list",
+    "github_issue_comment",
+    "github_issue_update",
+    "github_label_list",
+    "github_label_create",
+    "github_label_update",
+    "github_issue_add_label",
+    "github_issue_remove_label",
+    "github_project_fields",
+    "github_project_item_add",
+    "github_project_item_find",
+    "github_project_field_set",
+    "github_pull_requests_list",
+    "github_pull_request_view",
+    "github_pull_request_files",
+    "github_pull_request_checks",
+    "github_pull_request_checks_wait",
+    "github_pull_request_review_threads",
+    "github_pull_request_comment",
+    "github_pull_request_update",
+    "github_pull_request_review_start",
+    "github_pull_request_review_inline_comment",
+    "github_pull_request_review_submit",
+    "github_pull_request_review",
+    "github_pull_request_merge",
+    "github_pull_request_add_label",
+    "github_pull_request_remove_label",
+    "github_workflow_runs_list",
+    "github_workflow_run_view",
+    "github_workflow_run_failed_log",
+  ];
+  for (const name of names) {
+    let extra = {};
+    if (["github_workflow_run_view", "github_workflow_run_failed_log"].includes(name)) extra = { runId: 1 };
+    if (
+      [
+        "github_pull_request_view",
+        "github_pull_request_files",
+        "github_pull_request_checks",
+        "github_pull_request_checks_wait",
+        "github_pull_request_review_threads",
+        "github_pull_request_update",
+        "github_pull_request_add_label",
+        "github_pull_request_remove_label",
+      ].includes(name)
+    )
+      extra = { pullNumber: 1, ...(name === "github_pull_request_update" ? { title: "x" } : {}) };
+    for (const repo of [policy.repo, policy.repo.toUpperCase()])
+      assert.equal(await guard({ toolName: name, input: { repo, ...extra } }), undefined, `${name}: ${repo}`);
+    for (const repo of ["other/repo", `${policy.repo} `, `${policy.repo}/x`])
+      assert.match(
+        (await guard({ toolName: name, input: { repo, ...extra } }))?.reason ?? "",
+        /outside the worker authorization/,
+        `${name}: ${repo}`,
+      );
+  }
+  assert.equal(await guard({ toolName: "github_pull_request_review_submit", input: { reviewId: 1 } }), undefined);
 });
