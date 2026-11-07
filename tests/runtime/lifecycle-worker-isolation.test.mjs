@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import test from "node:test";
+import { skipWithoutGit } from "./requires-git.mjs";
 import { LifecycleController } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
 
 // A spawned worker must never receive host-root discovery: it runs inside
@@ -25,7 +26,8 @@ function gitRepo() {
   return cwd;
 }
 
-test("owner shutdown archives a live worker before removing its run directory", async () => {
+test("owner shutdown archives a live worker before removing its run directory", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   try {
@@ -40,7 +42,8 @@ test("owner shutdown archives a live worker before removing its run directory", 
 
 // A worker that dies (or closes the pipe) before reading its token must not take the Lifecycle server
 // down: an unhandled EPIPE on the pipe is an uncaught exception in the server process.
-test("a worker that closes the token pipe unread does not crash the Lifecycle server", async () => {
+test("a worker that closes the token pipe unread does not crash the Lifecycle server", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   try {
@@ -60,7 +63,8 @@ test("a worker that closes the token pipe unread does not crash the Lifecycle se
   }
 });
 
-test("Lifecycle preserves the trusted repository authorization in worker config", async () => {
+test("Lifecycle preserves the trusted repository authorization in worker config", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   const dependencyCache = { key: "a".repeat(64), profile: "gondolin-alpine-node24" };
@@ -87,7 +91,8 @@ test("Lifecycle preserves the trusted repository authorization in worker config"
   }
 });
 
-test("a spawned worker's environment carries no host .pi/runtime discovery variable", async () => {
+test("a spawned worker's environment carries no host .pi/runtime discovery variable", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   try {
@@ -103,7 +108,8 @@ test("a spawned worker's environment carries no host .pi/runtime discovery varia
 // Per-actor Comm token confidentiality: the token reaches the worker only over a private pipe. It is
 // never in worker.json (copied into the archive), nor in the environment (readable by any same-user
 // process).
-test("the Comm token reaches the worker over a private pipe, never its environment, worker.json or archive", async () => {
+test("the Comm token reaches the worker over a private pipe, never its environment, worker.json or archive", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   const token = "super-secret-comm-token-value";

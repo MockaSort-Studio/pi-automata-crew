@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { randomUUID } from "node:crypto";
 import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
 import test from "node:test";
+import { skipWithoutGit } from "./requires-git.mjs";
 import WebSocket from "ws";
 import { CommController } from "../../extensions/crew/crew-runtime/lib/comm-controller.mjs";
 import { connectComm } from "../../extensions/crew/crew-runtime/lib/comm-client.mjs";
@@ -342,7 +343,8 @@ test("Runtime.observeRawComm is a no-op unsubscribe before Comm has started", ()
   assert.doesNotThrow(() => unsubscribe());
 });
 
-test("launchCrew registers the plan it is given, so the Comm server owns that run's typed state from the start", async () => {
+test("launchCrew registers the plan it is given, so the Comm server owns that run's typed state from the start", async (t) => {
+  if (skipWithoutGit(t)) return;
   const runtime = new Runtime(process.cwd()),
     prefix = `plan-${randomUUID()}`;
   try {
@@ -382,7 +384,8 @@ test("launchCrew registers the plan it is given, so the Comm server owns that ru
   }
 });
 
-test("launchCrew without a plan registers nothing (plan is optional)", async () => {
+test("launchCrew without a plan registers nothing (plan is optional)", async (t) => {
+  if (skipWithoutGit(t)) return;
   const runtime = new Runtime(process.cwd()),
     prefix = `noplan-${randomUUID()}`;
   try {
@@ -402,7 +405,8 @@ test("launchCrew without a plan registers nothing (plan is optional)", async () 
   }
 });
 
-test("launchCrew starts isolated agents and Runtime stop removes them", async () => {
+test("launchCrew starts isolated agents and Runtime stop removes them", async (t) => {
+  if (skipWithoutGit(t)) return;
   const runtime = new Runtime(process.cwd()),
     prefix = `launch-${randomUUID()}`;
   const result = await runtime.launchCrew([

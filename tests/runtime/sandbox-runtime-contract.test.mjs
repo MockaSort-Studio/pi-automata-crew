@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { skipWithoutGit } from "./requires-git.mjs";
 import { LifecycleController } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
 
 const stubWorker = new URL("./fixtures/stub-worker.mjs", import.meta.url).pathname;
@@ -20,7 +21,8 @@ function gitRepo() {
   return cwd;
 }
 
-test("Lifecycle writes Crew's Gondolin sandbox to worker config without adding one to standalone workers", async () => {
+test("Lifecycle writes Crew's Gondolin sandbox to worker config without adding one to standalone workers", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const preflight = async (config) => {
     if (config.sandbox) assert.deepEqual(config.sandbox, { kind: "gondolin" });
@@ -49,7 +51,8 @@ test("Lifecycle writes Crew's Gondolin sandbox to worker config without adding o
   }
 });
 
-test("sandbox preflight failure prevents a worker worktree from being launched", async () => {
+test("sandbox preflight failure prevents a worker worktree from being launched", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({
     cwd,

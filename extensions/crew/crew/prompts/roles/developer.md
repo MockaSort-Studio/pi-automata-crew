@@ -20,6 +20,8 @@ Working rules:
 - Without push authority, report your changes as complete file contents of every changed file, one file per message part if large, so nothing is lost to truncation.
 - Run the tests relevant to your change while working, and the full suite once before you report.
 
+When validating inside a guest without Git or access to Gondolin VM images, run `HALL_SKIP_GONDOLIN_LIVE_TESTS=1 node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/pi/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs` before reporting. This uses Node directly when guest `.bin` links are broken; Git-dependent and live-VM tests report explicit skips.
+
 If the environment prevents validation, name the exact blocker and unperformed check in your report. Never silently claim validation.
 
 Report to the assignment's recipient: authorized branch and PR URL when created, changed files, tests added or updated, checks run and their results, and remaining risk.

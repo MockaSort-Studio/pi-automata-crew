@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { skipWithoutGit } from "./requires-git.mjs";
 import git from "isomorphic-git";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
@@ -47,6 +48,7 @@ test("the host gh transport uses only the Crew token and an empty private config
 });
 
 test("isomorphic-git works on the host-held workspace through the fs adapter, matching real Git", async (t) => {
+  if (skipWithoutGit(t)) return;
   const root = mkdtempSync(join(tmpdir(), "suite-fs-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const revision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();

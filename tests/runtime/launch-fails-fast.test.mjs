@@ -5,6 +5,7 @@ import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { skipWithoutGit } from "./requires-git.mjs";
 import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
 
 const piAvailable = () => spawnSync("pi", ["--version"], { stdio: "ignore" }).status === 0;
@@ -28,7 +29,8 @@ function crew(extra) {
   return { agent, plan: { namespace, members: [{ handle, dependsOn: [], task: "x" }] } };
 }
 
-test("a worker that dies before it is ready fails the launch at once, not after the readiness timeout", async () => {
+test("a worker that dies before it is ready fails the launch at once, not after the readiness timeout", async (t) => {
+  if (skipWithoutGit(t)) return;
   // An unreachable Armory release makes worker.mjs exit while preparing, before Pi starts.
   const { agent, plan } = crew({
     armory: {

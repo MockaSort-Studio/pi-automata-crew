@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { once } from "node:events";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
+import { skipWithoutGit } from "./requires-git.mjs";
 import { LifecycleController } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
 import { connectLifecycle } from "../../extensions/crew/crew-runtime/lib/lifecycle-client.mjs";
 import {
@@ -46,7 +47,8 @@ const waitForEventCount = async (cwd, runId, count, timeoutMs = 2_000) => {
   }
 };
 
-test("a worker state change is durably logged before memory is updated, and replay reconstructs it after a restart", async () => {
+test("a worker state change is durably logged before memory is updated, and replay reconstructs it after a restart", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   try {
@@ -77,7 +79,8 @@ test("a worker state change is durably logged before memory is updated, and repl
   }
 });
 
-test("recover() is idempotent: replaying twice never double-records owner_lost for the same dead attempt", async () => {
+test("recover() is idempotent: replaying twice never double-records owner_lost for the same dead attempt", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   try {
@@ -106,7 +109,8 @@ test("recover() is idempotent: replaying twice never double-records owner_lost f
   }
 });
 
-test("a retry is a new linked attempt and the prior attempt's log is unchanged", async () => {
+test("a retry is a new linked attempt and the prior attempt's log is unchanged", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   try {
@@ -142,7 +146,8 @@ test("a retry is a new linked attempt and the prior attempt's log is unchanged",
   }
 });
 
-test("Lifecycle server startup recovers an orphaned worker as owner_lost and archives its evidence", async () => {
+test("Lifecycle server startup recovers an orphaned worker as owner_lost and archives its evidence", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   let serverA, serverB;
   try {
