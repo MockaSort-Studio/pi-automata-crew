@@ -67,6 +67,20 @@ test("the Automata tab shows each member's live turns, tools, errors and tokens"
   assert.equal(renderCrewStatusFooter(snapshot).includes("40 output tokens"), true);
 });
 
+test("the Automata tab shows each member's compaction count, defaulting to zero", () => {
+  const { snapshot } = crewView({
+    runId: RUN,
+    members: [m("developer-a-00", "running", { live: live({ compactions: 3 }) }), m("developer-b-00", "queued")],
+  });
+  assert.deepEqual(
+    buildAutomataTab(snapshot).map((row) => [row.name, row.compactions]),
+    [
+      ["developer-a-00", 3],
+      ["developer-b-00", 0],
+    ],
+  );
+});
+
 test("the Automata tab and snapshot show each member's context usage", () => {
   const { snapshot } = crewView({
     runId: RUN,
