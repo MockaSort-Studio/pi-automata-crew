@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+// A member kept busy for a long time: not `sleep`, which the worker shell policy rejects as polling.
 import { createHostClient } from "../../extensions/crew/runner/host-client.mjs";
 import { listProcesses, vmmChildrenOf } from "../../extensions/crew/env-runtime/lib/vm-processes.mjs";
 import { mockModel } from "./mock-model.mjs";
@@ -70,7 +71,7 @@ test(
   { timeout: 240_000 },
   async (t) => {
     if (skipLiveGondolin(t)) return;
-    const w = await world(t, () => call("bash", { command: "echo begun; sleep 600" }));
+    const w = await world(t, () => call("bash", { command: "echo begun; node -e 'setInterval(() => {}, 1000)'" }));
     await w.launch([member(A)]);
     assert.ok(await waitUntil(() => w.vms().length === 1 && w.server.requests.length >= 1, 60_000));
     await waitUntil(async () => (await w.stateOf(A)) === "running", 5_000);
@@ -167,7 +168,7 @@ test(
   { timeout: 240_000 },
   async (t) => {
     if (skipLiveGondolin(t)) return;
-    const w = await world(t, () => call("bash", { command: "sleep 600" }));
+    const w = await world(t, () => call("bash", { command: "node -e 'setInterval(() => {}, 1000)'" }));
     await w.launch([member(A)]);
     assert.ok(await waitUntil(() => w.vms().length === 1, 60_000));
     const oldVms = w.vms();
