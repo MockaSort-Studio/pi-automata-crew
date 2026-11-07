@@ -9,7 +9,8 @@ const reject = (reason) => ({ reason, message: `Crew shell policy rejected this 
 // Tokenize shell words while retaining quoted text as arguments. Scan command substitutions
 // separately: unlike ordinary quoted text they execute even inside double quotes.
 function tokenize(source) {
-  const tokens = [];
+  const tokens = [],
+    heredocs = [];
   let word = "",
     active = false,
     quote = "",
@@ -22,9 +23,32 @@ function tokenize(source) {
   };
   for (let i = 0; i < source.length; i++) {
     const ch = source[i];
+    if (!quote && ch === "\n" && heredocs.length) {
+      flush();
+      tokens.push("\n");
+      for (const { delimiter, tabs } of heredocs.splice(0)) {
+        let found = false;
+        while (i + 1 < source.length) {
+          const start = i + 1,
+            end = source.indexOf("\n", start);
+          const line = source.slice(start, end < 0 ? source.length : end);
+          i = end < 0 ? source.length : end;
+          if ((tabs ? line.replace(/^\t+/, "") : line) === delimiter) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) return null;
+      }
+      continue;
+    }
+    if (!quote && ch === "<" && source[i + 1] === "<" && source[i + 2] !== "<") {
+      const match = /^<<(-?)[ \t]*(?:'([^']+)'|"([^"]+)"|([^\s;&|<>(){}'"]+))/.exec(source.slice(i));
+      if (match) heredocs.push({ delimiter: match[2] || match[3] || match[4], tabs: !!match[1] });
+    }
     if (!quote && ch === "#" && !active) {
       while (i < source.length && source[i] !== "\n") i++;
-      if (i < source.length) tokens.push("\n");
+      if (i < source.length) i--;
       continue;
     }
     if (!quote && (ch === "<" || ch === ">" || (ch === "&" && source[i + 1] === ">"))) {
@@ -95,7 +119,7 @@ function tokenize(source) {
     }
   }
   flush();
-  return tokens;
+  return heredocs.length ? null : tokens;
 }
 
 export function evaluateShellCommand(source) {
@@ -105,6 +129,7 @@ export function evaluateShellCommand(source) {
 function scan(source, depth, inherited, state) {
   if (typeof source !== "string" || !source || depth > 20) return null;
   const tokens = tokenize(source);
+  if (!tokens) return reject("unterminated heredoc");
   let start = true;
   const loops = [...inherited];
   for (let i = 0; i < tokens.length; i++) {

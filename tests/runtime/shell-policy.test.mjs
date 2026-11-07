@@ -4,6 +4,9 @@ import { evaluateShellCommand } from "../../extensions/crew/runner/shell-policy.
 
 const rejected = [
   ["sleep 280; tail log", "long sleep before log"],
+  ["cat <<EOF; sleep 300\nx\nEOF", "operator line still scanned"],
+  ["sleep 300 <<EOF\nx\nEOF", "command before heredoc still scanned"],
+  ["cat <<EOF\nsleep 300", "unterminated heredoc rejected"],
   ["echo ok && sleep '280'", "quoted duration"],
   ["false || sleep 2m", "duration suffix"],
   ["sleep 1 20", "summed durations"],
@@ -49,6 +52,10 @@ const allowed = [
   ['while [ "$i" -lt 3 ]; do curl localhost; i=$((i+1)); done', "counter loop"],
   ["npm test 2>&1 | tail -20", "single tail"],
   ["sleep 1", "short sleep"],
+  ["cat <<EOF\nsleep 300\nEOF", "heredoc body is data"],
+  ["cat > run.sh <<'EOF'\nsleep 300\nEOF", "quoted heredoc body is data"],
+  ["cat <<-EOF\n\tsleep 300\n\tEOF", "tab stripped heredoc body"],
+  ['cat <<"EOF"\nsleep 300\nEOF', "double quoted heredoc delimiter"],
   ["sleep 1 > /dev/null", "output redirection"],
   ["sleep 1 2>/dev/null", "descriptor redirection"],
   ["sleep 1 >> /dev/null", "append redirection"],
