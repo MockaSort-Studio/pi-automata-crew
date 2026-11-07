@@ -17,6 +17,7 @@ import {
   writeOperations,
 } from "../env-runtime/lib/gondolin-worker-operations.mjs";
 import { bashOperations } from "../env-runtime/lib/gondolin-worker-shell.mjs";
+import { evaluateShellCommand } from "./shell-policy.mjs";
 
 // Pi keeps the logic of its built-in tools (argument handling, truncation, diffs) on the host; this
 // extension only replaces where they act: every command and file operation runs in the environment's VM.
@@ -45,11 +46,17 @@ export function routedToolsExtension(environment) {
         createEditTool(GUEST_WORKSPACE, { operations: editOperations(vm, localCwd) }),
       ),
     );
-    pi.registerTool(
-      routed(createBashTool(localCwd), (vm) =>
-        createBashTool(GUEST_WORKSPACE, { operations: bashOperations(vm, localCwd) }),
-      ),
+    const bash = routed(createBashTool(localCwd), (vm) =>
+      createBashTool(GUEST_WORKSPACE, { operations: bashOperations(vm, localCwd) }),
     );
+    pi.registerTool({
+      ...bash,
+      execute: (id, params, signal, onUpdate) => {
+        const rejection = evaluateShellCommand(params.command);
+        if (rejection) return Promise.resolve({ content: [{ type: "text", text: rejection.message }], isError: true });
+        return bash.execute(id, params, signal, onUpdate);
+      },
+    });
     pi.registerTool(
       routed(createLsTool(localCwd), (vm) => createLsTool(GUEST_WORKSPACE, { operations: lsOperations(vm, localCwd) })),
     );
