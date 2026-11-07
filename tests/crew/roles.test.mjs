@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { roleModule } from "../../extensions/crew/crew/lib/automaton-body/lib/modules/role.mjs";
 import { assemble } from "../../extensions/crew/crew/lib/assembly.mjs";
@@ -105,4 +106,11 @@ test("only the lead role is granted the party-wide broadcast tool", () => {
   const lead = roleModule({ role: "lead", override: {} });
   assert.ok(lead.commTools.includes("comm_notify_all"));
   assert.ok(lead.commTools.includes("crew_assign"), "the Lead hands out the plan with crew_assign");
+});
+
+test("the developer role says the work is done at a green CI, and never by weakening the checks", () => {
+  const text = readFileSync(new URL("../../extensions/crew/crew/prompts/roles/developer.md", import.meta.url), "utf8");
+  assert.match(text, /complete when your pull request's CI is green/);
+  assert.match(text, /resumes you with the failing checks/);
+  assert.match(text, /Never make CI pass by disabling, skipping, ignoring or excluding a check/);
 });

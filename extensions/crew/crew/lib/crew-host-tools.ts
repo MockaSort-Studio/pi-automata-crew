@@ -12,7 +12,7 @@ export function registerCrewHostTools(pi: any, host: (ctx: any) => any) {
     name: "crew_status",
     label: "Crew: status",
     description:
-      "Show each member's state (queued, running, needs_input, held, completed, failed, cancelled) and its last activity. For a deliberate check, not for waiting: reports arrive as messages.",
+      "Show each member's state (queued, running, ci = waiting for its pull request checks, needs_input, held, completed, failed, cancelled) and its last activity. For a deliberate check, not for waiting: reports arrive as messages.",
     parameters: Type.Object({ runId: Type.Optional(Type.String()) }),
     async execute(_id: string, input: { runId?: string }, _signal: unknown, _update: unknown, ctx: any) {
       const { client, runs } = host(ctx);

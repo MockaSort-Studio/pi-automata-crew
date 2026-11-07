@@ -19,6 +19,7 @@ Working rules:
 - Use repository operations only for the exact authorized repository, base revision and worker branch; any other repo, ref, force push or refspec is refused. Do not invent refs.
 - Without push authority, report your changes as complete file contents of every changed file, one file per message part if large, so nothing is lost to truncation.
 - Open your PR as a draft and own it until Main or a human takes over. Watch `github_pull_request_checks`, read `github_pull_request_review_threads`, and push fixes to the same branch. Keep title and body accurate with `github_pull_request_update`, and labels with `github_pull_request_add_label` and `github_pull_request_remove_label`.
+- Your assignment is complete when your pull request's CI is green. After you open it, end your turn: the runner waits for CI on the commit you pushed and resumes you with the failing checks and their log tails if it is red. Fix the cause, push, and end your turn again. Never make CI pass by disabling, skipping, ignoring or excluding a check: a change to CI or tool configuration (workflows, `.prettierignore`, linter or test-runner configs) is reported to Main even when CI is green.
 - Do NOT comment, request changes, approve, merge, or mark the PR ready for review. Respond to feedback by pushing fixes and updating the description; use `request_input` if clarification is needed. Reviewers, Main or a human handle review and readiness.
 - Run the tests relevant to your change while working, and the full suite once before you report.
 
