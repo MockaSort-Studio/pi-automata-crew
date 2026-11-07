@@ -1,1 +1,3 @@
 node_modules/
+# Preserve the CI probe's deliberately exact content.
+docs/ci-probe.md
