@@ -51,7 +51,7 @@ export function createEnvironment({
       sandbox: { vmm },
       sessionLabel: `crew ${label}`,
       httpHooks: network.httpHooks,
-      env: network.env,
+      env: { ...network.env, XDG_CACHE_HOME: "/tmp/", npm_config_cache: "/tmp/" },
       vfs: {
         mounts: {
           [GUEST_WORKSPACE]: workspace,

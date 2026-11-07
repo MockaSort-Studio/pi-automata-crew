@@ -1,18 +1,62 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-const FORMAT = "pi-crew-repository-dependency-cache/v2";
+const FORMAT = "pi-crew-repository-dependency-cache/v3";
 const HEX_SHA256 = /^[a-f0-9]{64}$/;
 const validProfile = (value) => typeof value === "string" && /^[a-z0-9][a-z0-9._:-]{0,127}$/i.test(value);
 
 export const dependencyCacheRoot = (home = homedir()) => join(home, ".cache", "pi-crew", "dependencies");
 export const dependencyCacheKey = (lockfile, profile) => {
   if (!validProfile(profile)) throw new Error("Repository dependency cache requires a valid guest profile");
-  return createHash("sha256").update(readFileSync(lockfile)).update("\0").update(profile).digest("hex");
+  return createHash("sha256")
+    .update(readFileSync(lockfile))
+    .update("\0")
+    .update(profile)
+    .update("\0")
+    .update(FORMAT)
+    .digest("hex");
 };
 export const dependencyCacheDirectory = (key, home) => join(dependencyCacheRoot(home), key);
+
+// Preserve npm's relative symlinks and verify executable paths before publishing.
+export function copyDependencyCacheModules(source, destination) {
+  cpSync(source, destination, { recursive: true, dereference: false, verbatimSymlinks: true });
+  const root = resolve(destination);
+  const check = (path) => {
+    let pending = [relative(root, path)];
+    let current = root;
+    let followed = 0;
+    try {
+      while (pending.length) {
+        const parts = pending.shift().split(sep).filter(Boolean);
+        for (let i = 0; i < parts.length; i++) {
+          current = resolve(current, parts[i]);
+          const rel = relative(root, current);
+          if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) throw new Error("outside cache");
+          if (lstatSync(current).isSymbolicLink()) {
+            const target = readlinkSync(current);
+            if (isAbsolute(target) || ++followed > 40) throw new Error("absolute or cyclic link");
+            pending.unshift(target, parts.slice(i + 1).join(sep));
+            current = dirname(current);
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      throw new Error(`Invalid dependency cache executable link ${path}: ${error.message}`);
+    }
+  };
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (directory.endsWith(`${sep}.bin`)) check(path);
+      if (entry.isDirectory()) visit(path);
+    }
+  };
+  visit(root);
+}
 
 const unavailable = (key) =>
   new Error(
