@@ -72,3 +72,13 @@ test("roster tools module exports registration function", () => {
   assert.match(rosterTools, /name: "crew_register"/);
   assert.match(rosterTools, /name: "crew_finish_close"/);
 });
+
+test("Main keeps its footer and dashboard, fed by the crew host", () => {
+  assert.match(source, /import.*registerHostMonitor.*from.*host-monitor/);
+  assert.match(source, /monitor\.activate\(ctx\)/);
+  const monitor = readFileSync(new URL("../../extensions/crew/crew/lib/host-monitor.ts", import.meta.url), "utf8");
+  assert.match(monitor, /crew\.peek\(\)/, "polling never starts a host");
+  assert.match(monitor, /request\("status"/);
+  assert.match(monitor, /registerCrewDashboardCommand/);
+  assert.match(monitor, /ctx\.mode !== "tui"/);
+});

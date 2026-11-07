@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -77,6 +77,9 @@ test("launching sends the spec to the host, tracks the run, and reports the memb
     const c = config([agent("developer-a-00")]);
     mkdirSync(join(cwd, ".pi/runtime/crew-launch"), { recursive: true });
     writeFileSync(join(cwd, ".pi/runtime/crew-launch/x.json"), JSON.stringify(c));
+    const rosterPath = join(cwd, ".pi/runtime/crew-launch/x-roster.json");
+    const roster = () => JSON.parse(readFileSync(rosterPath, "utf8"));
+    writeFileSync(rosterPath, JSON.stringify({ runId: c.runId, status: "queued", members: [] }));
     const requests = [];
     const tracked = [];
     const host = {
@@ -89,15 +92,38 @@ test("launching sends the spec to the host, tracks the run, and reports the memb
     };
     const result = await launchOnHost({
       host,
-      prepared: { configFile: ".pi/runtime/crew-launch/x.json", topic: "crew.t" },
+      prepared: {
+        configFile: ".pi/runtime/crew-launch/x.json",
+        rosterFile: ".pi/runtime/crew-launch/x-roster.json",
+        topic: "crew.t",
+      },
       cwd,
       configDir: ".pi",
       env: { HALL_GITHUB_TOKEN: "t" },
     });
     assert.equal(requests[0][0], "launch");
     assert.equal(requests[0][1].crewDir, join(cwd, ".pi/runtime/crews", c.runId));
-    assert.deepEqual(tracked, [[c.runId, join(cwd, ".pi/runtime/crews", c.runId)]]);
+    assert.deepEqual(tracked, [
+      [
+        c.runId,
+        join(cwd, ".pi/runtime/crews", c.runId),
+        [
+          {
+            handle: "developer-a-00",
+            task: "the assignment",
+            dependsOn: [],
+          },
+        ],
+      ],
+    ]);
     assert.deepEqual([result.status, result.members[0].state], ["started", "running"]);
+    assert.equal(
+      roster().status,
+      "hosted",
+      "the run record is no longer 'queued', which any monitor scanning rosters would draw",
+    );
+    assert.deepEqual(roster().members, [{ name: "developer-a-00", actorId: "developer-a-00" }]);
+    writeFileSync(rosterPath, JSON.stringify({ runId: c.runId, status: "queued", members: [] }));
     // A launch the host refuses is not tracked.
     const refusing = {
       client: () => ({
@@ -110,7 +136,7 @@ test("launching sends the spec to the host, tracks the run, and reports the memb
     await assert.rejects(
       launchOnHost({
         host: refusing,
-        prepared: { configFile: ".pi/runtime/crew-launch/x.json" },
+        prepared: { configFile: ".pi/runtime/crew-launch/x.json", rosterFile: ".pi/runtime/crew-launch/x-roster.json" },
         cwd,
         configDir: ".pi",
         env: {},
@@ -118,6 +144,7 @@ test("launching sends the spec to the host, tracks the run, and reports the memb
       /Model not found/,
     );
     assert.equal(tracked.length, 1);
+    assert.deepEqual([roster().status, roster().launchError], ["done", "Model not found"]);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

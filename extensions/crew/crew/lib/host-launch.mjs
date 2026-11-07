@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const GITHUB_SUITE = "collaboration/pi-github-tools";
@@ -49,7 +49,26 @@ export async function launchOnHost({ host, prepared, cwd, configDir, env }) {
   const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
   const directory = join(cwd, configDir, "runtime", "crews", config.runId);
   const { spec, warnings } = buildLaunchSpec({ config, directory, env });
-  const started = await host.client().request("launch", spec);
-  host.track(config.runId, directory);
+  // prepareCrew records the run as "queued". The host owns the run from here, so the record leaves the active
+  // states either way: a roster left "queued" would show up as an empty crew in any monitor that scans them.
+  const settle = (patch) => {
+    try {
+      const path = join(cwd, prepared.rosterFile);
+      writeFileSync(path, JSON.stringify({ ...JSON.parse(readFileSync(path, "utf8")), ...patch }, null, 2));
+    } catch {}
+  };
+  let started;
+  try {
+    started = await host.client().request("launch", spec);
+  } catch (error) {
+    settle({ status: "done", launchError: String(error?.message ?? error).slice(0, 500) });
+    throw error;
+  }
+  settle({ status: "hosted", members: spec.members.map(({ handle }) => ({ name: handle, actorId: handle })) });
+  host.track(
+    config.runId,
+    directory,
+    spec.members.map(({ handle, task, dependsOn }) => ({ handle, task, dependsOn })),
+  );
   return { runId: config.runId, topic: prepared.topic, status: "started", members: started.members, warnings };
 }

@@ -6,6 +6,7 @@ import { assemble, validateAvailableRoleTools } from "./lib/assembly.mjs";
 import { prepareCrew, queuedMessage } from "./lib/startup.mjs";
 import { launchOnHost } from "./lib/host-launch.mjs";
 import { bindCrewHost, crewHost } from "./lib/crew-host.mjs";
+import { registerHostMonitor } from "./lib/host-monitor.ts";
 import { registerCrewHostTools } from "./lib/crew-host-tools.ts";
 import { registerCrewObservability } from "./lib/observability.mjs";
 import { registerSkillTrace } from "./lib/skill-trace.ts";
@@ -70,6 +71,7 @@ export default function crewExtension(pi: ExtensionAPI) {
   registerCrewAssemblyCard(pi);
   registerCrewMessageRenderer(pi);
   registerCrewHostTools(pi, host);
+  const monitor = registerHostMonitor(pi, host);
   // Quitting stops the host, which closes every VM. A reload leaves running crews alone.
   pi.on("session_shutdown", async (event: any, ctx: any) => {
     if (event?.reason === "quit") await host(ctx).stop();
@@ -141,6 +143,7 @@ export default function crewExtension(pi: ExtensionAPI) {
       // sendMessage: it must not steer Main or enter model context.
       pi.appendEntry(CREW_ASSEMBLED_ENTRY, assemblyCardData(prepared, input));
       const launched = await launchOnHost({ host: host(ctx), prepared, cwd: ctx.cwd, configDir: CONFIG_DIR_NAME });
+      monitor.activate(ctx);
       const warnings = launched.warnings?.length
         ? `\n\nWarnings:\n${launched.warnings.map((line: string) => `- ${line}`).join("\n")}`
         : "";

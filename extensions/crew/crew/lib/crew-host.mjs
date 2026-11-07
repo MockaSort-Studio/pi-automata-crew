@@ -12,6 +12,7 @@ const holder = (globalThis.__piCrewHost ??= {
   pi: undefined,
   notifier: undefined,
   runs: new Map(),
+  plans: new Map(),
   stopping: false,
 });
 
@@ -52,14 +53,19 @@ export function crewHost({ cwd, configDir, createClient = createHostClient }) {
         onExit: (exit) => {
           holder.client = undefined;
           holder.runs.clear();
+          holder.plans.clear();
           if (!holder.stopping) deliver(hostExitMessage(exit));
           holder.stopping = false;
         },
       });
       return holder.client;
     },
-    track: (runId, dir) => holder.runs.set(runId, dir),
-    untrack: (runId) => holder.runs.delete(runId),
+    // `plan` is what each member was assigned ({handle, task, dependsOn}); the dashboard's Plan tab shows it.
+    track: (runId, dir, plan = []) => (holder.runs.set(runId, dir), holder.plans.set(runId, plan)),
+    untrack: (runId) => (holder.runs.delete(runId), holder.plans.delete(runId)),
+    plan: (runId) => holder.plans.get(runId) ?? [],
+    // The running host's client, or nothing: looking must never start a host.
+    peek: () => holder.client,
     runs: () => [...holder.runs.keys()],
     async stop() {
       if (!holder.client) return;
