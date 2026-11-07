@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
+import { skipWithoutWidePs } from "./requires-ps.mjs";
 import {
   appendLifecycleEvent,
   findOwnerLostAttempts,
@@ -71,8 +72,9 @@ test("an attempt owned by a live Lifecycle server is never recovered by another 
     );
   }));
 
-test("a live worker with a very long command line is still recognised as alive", () =>
-  withTempCwd(async (cwd) => {
+test("a live worker with a very long command line is still recognised as alive", (t) => {
+  if (skipWithoutWidePs(t)) return;
+  return withTempCwd(async (cwd) => {
     // The actor id sits at the end of a command line far longer than any terminal width.
     const padding = "x".repeat(600);
     const worker = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)", padding, "runs/long-actor"], {
@@ -84,7 +86,8 @@ test("a live worker with a very long command line is still recognised as alive",
     } finally {
       worker.kill("SIGKILL");
     }
-  }));
+  });
+});
 
 test("a live process that reuses a dead worker's pid is not mistaken for that worker", () =>
   withTempCwd(async (cwd) => {
