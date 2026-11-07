@@ -12,6 +12,17 @@ import { resolveModel } from "./model.mjs";
 const GITHUB_SUITE = "collaboration/pi-github-tools";
 const HANDLE = /^[a-z][a-z0-9]*-[a-z][a-z0-9]*-\d{2}$/;
 
+const emptyLive = () => ({ turns: 0, toolCalls: 0, toolErrors: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+function countEvent(live, event) {
+  if (!live) return;
+  if (event.type === "tool_start") live.toolCalls += 1;
+  if (event.type === "tool_end" && event.error) live.toolErrors += 1;
+  if (event.type === "turn") {
+    live.turns += 1;
+    for (const key of ["input", "output", "cacheRead", "cacheWrite"]) live[key] += Number(event.usage?.[key]) || 0;
+  }
+}
+
 const defaults = {
   env: process.env,
   cwd: process.cwd(),
@@ -45,6 +56,8 @@ export function createHostCore({ send, deps = {} }) {
     for (const member of members)
       if (!HANDLE.test(member.handle ?? "")) throw new Error(`Invalid member handle: ${member.handle}`);
     const activity = new Map();
+    // Running totals per member, for Main's footer: they grow while a member works, not only when it reports.
+    const live = new Map(members.map((member) => [member.handle, emptyLive()]));
     const crew = { runId, dir: crewDir, repository, idleMs, settings: undefined };
 
     // The dispatcher validates ordering (unknown prerequisites, cycles, duplicates) as it is built.
@@ -56,8 +69,10 @@ export function createHostCore({ send, deps = {} }) {
         d.createMemberAgent({
           member,
           crew,
-          onEvent: (handle, event) =>
-            activity.set(handle, { at: Date.now(), type: event.type, ...(event.name ? { name: event.name } : {}) }),
+          onEvent: (handle, event) => {
+            activity.set(handle, { at: Date.now(), type: event.type, ...(event.name ? { name: event.name } : {}) });
+            countEvent(live.get(handle), event);
+          },
         }),
       onResult: (handle, result) => send({ event: "result", runId, handle, result }),
       onState: (handle, state) => send({ event: "state", runId, handle, state }),
@@ -83,7 +98,7 @@ export function createHostCore({ send, deps = {} }) {
     if (environment.dependencyCache === "required")
       crew.dependencyCache = d.resolveDependencyCache({ cwd: d.cwd, profile: environment.guestProfile });
 
-    crews.set(runId, { dispatcher, activity });
+    crews.set(runId, { dispatcher, activity, live });
     dispatcher.start();
     return { runId, members: dispatcher.status() };
   }
@@ -99,11 +114,12 @@ export function createHostCore({ send, deps = {} }) {
     message: async ({ runId, handle, text }) => (crewOf(runId).dispatcher.message(handle, text), { ok: true }),
     cancel: async ({ runId, handle }) => (await crewOf(runId).dispatcher.cancel(handle), { ok: true }),
     status: async ({ runId }) => {
-      const { dispatcher, activity } = crewOf(runId);
+      const { dispatcher, activity, live } = crewOf(runId);
       return {
         runId,
         members: dispatcher.status().map((member) => ({
           ...member,
+          live: live.get(member.handle),
           ...(activity.has(member.handle) ? { lastActivity: activity.get(member.handle) } : {}),
         })),
       };

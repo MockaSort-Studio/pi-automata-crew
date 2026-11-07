@@ -212,3 +212,39 @@ test("closing the host disposes every crew's agents", async () => {
   assert.deepEqual(h.disposed.sort(), [A, B]);
   assert.deepEqual((await h.call("list", {})).result, { crews: [] });
 });
+
+test("status carries live per-member totals that grow as the agent works, before it reports", async () => {
+  let report;
+  const h = host({
+    deps: {
+      createMemberAgent: async ({ member: m, onEvent }) => ({
+        run: {
+          prompt: () =>
+            new Promise((resolve) => {
+              onEvent(m.handle, { type: "tool_start", name: "bash" });
+              onEvent(m.handle, { type: "tool_end", name: "bash", error: true });
+              onEvent(m.handle, { type: "turn", usage: { input: 100, output: 20, cacheRead: 5, cacheWrite: 1 } });
+              onEvent(m.handle, { type: "turn", usage: { input: 50, output: 10 } });
+              report = () => resolve(done());
+            }),
+          abort: async () => {},
+        },
+        dispose: async () => {},
+      }),
+    },
+  });
+  await h.call("launch", launch());
+  await settle();
+  const [running] = (await h.call("status", { runId: "run1" })).result.members;
+  assert.equal(running.state, "running");
+  assert.deepEqual(running.live, {
+    turns: 2,
+    toolCalls: 1,
+    toolErrors: 1,
+    input: 150,
+    output: 30,
+    cacheRead: 5,
+    cacheWrite: 1,
+  });
+  report();
+});

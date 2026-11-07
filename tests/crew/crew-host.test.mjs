@@ -9,7 +9,14 @@ import { bindCrewHost, crewHost } from "../../extensions/crew/crew/lib/crew-host
 beforeEach(() => {
   const holder = globalThis.__piCrewHost;
   if (holder)
-    Object.assign(holder, { client: undefined, pi: undefined, notifier: undefined, runs: new Map(), stopping: false });
+    Object.assign(holder, {
+      client: undefined,
+      pi: undefined,
+      notifier: undefined,
+      runs: new Map(),
+      plans: new Map(),
+      stopping: false,
+    });
 });
 
 const piRecorder = () => {
@@ -110,4 +117,21 @@ test("after a reload the same host keeps running and deliveries go to the curren
   created[0].options.onEvent({ event: "result", runId: "r", handle: "developer-a-00", result: result("completed") });
   assert.equal(before.sent.length, 0);
   assert.equal(after.sent.length, 1);
+});
+
+test("the plan is kept per run for the dashboard, peeking never starts a host, and an exit forgets both", (t) => {
+  const { host, created } = setup(t);
+  assert.equal(host.peek(), undefined, "looking does not start a host");
+  assert.equal(created.length, 0);
+  host.client();
+  host.track("run1", "/d", [{ handle: "developer-a-00", task: "t", dependsOn: [] }]);
+  assert.equal(host.peek(), created[0]);
+  assert.deepEqual(host.plan("run1"), [{ handle: "developer-a-00", task: "t", dependsOn: [] }]);
+  assert.deepEqual(host.plan("other"), []);
+  created[0].options.onExit({ code: 0, signal: null, tail: "" });
+  assert.deepEqual(host.plan("run1"), []);
+  host.client();
+  host.track("run2", "/d");
+  host.untrack("run2");
+  assert.deepEqual([host.runs(), host.plan("run2")], [[], []]);
 });

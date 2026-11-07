@@ -81,7 +81,9 @@ export const openDashboard = (sessionCtx, getData, wrapChrome) =>
 async function resolveTarget(sessionCtx, listActiveEntries, pickCrew) {
   const entries = listActiveEntries ? listActiveEntries() : [];
   if (entries.length <= 1 || !pickCrew) return { target: entries[0]?.path, cancelled: false };
-  const target = await pickCrew(sessionCtx, crewPickerItems(entries));
+  // Entries may arrive with their picker item already built (crews running on the crew host).
+  const items = entries.every((entry) => entry.item) ? entries.map((entry) => entry.item) : crewPickerItems(entries);
+  const target = await pickCrew(sessionCtx, items);
   return { target, cancelled: target === undefined };
 }
 

@@ -111,7 +111,7 @@ export async function createAgentRun({
           recordEvidence(evidence, event);
           onEvent({ type: "tool_end", name: event.toolName, error: Boolean(event.isError) });
         }
-        if (event.type === "turn_end") onEvent({ type: "turn" });
+        if (event.type === "turn_end") onEvent({ type: "turn", usage: event.message?.usage });
       });
       const onAbort = () => {
         turn.cancelled = true;
