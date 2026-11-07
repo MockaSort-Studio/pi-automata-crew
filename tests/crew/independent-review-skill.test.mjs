@@ -22,6 +22,22 @@ test("engineering review describes independent specialist dispatch", () => {
     assert.ok(review.includes(phrase), phrase);
 });
 
+test("engineering review separates dispatch from a no-git reviewer procedure", () => {
+  const review = read("../../skills/engineering-review/SKILL.md");
+  const parts = review.split("## Reviewing (you are the reviewer)");
+  assert.equal(parts.length, 2);
+  assert.ok(parts[0].includes("## Dispatching reviewers (Main)"));
+  for (const phrase of [
+    "without git",
+    "github_pull_request_files",
+    "github_pull_request_view",
+    "files named in the assignment",
+    "node",
+    "missing tools",
+  ])
+    assert.ok(parts[1].includes(phrase), phrase);
+});
+
 test("reviewer guidance and worker embedding use the standalone catalog", () => {
   const review = read("../../skills/engineering-review/SKILL.md");
   const reviewer = read("../../extensions/crew/crew/prompts/roles/reviewer.md");
