@@ -34,12 +34,18 @@ export function createEnvironment({
     closed = false,
     inflight = 0;
 
-  async function boot() {
+  // Seeding is independent of the VM: host-side tools act on the workspace without ever booting it, so
+  // anything that touches the workspace first waits for this. It runs once; a failure can be retried.
+  const ready = () => {
     seeded ??= Promise.resolve(seed?.(workspace)).catch((error) => {
       seeded = undefined;
       throw error;
     });
-    await seeded;
+    return seeded;
+  };
+
+  async function boot() {
+    await ready();
     network = createGuestNetwork({ allowedHosts, secrets, onDenied });
     const created = await createVm({
       sandbox: { vmm },
@@ -72,6 +78,7 @@ export function createEnvironment({
   const api = {
     localCwd,
     workspace,
+    ready,
     isRunning: () => Boolean(vm),
     cancelIdle: () => clearTimeout(idleTimer),
     // Never releases mid-run or mid-tool; the workspace and secrets policy outlive the VM.
