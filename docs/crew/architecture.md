@@ -29,6 +29,12 @@ flowchart LR
   Armory source artifact. They act on the member's workspace through the host's view of it. Host credentials
   never enter the VM, whose network is deny-by-default.
 
+## Dashboard
+
+The Automata tab shows each member's turns, tool calls, errors, input and output tokens, cache reads and
+writes, and context usage as a percentage of the model window. The context cell also shows the model window;
+unknown values appear as dashes. The dashboard also has a Plan tab.
+
 ## Outcomes
 
 The runner decides, from the session's messages and facts it recorded itself:
@@ -58,4 +64,3 @@ beside the result.
 - A crew does not survive its host: if the host dies, running members are gone (their pushed branches are
   not). Durable recovery is part of the backend stage.
 - One host per Pi. Several Pis on one machine each run their own.
-- The dashboard's context-window column is not tracked yet.

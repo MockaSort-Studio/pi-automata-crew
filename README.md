@@ -28,7 +28,8 @@ You ◄────────── messages ◄──────────
 - **Ordering and conversation.** `dependsOn` makes a member wait for another and receive its result. A member
   can ask you a question (`request_input`) and continues in the same session when you answer.
 - **A TUI.** A footer line per active crew with live counts and tokens, and a dashboard
-  (`/crew-dashboard`, `ctrl+shift+d`) with an Automata tab and a Plan tab.
+  (`/crew-dashboard`, `ctrl+shift+d`). Its Automata tab shows per-member turns, tool calls, errors,
+  tokens, and context usage as a percentage of the model window; a Plan tab shows the plan.
 - **Every run keeps a transcript** under `.pi/runtime/crews/<run>/`.
 
 ## Install
