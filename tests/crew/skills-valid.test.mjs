@@ -40,3 +40,9 @@ test("AGENTS.md stays short and names the main Crew skills", () => {
   assert.ok(agents.split("\n").length <= 40);
   for (const skill of ["engineering-execution", "engineering-review"]) assert.match(agents, new RegExp(skill));
 });
+
+test("engineering-execution makes crew_route the only source of personas", () => {
+  const text = readFileSync(new URL("../../skills/engineering-execution/SKILL.md", import.meta.url), "utf8");
+  assert.match(text, /personas come only from `crew_route`/);
+  assert.match(text, /fix\s+`SPECIALIST_ROUTES` first/);
+});

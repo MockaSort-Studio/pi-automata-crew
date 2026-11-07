@@ -6,10 +6,63 @@
 /package-lock.json @mergio @bollo
 
 /extensions/crew/env-runtime/** @bollo @snowball
+/extensions/crew/env-runtime/lib/repository-dependency-cache.mjs @bollo @mergio
 /extensions/crew/crew-runtime/** @snowball @tomashco @bollo
 /extensions/crew/crew/prompts/** @snowball
 /skills/** @snowball
 /extensions/crew/crew/** @snowball
+
+# The crew host: dispatching, member agents, routed tools (agent infrastructure first).
+/extensions/crew/runner/** @snowball @tomashco
+/extensions/crew/runner/host-*.mjs @tomashco @snowball
+/extensions/crew/runner/dispatcher.mjs @tomashco @snowball
+/extensions/crew/runner/shell-policy.mjs @bollo @snowball
+/extensions/crew/runner/github-suite.mjs @bollo @snowball
+/extensions/crew/runner/environment.mjs @bollo @snowball
+/extensions/crew/runner/armory-source.mjs @bollo @mergio
+
+# Main's side of the host: protocol and tools, then the TUI, then authority policy.
+/extensions/crew/crew/lib/host-*.mjs @tomashco @snowball
+/extensions/crew/crew/lib/crew-host*.* @tomashco @snowball
+/extensions/crew/crew/lib/crew-reports.mjs @tomashco @snowball
+/extensions/crew/crew/lib/bounded-payload.mjs @tomashco @snowball
+/extensions/crew/crew/lib/host-monitor.ts @frontenzo @snowball
+/extensions/crew/crew/lib/crew-view.mjs @frontenzo @snowball
+/extensions/crew/crew/lib/monitor*.* @frontenzo @snowball
+/extensions/crew/crew/lib/crew-assembly-card.* @frontenzo @snowball
+/extensions/crew/crew/lib/crew-message-chrome.mjs @frontenzo @snowball
+/extensions/crew/crew/lib/member-authority.mjs @bollo @snowball
+/extensions/crew/crew/lib/suite-grants.mjs @bollo @snowball
+/extensions/crew/crew/lib/base-tools-profile.mjs @bollo @snowball
+/extensions/crew/crew/prompts/roles.json @bollo @snowball
+
+# Package entry point, project-local Pi extensions, and the package readme.
+/extensions/crew.ts @snowball
+/extensions/crew/README.md @indiana-docs
+/.pi/** @snowball
+
+# Build and release tooling.
+/scripts/** @mergio @bollo
+/.gitignore @mergio
+/.prettierignore @mergio
+/.prettierrc.json @mergio
+/AGENTS.md @snowball @indiana-docs
+/SPECIALIST_ROUTES @snowball
+
+# Tests follow the code they pin.
+/tests/** @snowball
+/tests/runtime/** @tomashco @snowball
+/tests/runtime/shell-policy*.mjs @bollo @snowball
+/tests/runtime/github-suite*.mjs @bollo @snowball
+/tests/runtime/repository-*.mjs @bollo @mergio
+/tests/runtime/guest-*.mjs @bollo @snowball
+/tests/runtime/credential*.mjs @bollo
+/tests/runtime/network-policy*.mjs @bollo
+/tests/runtime/vm-*.mjs @bollo @snowball
+/tests/runtime/gondolin-*.mjs @bollo @snowball
+/tests/crew/monitor*.mjs @frontenzo @snowball
+/tests/crew/crew-view*.mjs @frontenzo @snowball
+/tests/crew/crew-message-view*.mjs @frontenzo @snowball
 
 /**/credentials*.mjs @bollo
 /**/guest-network.mjs @bollo
