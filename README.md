@@ -23,6 +23,11 @@ You ◄────────── messages ◄──────────
   other refs are refused.
 - **Deterministic outcomes.** The runner, not the model, decides whether an agent completed, needs input
   or failed. A rate-limited or empty model turn is a failure with a category, never a silent success.
+- **Done means green CI.** A member that opens a pull request completes only when CI is green on the commit it
+  pushed. The runner waits for the checks; if they are red it resumes the same session with the failing checks
+  and their log tails, and after a few attempts it asks you. Changes to the files that define the checks
+  (workflows, formatter and linter ignore lists, test-runner configs) are reported to you even when CI is green.
+  This needs the repository to have CI; without it the result says so.
 - **Best-effort salvage.** For members granted typed Git commit and push, the runner attempts to commit and push
   uncommitted work to the member's branch when a run ends. Salvage failure is reported beside the result.
 - **Ordering and conversation.** `dependsOn` makes a member wait for another and receive its result. A member
@@ -34,13 +39,17 @@ You ◄────────── messages ◄──────────
 
 ## Install
 
-Requires Node 24, git and [Pi](https://pi.dev). Nix is **not** needed. A VM needs libkrun (macOS arm64 and
-Linux x64 ship one) or QEMU.
+Requires Node 24, git and [Pi](https://pi.dev). Nix is **not** needed. Supported hosts follow
+[Gondolin](https://github.com/earendil-works/gondolin): macOS arm64 and Linux x64 ship a libkrun runner; elsewhere
+a VM needs QEMU.
 
 ```bash
-pi install git:github.com/<org>/pi-automata-crew      # or: pi install /path/to/checkout
+pi install git:github.com/MockaSort-Studio/pi-automata-crew      # pin a release: ...pi-automata-crew@v0.1.0
+pi install /path/to/checkout                                      # or a local checkout, for development
 pi list
 ```
+
+A published npm package (`npm:@mockasort-studio/pi-automata-crew`) follows the first release.
 
 Then check the machine from inside Pi:
 
@@ -67,17 +76,22 @@ authorized repository, including files, checks and review threads, and update on
 open/closed state and labels. They cannot comment, request changes, approve, merge or mark a PR ready; review
 and landing belong to reviewers, Main and humans.
 
-| Tool                           | Use                                                          |
-| ------------------------------ | ------------------------------------------------------------ |
-| `start_crew`                   | Launch members; assignments dispatch immediately             |
-| `crew_status`                  | Look at each member's state and last activity                |
-| `crew_message`                 | Answer a question, retry a failed member, or follow up       |
-| `crew_cancel`                  | Stop a member or the whole crew; running commands are killed |
-| `runtime_cleanup`              | Dispose every crew from this session and close its VMs       |
-| `crew_doctor` / `/crew-doctor` | Check this machine                                           |
+| Tool                           | Use                                                            |
+| ------------------------------ | -------------------------------------------------------------- |
+| `start_crew`                   | Launch members; assignments dispatch immediately               |
+| `crew_status`                  | Look at each member's state (including `ci`) and last activity |
+| `crew_message`                 | Answer a question, retry a failed member, or follow up         |
+| `crew_cancel`                  | Stop a member or the whole crew; running commands are killed   |
+| `runtime_cleanup`              | Dispose every crew from this session and close its VMs         |
+| `crew_doctor` / `/crew-doctor` | Check this machine                                             |
 
 There is no deadline on an agent run. A member that fails or asks a question is
 held, not lost, until you message or cancel it. Quitting Pi closes every VM; `/reload` leaves running crews alone.
+
+## License
+
+GPL-3.0-only. See [LICENSE](LICENSE). Releases are described in [docs/crew/release.md](docs/crew/release.md) and
+changes are recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Develop
 

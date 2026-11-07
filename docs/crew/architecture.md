@@ -39,12 +39,29 @@ unknown values appear as dashes. The dashboard also has a Plan tab.
 
 The runner decides, from the session's messages and facts it recorded itself:
 
-| Outcome       | When                                                                        |
-| ------------- | --------------------------------------------------------------------------- |
-| `completed`   | The last assistant message stopped normally with non-empty text             |
-| `needs_input` | The member called `request_input`; the same session continues on the answer |
-| `failed`      | A provider error (a fixed category), an empty turn, an abort or other stop  |
-| `cancelled`   | Main cancelled it; the guest process group is killed                        |
+| Outcome       | When                                                                                                           |
+| ------------- | -------------------------------------------------------------------------------------------------------------- |
+| `completed`   | The last assistant message stopped normally with non-empty text, and, if it opened a pull request, CI is green |
+| `needs_input` | The member called `request_input`; the same session continues on the answer                                    |
+| `failed`      | A provider error (a fixed category), an empty turn, an abort or other stop                                     |
+| `cancelled`   | Main cancelled it; the guest process group is killed                                                           |
+
+### The CI gate
+
+A member that opened a pull request is not `completed` when it stops talking, but when CI says so. The runner
+reads the pull request and the last pushed commit from the run's evidence (what the tools returned, never what
+the model said) and asks the Armory's `github_pull_request_checks_wait` to wait for that commit's checks. While it
+waits the member's state is `ci`.
+
+- **Green:** the member completes and the result carries the checks.
+- **Red:** the same session is resumed with each failing check and its log tail, so the member fixes the cause
+  and pushes. After five attempts the member becomes `needs_input` instead of looping.
+- **No CI, a closed pull request, or CI that cannot be checked:** reported as such; the last two ask Main.
+- **Green but the checks were weakened:** if the pull request touches the files that define them (workflows,
+  formatter and linter ignore lists and configs, test-runner configs) the member asks Main, and once Main
+  replies those files are accepted for that member. This exists because a member told to make CI pass once did
+  exactly that by adding its file to `.prettierignore`.
+- **Cancel** ends the wait.
 
 A member that fails or asks a question is **held** with its dependents, not terminal. Only a cancel ends it.
 When a run ends, salvage is best-effort for members granted typed Git commit and push: the runner attempts to

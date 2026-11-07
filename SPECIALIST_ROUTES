@@ -72,3 +72,5 @@
 /docs/** @indiana-docs
 /README.md @indiana-docs
 /CONTRIBUTING.md @indiana-docs
+/CHANGELOG.md @indiana-docs
+/LICENSE @indiana-docs

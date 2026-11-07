@@ -1,0 +1,48 @@
+name: Release
+
+# A release is a pushed tag vX.Y.Z (see docs/crew/release.md). Merging to main publishes nothing.
+# Manual runs rehearse the release: `verify` checks the package, `dry-run` also rehearses npm staging.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: verify (check only), dry-run (also rehearse npm staging) or publish (stage on npm for approval).
+        type: choice
+        options: [verify, dry-run, publish]
+        default: verify
+
+permissions:
+  contents: read
+
+jobs:
+  npm:
+    permissions:
+      contents: read
+      id-token: write
+    uses: MockaSort-Studio/actions/.github/workflows/release-npm.yml@main
+    with:
+      package-path: "."
+      mode: ${{ github.event_name == 'push' && 'publish' || inputs.mode }}
+      node-version: "24"
+      test-command: |
+        HALL_SKIP_GONDOLIN_LIVE_TESTS=1 npm test
+        npm run format:check
+
+  github-release:
+    needs: npm
+    if: github.event_name == 'push' && needs.npm.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the GitHub release from the changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          node scripts/release-notes.mjs "${TAG#v}" > release-notes.md
+          gh release create "$TAG" --title "$TAG" --notes-file release-notes.md --verify-tag
