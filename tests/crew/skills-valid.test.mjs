@@ -8,7 +8,12 @@ const skills = readdirSync(skillsDir, { withFileTypes: true }).filter((entry) =>
 const names = skills.map(({ name }) => name);
 
 test("the project skill catalog contains the supported standalone procedures", () => {
-  assert.deepEqual(names.sort(), ["engineering-execution", "engineering-review", "post-iteration-review", "security-boundary-review"]);
+  assert.deepEqual(names.sort(), [
+    "engineering-execution",
+    "engineering-review",
+    "post-iteration-review",
+    "security-boundary-review",
+  ]);
 });
 
 for (const { name: directory } of skills) {
@@ -20,7 +25,11 @@ for (const { name: directory } of skills) {
     assert.deepEqual(Object.keys(metadata).sort(), ["description", "name"]);
     assert.equal(metadata.name, directory);
     assert.match(metadata.name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
-    assert.ok(typeof metadata.description === "string" && metadata.description.length > 20 && metadata.description.length <= 1024);
+    assert.ok(
+      typeof metadata.description === "string" &&
+        metadata.description.length > 20 &&
+        metadata.description.length <= 1024,
+    );
     for (const other of names.filter((name) => name !== directory))
       assert.ok(!text.includes(other), `${directory} references ${other}`);
   });

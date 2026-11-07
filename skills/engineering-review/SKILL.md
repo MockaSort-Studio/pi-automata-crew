@@ -7,10 +7,18 @@ description: Independently review a change against its acceptance criteria, incl
 
 Review only work you did not author. Treat acceptance criteria as falsifiable claims.
 
-1. Inspect the diff, changed files, focused tests, and nearest contract tests. Identify observable behavior.
-2. Try to falsify each claim with a focused test or command. Prefer behavioral tests; verify each test would regress if the protected behavior were removed.
-3. For larger changes, route changed paths to independent reviewers with `crew_route`; persona selection does not replace review discipline. Supply the relevant procedure explicitly, since workers do not discover project skills. Wait for results without polling.
-4. Examine failure paths, concurrency, maintainability, and security as appropriate. Verify grants are least-privilege and explicit, including operations, network hosts, credentials, and bash.
+1. Get the diff and changed paths with `git diff --name-only <base>...HEAD` and the diff stat.
+2. Call `crew_route` with the changed paths. It selects personas from `SPECIALIST_ROUTES`;
+   never select the author. Reviewers get read-only tools (`read grep find ls bash`). Supply
+   the relevant procedure explicitly; workers do not discover project skills.
+3. Launch reviewers in parallel with `start_crew` (it dispatches immediately), then wait for
+   messages without polling. Summarize one verdict per reviewer with blocking findings.
+   Reviewers never edit; fixes go back through the engineering execution process.
+4. Inspect the diff, changed files, focused tests, and nearest contract tests. Identify observable
+   behavior and try to falsify each claim with a focused test or command. Prefer behavioral tests;
+   verify each test would regress if the protected behavior were removed.
+5. Examine failure paths, concurrency, maintainability, and security as appropriate. Verify grants
+   are least-privilege and explicit, including operations, network hosts, credentials, and bash.
 
 ## Independent runtime review lens
 

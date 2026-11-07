@@ -20,7 +20,8 @@ manifest in `package.json` and how to cut an alpha release.
   contains runtime libraries, not standalone Pi extensions; listing entry points keeps the manifest
   matched to what `pi -e` actually loads.
 - `skills` points at root `skills/`, which Pi auto-discovers recursively for `SKILL.md` directories
-  (currently `independent-runtime-review`, `post-iteration-review`, and `security-boundary-review`).
+  (currently `engineering-execution`, `engineering-review`, `post-iteration-review`, and
+  `security-boundary-review`).
 - `package.json` keeps `"private": true`. That only blocks `npm publish` to a registry; it does not
   block `pi install` by git URL or local path, which is how this package is distributed during the
   alpha.
