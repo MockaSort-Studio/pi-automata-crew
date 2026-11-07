@@ -14,8 +14,11 @@ test("crew paths include an immutable selected-party manifest", () =>
     selected: ".pi/runtime/crew-launch/selected_crew_run-1.json",
     config: ".pi/runtime/crew-launch/run-1.json",
   }));
-test("queued acknowledgment names the SDK runtime", () =>
-  assert.match(queuedMessage({ runId: "run-1" }), /SDK runtime/));
+test("launch acknowledgment names the run and tells Main to wait for the reports", () => {
+  const message = queuedMessage({ runId: "run-1" });
+  assert.match(message, /Crew run-1 launched/);
+  assert.match(message, /end your turn and wait/);
+});
 test("prepareCrew preserves a selected lead instead of synthesizing one", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {
@@ -247,12 +250,12 @@ test("prepareCrew gives a waiting specialist a bounded identity and Crew directo
     );
     const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
     const prompt = config.agents[0].task;
-    // Exact substitution point: identity line follows the assembled instructions and
-    // precedes the SDK runtime block, matching workerTask()'s fixed template order.
+    // The member is told its handle, run and directory, and nothing about brokers or lifecycle tools.
     assert.match(
       prompt,
-      /## CREW IDENTITY\nYour exact Comm sender handle is developer-snowball-00\.\n\n## CREW DIRECTORY\n- developer-snowball-00 \(developer\)\n\n## SDK CREW RUNTIME\n/,
+      /## CREW\nYour handle is developer-snowball-00\.\nRUN: [0-9a-f-]{36}\nTOPIC: crew\.[0-9a-f-]{36}\n\n## CREW DIRECTORY\n- developer-snowball-00 \(developer\)$/,
     );
+    assert.doesNotMatch(prompt, /Comm sender|SDK CREW RUNTIME|roster state/);
     assert.doesNotMatch(prompt, /Build one bounded windmill plank/);
     const fixedOverhead = assemble("snowball", "developer", "").instructions.length;
     assert.ok(prompt.length <= fixedOverhead + 600, "waiting specialist prompt includes only bounded runtime context");
@@ -351,6 +354,24 @@ test("a Lead cannot depend on other members: it assigns their work and integrate
       ),
       /Lead .* cannot depend on other members/,
     );
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("deliverTo must be main or a member of the crew, rejected before anything is written", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  try {
+    const members = (deliverTo) => [
+      { name: "snowball", role: "developer", deliverTo },
+      { name: "bollo", role: "reviewer" },
+    ];
+    await assert.rejects(
+      prepareCrew({ getAllTools: () => [] }, { members: members("lead") }, { cwd }, ".pi"),
+      /deliverTo "lead", which is neither "main" nor a member/,
+    );
+    for (const ok of ["main", "bollo", "reviewer-bollo-00", undefined])
+      await prepareCrew({ getAllTools: () => [] }, { members: members(ok) }, { cwd }, ".pi");
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

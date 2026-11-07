@@ -25,13 +25,17 @@ test("GitHub base catalog declares bounded workflow inspection operations", () =
     assert.ok(GITHUB_BASE_TOOLS.includes(operation));
 });
 
-test("base Crew policy has Comm and no implicit GitHub operations", () => {
+test("base Crew policy gives a member its operating contract and no implicit GitHub operations", () => {
   const lead = roleModule({ role: "lead", override: {} });
   const architect = assemble("tomashco", "architect", "");
   assert.match(lead.instructions, /comm_request/);
   assert.match(lead.instructions, /comm_notify/);
   assert.doesNotMatch(lead.instructions, /crew_kickoff|github_discussion/);
-  assert.match(architect.instructions, /SDK Comm is the Crew coordination channel/);
+  assert.match(architect.instructions, /CREW OPERATING CONTRACT/);
+  assert.match(architect.instructions, /final message is your report/);
+  assert.match(architect.instructions, /Only the human, through Main, assigns work/);
+  assert.match(architect.instructions, /ask Main with `request_input`/);
+  assert.doesNotMatch(architect.instructions, /Fabric|Crew Lead assign|publish BLOCKED/);
   assert.doesNotMatch(architect.instructions, /github_discussion|crew_ask|Discussion is the durable/);
   assert.ok(!lead.tools.some((tool) => tool.startsWith("github_")));
   assert.ok(!architect.tools.some((tool) => tool.startsWith("github_workflow_")));

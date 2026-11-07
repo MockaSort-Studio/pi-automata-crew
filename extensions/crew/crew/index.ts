@@ -3,17 +3,16 @@ import { readFileSync } from "node:fs";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { assemble, validateAvailableRoleTools } from "./lib/assembly.mjs";
-import { registerCrewMonitor } from "./lib/monitor.ts";
-import { launchPreparedCrew, prepareCrew, queuedMessage } from "./lib/startup.mjs";
+import { prepareCrew, queuedMessage } from "./lib/startup.mjs";
+import { launchOnHost } from "./lib/host-launch.mjs";
+import { bindCrewHost, crewHost } from "./lib/crew-host.mjs";
+import { registerCrewHostTools } from "./lib/crew-host-tools.ts";
 import { registerCrewObservability } from "./lib/observability.mjs";
-import { registerRosterTools } from "./lib/roster-tools.ts";
 import { registerSkillTrace } from "./lib/skill-trace.ts";
 import { assemblyCardData } from "./lib/crew-assembly-card.mjs";
 import { CREW_ASSEMBLED_ENTRY, registerCrewAssemblyCard } from "./lib/crew-assembly-card.ts";
 import { registerCrewMessageRenderer } from "./lib/crew-message-renderer.ts";
 import { parseSpecialistRoutes, routeSpecialists, specialistRoutesPath } from "./lib/specialist-routing.mjs";
-import { runtimeFor } from "../crew-runtime/lib/shared-runtime.mjs";
-import { registerTerminalNotifierSession } from "./lib/terminal-notifier-session.mjs";
 
 const output = (value, text = JSON.stringify(value)) => ({
   content: [{ type: "text", text }],
@@ -63,13 +62,18 @@ const parameters = Type.Object({
 });
 
 export default function crewExtension(pi: ExtensionAPI) {
-  const attachTerminalNotifier = registerTerminalNotifierSession(pi, runtimeFor);
+  // Pi re-evaluates extensions on /reload; the host connection survives it and delivers through the current pi.
+  bindCrewHost(pi);
+  const host = (ctx: any) => crewHost({ cwd: ctx.cwd, configDir: CONFIG_DIR_NAME });
   registerCrewObservability(pi, CONFIG_DIR_NAME);
-  registerRosterTools(pi);
   registerSkillTrace(pi);
   registerCrewAssemblyCard(pi);
   registerCrewMessageRenderer(pi);
-  const monitor = registerCrewMonitor(pi, runtimeFor);
+  registerCrewHostTools(pi, host);
+  // Quitting stops the host, which closes every VM. A reload leaves running crews alone.
+  pi.on("session_shutdown", async (event: any, ctx: any) => {
+    if (event?.reason === "quit") await host(ctx).stop();
+  });
 
   pi.registerTool({
     name: "crew_route",
@@ -107,7 +111,8 @@ export default function crewExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "start_crew",
     label: "Crew: start",
-    description: "Launch a Crew on the SDK runtime with Comm and Lifecycle processes.",
+    description:
+      "Launch a Crew. Each member is a Pi session whose tools run in its own isolated Gondolin VM; assignments are dispatched immediately, in dependency order. Results arrive as messages: end your turn and wait.",
     parameters,
     renderCall(args, theme) {
       const label = `${args.members.length} member${args.members.length === 1 ? "" : "s"}`;
@@ -122,8 +127,6 @@ export default function crewExtension(pi: ExtensionAPI) {
       return new Container();
     },
     async execute(_id, input, signal, _update, ctx) {
-      // Bind against this tool's actual Runtime before it launches a Crew.
-      attachTerminalNotifier(ctx);
       const THINKING_UNSUPPORTED = ["mistral-small", "mistral-medium", "mistral-tiny"];
       if (input.model) {
         const m = input.model.toLowerCase();
@@ -137,8 +140,7 @@ export default function crewExtension(pi: ExtensionAPI) {
       // This records the selected party even if runtime launch later fails. It is TUI-only, never a
       // sendMessage: it must not steer Main or enter model context.
       pi.appendEntry(CREW_ASSEMBLED_ENTRY, assemblyCardData(prepared, input));
-      monitor.activate(ctx, prepared.rosterFile);
-      const launched = await launchPreparedCrew(ctx.cwd, prepared);
+      const launched = await launchOnHost({ host: host(ctx), prepared, cwd: ctx.cwd, configDir: CONFIG_DIR_NAME });
       const warnings = launched.warnings?.length
         ? `\n\nWarnings:\n${launched.warnings.map((line: string) => `- ${line}`).join("\n")}`
         : "";

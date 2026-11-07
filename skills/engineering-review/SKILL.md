@@ -16,7 +16,7 @@ description: Review a change with independent specialists. Code review always, s
    receives `security-boundary-review`. At the end of an iteration, one reviewer receives
    `post-iteration-review` for the whole diff. The procedures are embedded during assembly; workers do
    not discover project skills.
-5. **Launch** the reviewers in parallel with `start_crew` and `runtime_dispatch`, then wait for the
+5. **Launch** the reviewers in parallel with `start_crew` (it dispatches immediately), then wait for the
    messages (do not poll).
 6. **Summarize** one verdict per reviewer with its blocking findings. Reviewers never edit; fixes go
    back through `engineering-execution`.
