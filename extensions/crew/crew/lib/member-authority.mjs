@@ -8,8 +8,13 @@ const roles = JSON.parse(readFileSync(new URL("../prompts/roles.json", import.me
 const native = new Set(["read", "grep", "find", "ls", "bash", "edit", "write"]);
 const github = "collaboration/pi-github-tools";
 const gitOperations = new Set([
-  "github_workspace_checkout", "github_git_status", "github_git_diff", "github_git_stage",
-  "github_git_commit", "github_git_push", "github_pull_request_create",
+  "github_workspace_checkout",
+  "github_git_status",
+  "github_git_diff",
+  "github_git_stage",
+  "github_git_commit",
+  "github_git_push",
+  "github_pull_request_create",
 ]);
 
 export function validateMemberAuthority(automaton, role, requested = BASE_TOOLS_PROFILE) {
@@ -25,12 +30,14 @@ export function validateMemberAuthority(automaton, role, requested = BASE_TOOLS_
   for (const tool of BASE_TOOLS_PROFILE[0].operations) system.add(tool);
   const grants = suiteGrants(requested);
   for (const tool of grants.system ?? []) {
-    if (!system.has(tool)) throw new Error(`Crew assignment has a system operation outside ${role}'s capabilities: ${tool}.`);
+    if (!system.has(tool))
+      throw new Error(`Crew assignment has a system operation outside ${role}'s capabilities: ${tool}.`);
   }
   for (const grant of grants.suites) {
     if (grant.suite !== github) throw new Error(`Unknown or unauthorized Crew suite: ${grant.suite}.`);
     for (const tool of grant.tools)
-      if (!operations.has(tool)) throw new Error(`Crew assignment has an Armory operation outside ${role}'s capabilities: ${tool}.`);
+      if (!operations.has(tool))
+        throw new Error(`Crew assignment has an Armory operation outside ${role}'s capabilities: ${tool}.`);
   }
   return { tools: grants.system ?? [], suiteGrants: grants.suites };
 }

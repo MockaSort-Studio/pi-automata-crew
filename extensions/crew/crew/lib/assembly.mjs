@@ -21,11 +21,12 @@ export function assemble(name, role, task, override = {}) {
     .install(crewDisciplineModule)
     .install(roleModule, { role, override })
     .build();
-  const requested = override.tools !== undefined
-    ? override.tools
-    : override.systemOperations === undefined
-      ? undefined
-      : [{ suite: "system", operations: override.systemOperations }];
+  const requested =
+    override.tools !== undefined
+      ? override.tools
+      : override.systemOperations === undefined
+        ? undefined
+        : [{ suite: "system", operations: override.systemOperations }];
   const authority = validateMemberAuthority(automaton, role, requested);
   return {
     name: `${role}-${name}`,
