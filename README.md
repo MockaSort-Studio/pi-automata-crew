@@ -1,74 +1,88 @@
 # Pi Automata Crew
 
-Private alpha repository for a Pi-native Crew runtime. It is a runtime and tooling project, not a
-port of the Hall Claude Code skills.
+A control plane for agents, inside [Pi](https://pi.dev). From Pi you dispatch role-based agents; each
+one is a Pi session whose tools run inside its own isolated VM; results come back to you as messages,
+and the work lands as pushed branches and draft pull requests that a human reviews.
 
-Hall Crew starts isolated specialist workers, explicitly dispatches their work, carries typed Crew
-state over Comm, and cleans up processes, worktrees, and VMs. Gondolin provides one VM per worker;
-Armory provides approved guest operations with narrow credential and network grants.
+```text
+You ─ Pi ─ start_crew ─► crew host (one process per Pi)
+                          ├─ developer-ada-00   Pi session ─► tools run in VM 1
+                          └─ reviewer-bollo-00  Pi session ─► tools run in VM 2
+                                    │ results, questions, failures
+You ◄────────── messages ◄──────────┘
+```
 
-## Scope
+## What you get
 
-In scope: Crew runtime, Comm, lifecycle, TUI, Gondolin, Armory, credentials, observability, and
-validation. Claude skills and methodology migration are out of scope.
-
-See [Saga 2](docs/saga/Saga-2-The-Loosed-Harness-[open].md) and the
-[implementation plan](docs/crew/implementation-plan.md) for the active direction.
+- **Isolation by default.** Every agent's `bash`, `read`, `write`, `edit`, `grep`, `find` and `ls` run in
+  its own [Gondolin](https://github.com/earendil-works/gondolin) VM with a private workspace and no
+  network. There is no fallback to your host: if a VM cannot start, the launch fails and says why.
+- **Credentials stay out of the VM.** GitHub tools (typed Git operations and pull requests, from the
+  [Armory](https://github.com/MockaSort-Studio/hall-armory)) run on your host, against the exact repository,
+  revision and `crew/<run>/<member>` branch the crew is authorized for. Pushing elsewhere, force pushes and
+  other refs are refused.
+- **Deterministic outcomes.** The runner, not the model, decides whether an agent completed, needs input
+  or failed. A rate-limited or empty model turn is a failure with a category, never a silent success.
+- **No lost work.** When a run ends early, uncommitted work is committed and pushed to the member's own branch.
+- **Ordering and conversation.** `dependsOn` makes a member wait for another and receive its result. A member
+  can ask you a question (`request_input`) and continues in the same session when you answer.
+- **A TUI.** A footer line per active crew with live counts and tokens, and a dashboard
+  (`/crew-dashboard`, `ctrl+shift+d`) with an Automata tab and a Plan tab.
+- **Every run keeps a transcript** under `.pi/runtime/crews/<run>/`.
 
 ## Install
 
-This repository is a [Pi package](docs/crew/packaging.md): `package.json` declares a `pi` manifest
-that exposes the Crew extension (`extensions/crew.ts`) and reviewer skills under `skills/`.
-Required host tools: Node 24, npm, and the `pi` CLI.
-
-Install straight from git (pin a tag once alpha releases start, e.g. `@v0.1.0-alpha.1`):
+Requires Node 24, git and [Pi](https://pi.dev). Nix is **not** needed. A VM needs libkrun (macOS arm64 and
+Linux x64 ship one) or QEMU.
 
 ```bash
-pi install git:github.com/<org>/pi-automata-crew
-```
-
-Or install a local checkout by path, for development:
-
-```bash
-pi install /path/to/pi-automata-crew
-```
-
-Confirm the package is registered and its resources load:
-
-```bash
+pi install git:github.com/<org>/pi-automata-crew      # or: pi install /path/to/checkout
 pi list
 ```
 
-Update an installed package to the latest pinned ref:
+Then check the machine from inside Pi:
 
-```bash
-pi update --extensions
+```text
+/crew-doctor
 ```
 
-See [docs/crew/packaging.md](docs/crew/packaging.md) for the manifest contents and the release
-procedure.
+It boots a VM and checks everything a crew depends on, and says what to fix. For GitHub tools, export
+`HALL_GITHUB_TOKEN` (and have the `gh` CLI installed); crews that do not use GitHub run without it.
+
+## Use
+
+Ask Pi to start a crew (it uses `start_crew`; `crew_route` picks specialists for paths). Name a `model` as
+`provider/id` and, for repository work, pin `environment.repository.revision` to a full commit SHA that exists
+on the remote. Everything that can be checked is checked before any VM starts.
+
+| Tool                           | Use                                                          |
+| ------------------------------ | ------------------------------------------------------------ |
+| `start_crew`                   | Launch members; assignments dispatch immediately             |
+| `crew_status`                  | Look at each member's state and last activity                |
+| `crew_message`                 | Answer a question, retry a failed member, or follow up       |
+| `crew_cancel`                  | Stop a member or the whole crew; running commands are killed |
+| `runtime_cleanup`              | Dispose every crew from this session and close its VMs       |
+| `crew_doctor` / `/crew-doctor` | Check this machine                                           |
+
+Agents run until they finish; there are no automatic deadlines. A member that fails or asks a question is
+held, not lost, until you message or cancel it. Quitting Pi closes every VM; `/reload` leaves running crews alone.
 
 ## Develop
 
-Requires Node 24 and npm.
-
 ```bash
 npm ci
-npm test
+npm test                 # needs a VM; HALL_SKIP_GONDOLIN_LIVE_TESTS=1 skips those, as CI does
 npm run format:check
 ```
 
-The test suite is self-contained. Tests that need unavailable Pi TUI bindings or optional host
-facilities skip deliberately. Gondolin/Armory live canaries require Nix, released Armory artifacts,
-and host VM support; they are not installed by `npm ci`.
+Live tests run the real host, real VMs and an offline model.
 
 ## Layout
 
-- `extensions/crew/crew/` — policy, roles, composition, and TUI.
-- `extensions/crew/crew-runtime/` — Comm, Lifecycle, workers, worktrees, cleanup.
-- `extensions/crew/env-runtime/` — Gondolin, Armory, Nix, and credentials.
+- `extensions/crew/runner/` — the crew host: dispatcher, member agents, routed tools, host-side suites.
+- `extensions/crew/crew/` — assembly, roles, the TUI, and the Pi tools.
+- `extensions/crew/env-runtime/` — Gondolin VMs, workspaces, guest network, credentials, doctor.
+- `extensions/crew/crew-runtime/` — the earlier Comm/Lifecycle runtime. Kept for the backend scale-up; not loaded.
 - `skills/` and root `SPECIALIST_ROUTES` — Crew procedures and routing policy.
-- `tests/crew/`, `tests/runtime/` — deterministic unit and integration tests.
-- `docs/crew/` — alpha status, decisions, measurements, and active plan.
-
-Dependencies flow downward: `crew → crew-runtime → env-runtime`.
+- `tests/crew/`, `tests/runtime/` — behavior tests; live ones use real VMs.
+- `docs/crew/` — design notes and history. See [architecture](docs/crew/architecture.md).

@@ -7,6 +7,7 @@ import { prepareCrew, queuedMessage } from "./lib/startup.mjs";
 import { launchOnHost } from "./lib/host-launch.mjs";
 import { bindCrewHost, crewHost } from "./lib/crew-host.mjs";
 import { registerHostMonitor } from "./lib/host-monitor.ts";
+import { registerCrewDoctor } from "./lib/crew-doctor.ts";
 import { registerCrewHostTools } from "./lib/crew-host-tools.ts";
 import { registerCrewObservability } from "./lib/observability.mjs";
 import { registerSkillTrace } from "./lib/skill-trace.ts";
@@ -71,6 +72,7 @@ export default function crewExtension(pi: ExtensionAPI) {
   registerCrewAssemblyCard(pi);
   registerCrewMessageRenderer(pi);
   registerCrewHostTools(pi, host);
+  registerCrewDoctor(pi);
   const monitor = registerHostMonitor(pi, host);
   // Quitting stops the host, which closes every VM. A reload leaves running crews alone.
   pi.on("session_shutdown", async (event: any, ctx: any) => {
