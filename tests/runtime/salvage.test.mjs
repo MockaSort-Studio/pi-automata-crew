@@ -42,15 +42,14 @@ test("uncommitted work on an agent that never checked out is checked out, commit
   assert.deepEqual(names(calls), [
     "github_git_status",
     "github_workspace_checkout",
-    "github_git_status",
     "github_git_stage",
     "github_git_commit",
     "github_git_push",
   ]);
   assert.deepEqual(calls[1][1], { repo: "o/r", revision: policy.revision, branch: policy.branch });
-  assert.deepEqual(calls[3][1], { repo: "o/r", paths: ["a.txt", "docs/b.md"] });
-  assert.deepEqual(calls[4][1], { repo: "o/r", message: "wip: salvage developer-x-00 (failed)" });
-  assert.deepEqual(calls[5][1], { repo: "o/r", branch: policy.branch });
+  assert.deepEqual(calls[2][1], { repo: "o/r", paths: ["a.txt", "docs/b.md"] });
+  assert.deepEqual(calls[3][1], { repo: "o/r", message: "wip: salvage developer-x-00 (failed)" });
+  assert.deepEqual(calls[4][1], { repo: "o/r", branch: policy.branch });
   assert.deepEqual(result, {
     branch: policy.branch,
     commit: "c0ffee",
@@ -63,10 +62,13 @@ test("uncommitted work on an agent that never checked out is checked out, commit
 test("committed but unpushed work on the checked-out branch is only pushed", async () => {
   const { ops, calls } = fakeOps(
     { branch: policy.branch, files: [] },
-    { github_git_push: () => ({ commit: "beef", upToDate: true }) },
+    {
+      github_workspace_checkout: () => ({ head: "b".repeat(40) }),
+      github_git_push: () => ({ commit: "beef", upToDate: true }),
+    },
   );
   const result = await salvage({ ops, policy, member: "developer-x-00", reason: "cancelled" });
-  assert.deepEqual(names(calls), ["github_git_status", "github_git_push"]);
+  assert.deepEqual(names(calls), ["github_git_status", "github_workspace_checkout", "github_git_push"]);
   assert.deepEqual(result, { branch: policy.branch, commit: "beef", changed: 0, committed: undefined, upToDate: true });
 });
 
@@ -103,4 +105,24 @@ test("a failing operation is reported beside the run, bounded, and never thrown"
   assert.equal(result.branch, policy.branch);
   assert.match(result.error, /^push rejected/);
   assert.ok(result.error.length <= 300);
+});
+
+test("an agent that checked out and changed nothing leaves no empty branch on the remote", async () => {
+  const { ops, calls } = fakeOps(
+    { branch: policy.branch, files: [] },
+    { github_workspace_checkout: () => ({ head: policy.revision }) },
+  );
+  const result = await salvage({ ops, policy, member: "developer-x-00", reason: "cancelled" });
+  assert.deepEqual(result, { branch: policy.branch, skipped: true, reason: "no changes" });
+  assert.deepEqual(names(calls), ["github_git_status", "github_workspace_checkout"], "nothing is committed or pushed");
+});
+
+test("work that is already committed is pushed even when nothing is uncommitted", async () => {
+  const { ops, calls } = fakeOps(
+    { branch: policy.branch, files: [] },
+    { github_workspace_checkout: () => ({ head: "c".repeat(40) }) },
+  );
+  const result = await salvage({ ops, policy, member: "developer-x-00", reason: "failed" });
+  assert.equal(result.skipped, undefined);
+  assert.ok(names(calls).includes("github_git_push"));
 });
