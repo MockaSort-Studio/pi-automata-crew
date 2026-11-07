@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+// A member kept busy for a long time: not `sleep`, which the worker shell policy rejects as polling.
 import { createHostClient } from "../../extensions/crew/runner/host-client.mjs";
 import { listProcesses, vmmChildrenOf } from "../../extensions/crew/env-runtime/lib/vm-processes.mjs";
 import { mockModel } from "./mock-model.mjs";
@@ -124,7 +125,9 @@ test("launch validation fails before any VM, and the host stays usable", { timeo
 
 test("killing Main with SIGKILL closes the host and every VM", { timeout: 240_000 }, async (t) => {
   if (skipLiveGondolin(t)) return;
-  const { server, dir, env } = await world(t, () => call("bash", { command: "echo started; sleep 300" }));
+  const { server, dir, env } = await world(t, () =>
+    call("bash", { command: "echo started; node -e 'setInterval(() => {}, 1000)'" }),
+  );
   const owner = spawn(process.execPath, [join(fixtures, "host-owner.mjs")], {
     env: { ...env, CREW_TEST_LAUNCH: JSON.stringify({ runId: "run1", crewDir: dir, members: [member(A)] }) },
     stdio: ["ignore", "pipe", "inherit"],
@@ -149,7 +152,9 @@ test("killing Main with SIGKILL closes the host and every VM", { timeout: 240_00
 
 test("a SIGKILLed host leaves no VM either, and a graceful stop closes everything", { timeout: 240_000 }, async (t) => {
   if (skipLiveGondolin(t)) return;
-  const { dir, client } = await world(t, () => call("bash", { command: "echo started; sleep 300" }));
+  const { dir, client } = await world(t, () =>
+    call("bash", { command: "echo started; node -e 'setInterval(() => {}, 1000)'" }),
+  );
   await client.request("launch", { runId: "run1", crewDir: dir, members: [member(A)] });
   const hostPid = client.pid;
   assert.ok(await waitUntil(() => vmmChildrenOf(hostPid, listProcesses()).length === 1, 60_000));

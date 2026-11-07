@@ -14,6 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+// A member kept busy for a long time: not `sleep`, which the worker shell policy rejects as polling.
 import { listProcesses, vmmChildrenOf } from "../../extensions/crew/env-runtime/lib/vm-processes.mjs";
 import { mockModel, providerFor } from "./mock-model.mjs";
 
@@ -68,7 +69,12 @@ test(
       // Main's requests offer start_crew; the member's (served to the host process) do not.
       if (body.includes('"name":"start_crew"'))
         return (mainCalls += 1) === 1 ? { toolCall: { name: "start_crew", arguments: crew } } : { text: "launched" };
-      return { toolCall: { name: "bash", arguments: JSON.stringify({ command: "echo started; sleep 300" }) } };
+      return {
+        toolCall: {
+          name: "bash",
+          arguments: JSON.stringify({ command: "echo started; node -e 'setInterval(() => {}, 1000)'" }),
+        },
+      };
     });
     await new Promise((resolve) => model.listen(0, "127.0.0.1", resolve));
     const dir = mkdtempSync(join(tmpdir(), "owner-death-"));

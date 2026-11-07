@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+// A member kept busy for a long time: not `sleep`, which the worker shell policy rejects as polling.
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { runAgent } from "../../extensions/crew/runner/agent-run.mjs";
 import { createEnvironment } from "../../extensions/crew/runner/environment.mjs";
@@ -79,7 +80,9 @@ test(
   { timeout: 180_000 },
   async (t) => {
     if (skipLiveGondolin(t)) return;
-    const { run, environment } = await agent(t, () => call("bash", { command: "echo started; sleep 120" }));
+    const { run, environment } = await agent(t, () =>
+      call("bash", { command: "echo started; node -e 'setInterval(() => {}, 1000)'" }),
+    );
     const controller = new AbortController();
     const running = run({ signal: controller.signal });
     for (let i = 0; i < 200; i += 1) {
