@@ -16,11 +16,22 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Read Gondolin version
+        id: gondolin
+        run: echo "version=$(node -p "require('./node_modules/@earendil-works/gondolin/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/gondolin
+          key: gondolin-${{ runner.os }}-${{ runner.arch }}-${{ steps.gondolin.outputs.version }}
       # Crew workers run this suite from inside a worker; set their identity variables so every CI
       # run proves the suite does not depend on, or break under, an inherited worker environment.
       - run: npm test
         env:
-          HALL_SKIP_GONDOLIN_LIVE_TESTS: "1"
           PI_SDK_ACTOR_ID: ci-worker-probe
           PI_CREW_WORKER_CONFIG: /nonexistent/worker.json
           PI_CREW_COMM_TOKEN: ci-probe-token
