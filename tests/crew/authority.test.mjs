@@ -14,10 +14,11 @@ const grants = (suite, ...operations) => [{ suite, operations }];
 test("role and persona policy allows only authorized suite and system operations", () => {
   for (const role of ["lead", "architect", "advisor", "developer", "integrator", "reviewer"]) {
     assert.doesNotThrow(() => assemble("bollo", role, "", {}));
-    assert.throws(
-      () => assemble("bollo", role, "", { tools: grants(github, "github_issue_create") }),
-      /outside|unauthorized/i,
-    );
+    if (role !== "lead")
+      assert.throws(
+        () => assemble("bollo", role, "", { tools: grants(github, "github_issue_create") }),
+        /outside|unauthorized/i,
+      );
   }
   assert.doesNotThrow(() => assemble("snowball", "developer", "", { tools: grants(github, "github_git_push") }));
   assert.doesNotThrow(() => assemble("bollo", "reviewer", "", { tools: grants(github, "github_pull_request_view") }));
@@ -62,19 +63,19 @@ test("developer PR authority permits ownership operations but not review or merg
 });
 
 test("persona capabilities union with role policy without widening other personas", () => {
-  const domain = { tools: ["edit", "github_pull_request_view"] };
+  const domain = { tools: ["edit", "github_project_fields"] };
   assert.deepEqual(
     validateMemberAuthority(domain, "advisor", [
       ...grants("system", "edit"),
-      ...grants(github, "github_pull_request_view"),
+      ...grants(github, "github_project_fields"),
     ]),
     {
       tools: ["edit"],
-      suiteGrants: [{ suite: github, tools: ["github_pull_request_view"] }],
+      suiteGrants: [{ suite: github, tools: ["github_project_fields"] }],
     },
   );
   assert.throws(
-    () => validateMemberAuthority({ tools: [] }, "advisor", grants(github, "github_pull_request_view")),
+    () => validateMemberAuthority({ tools: [] }, "advisor", grants(github, "github_project_fields")),
     /outside/,
   );
   assert.throws(

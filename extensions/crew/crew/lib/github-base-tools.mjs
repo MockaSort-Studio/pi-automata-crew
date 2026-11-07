@@ -29,6 +29,7 @@ export const GITHUB_BASE_TOOLS = Object.freeze([
   "github_pull_request_view",
   "github_pull_request_files",
   "github_pull_request_checks",
+  "github_pull_request_checks_wait",
   "github_pull_request_review_threads",
   "github_pull_request_comment",
   "github_pull_request_update",
@@ -42,5 +43,12 @@ export const GITHUB_BASE_TOOLS = Object.freeze([
   "github_workflow_runs_list",
   "github_workflow_run_view",
   "github_workflow_run_failed_log",
+  "github_pull_request_create",
+  "github_workspace_checkout",
+  "github_git_status",
+  "github_git_diff",
+  "github_git_stage",
+  "github_git_commit",
+  "github_git_push",
 ]);
 export const GITHUB_BASE_TOOL_SET = new Set(GITHUB_BASE_TOOLS);
