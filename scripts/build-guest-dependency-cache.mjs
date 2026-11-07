@@ -6,6 +6,7 @@ import { basename, join, resolve } from "node:path";
 import { RealFSProvider, VM } from "@earendil-works/gondolin";
 import { createGuestNetwork } from "../extensions/crew/env-runtime/lib/guest-network.mjs";
 import {
+  copyDependencyCacheModules,
   dependencyCacheDirectory,
   dependencyCacheKey,
   repositoryDependencyCacheFormat,
@@ -49,7 +50,7 @@ try {
   if (installed.exitCode !== 0) throw new Error(`Guest dependency install failed: ${installed.stderr}`);
   await vm.close();
   vm = undefined;
-  cpSync(join(build, "node_modules"), join(staging, "node_modules"), { recursive: true, dereference: false });
+  copyDependencyCacheModules(join(build, "node_modules"), join(staging, "node_modules"));
   await writeFile(
     join(staging, "manifest.json"),
     JSON.stringify({

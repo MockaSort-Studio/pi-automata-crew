@@ -1,9 +1,11 @@
 import { strict as assert } from "node:assert";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  copyDependencyCacheModules,
   dependencyCacheDirectory,
   dependencyCacheKey,
   repositoryDependencyCacheFormat,
@@ -38,6 +40,40 @@ function cache({ home, key, profile: cacheProfile = profile }) {
   );
   return directory;
 }
+
+test("cache executable links survive relocation and reject invalid targets", () => {
+  const item = fixture();
+  try {
+    const source = join(item.root, "build", "node_modules");
+    const destination = join(item.root, "cache", "node_modules");
+    mkdirSync(join(source, ".bin"), { recursive: true });
+    mkdirSync(join(source, "tool"), { recursive: true });
+    writeFileSync(join(source, "tool", "cli.js"), "ok");
+    symlinkSync("../tool/cli.js", join(source, ".bin", "tool"));
+    copyDependencyCacheModules(source, destination);
+    rmSync(join(item.root, "build"), { recursive: true });
+    assert.equal(realpathSync(join(destination, ".bin", "tool")), join(destination, "tool", "cli.js"));
+    symlinkSync("../missing", join(destination, ".bin", "broken"));
+    assert.throws(() => copyDependencyCacheModules(destination, join(item.root, "invalid")), /link/i);
+  } finally {
+    rmSync(item.root, { recursive: true, force: true });
+  }
+});
+
+test("old format cache is not reused and the new key can be rebuilt", () => {
+  const item = fixture();
+  try {
+    const oldKey = createHash("sha256").update('{"lockfileVersion":3}\n').update("\0").update(profile).digest("hex");
+    const old = cache({ ...item, key: oldKey });
+    writeFileSync(join(old, "manifest.json"), JSON.stringify({ format: "pi-crew-repository-dependency-cache/v2" }));
+    assert.notEqual(item.key, oldKey);
+    assert.throws(() => resolveRepositoryDependencyCache(item), /unavailable/);
+    cache(item);
+    assert.equal(resolveRepositoryDependencyCache(item).key, item.key);
+  } finally {
+    rmSync(item.root, { recursive: true, force: true });
+  }
+});
 
 test("a guest-profile and lockfile keyed cache resolves to a shared read-only mount source", () => {
   const item = fixture();
