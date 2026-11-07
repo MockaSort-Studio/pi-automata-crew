@@ -207,3 +207,48 @@ test("snapshot exposes a plain object of handle -> status", () => {
   ledger.addNode("developer-alpha-01");
   assert.deepEqual(ledger.snapshot(), { "developer-alpha-01": "waiting" });
 });
+
+test("a completed node can be reopened: dependents that have not started wait again, started ones are left alone", () => {
+  const ledger = createDependencyLedger();
+  for (const handle of ["developer-a-00", "developer-b-00", "developer-c-00", "developer-d-00"]) ledger.addNode(handle);
+  ledger.addDependency("developer-b-00", "developer-a-00");
+  ledger.addDependency("developer-c-00", "developer-a-00");
+  ledger.addDependency("developer-d-00", "developer-a-00");
+  ledger.start("developer-a-00");
+  ledger.complete("developer-a-00");
+  assert.deepEqual(
+    ["developer-b-00", "developer-c-00", "developer-d-00"].map((handle) => ledger.status(handle)),
+    ["ready", "ready", "ready"],
+  );
+  ledger.start("developer-c-00");
+  ledger.start("developer-d-00");
+  ledger.complete("developer-d-00");
+
+  assert.equal(ledger.reopen("developer-a-00"), "running");
+  assert.equal(ledger.status("developer-b-00"), "waiting", "not started: depends on a result that is in question");
+  assert.equal(ledger.status("developer-c-00"), "running", "already running: left alone");
+  assert.equal(ledger.status("developer-d-00"), "complete", "already complete: left alone");
+
+  ledger.complete("developer-a-00");
+  assert.equal(ledger.status("developer-b-00"), "ready", "and it is released again by the new result");
+});
+
+test("a reopened node can end as blocked or failed, and only a complete node can be reopened", () => {
+  const ledger = createDependencyLedger();
+  ledger.addNode("developer-a-00");
+  ledger.addNode("developer-b-00");
+  ledger.addDependency("developer-b-00", "developer-a-00");
+  assert.throws(() => ledger.reopen("developer-a-00"), /Illegal dependency ledger transition/);
+  ledger.start("developer-a-00");
+  ledger.complete("developer-a-00");
+  ledger.reopen("developer-a-00");
+  ledger.block("developer-a-00");
+  assert.equal(ledger.status("developer-a-00"), "blocked");
+  assert.equal(ledger.status("developer-b-00"), "blocked", "what waits on it is held");
+  ledger.start("developer-a-00");
+  ledger.complete("developer-a-00");
+  assert.throws(() => ledger.fail("developer-a-00"), /Illegal/, "failing a node that is not running is still illegal");
+  ledger.reopen("developer-a-00");
+  ledger.fail("developer-a-00");
+  assert.equal(ledger.status("developer-a-00"), "failed");
+});

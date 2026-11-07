@@ -268,3 +268,72 @@ test("dispose aborts running work and disposes every agent", async () => {
   assert.ok(w.log.includes(`dispose ${A}`));
   assert.throws(() => dispatcher.message(A, "x"), /disposed/);
 });
+
+test("a completed member that fails after a follow-up is not reported as complete", async () => {
+  const w = world({ [A]: [result("completed"), result("failed", { failure: { category: "rate_limit_or_quota" } })] });
+  const idle = [];
+  const d = createDispatcher({
+    members: [{ handle: A, task: "a" }],
+    createAgent: w.createAgent,
+    onIdle: (m) => idle.push(m),
+  });
+  d.start();
+  await settle();
+  assert.deepEqual([d.status()[0].state, d.status()[0].ledger], ["completed", "complete"]);
+
+  d.message(A, "please also handle the edge case");
+  await settle();
+  assert.deepEqual(
+    [d.status()[0].state, d.status()[0].ledger],
+    ["failed", "blocked"],
+    "the ledger says what really happened",
+  );
+  assert.equal(idle.at(-1)[0].ledger, "blocked", "so the crew is not announced as complete");
+
+  d.message(A, "try again");
+  await settle();
+  assert.deepEqual([d.status()[0].state, d.status()[0].ledger], ["completed", "complete"], "and it can still finish");
+});
+
+test("a completed member that asks a question after a follow-up holds what has not started", async () => {
+  const w = world({
+    [A]: [result("completed"), result("needs_input", { question: "which one?" }), result("completed")],
+  });
+  const members = [
+    { handle: A, task: "a" },
+    { handle: C, task: "c" },
+    { handle: B, task: "b", dependsOn: [A] },
+  ];
+  // One at a time: after A completes, C takes the only slot, so B is ready but has not started.
+  const d = createDispatcher({ members, createAgent: w.createAgent, maxParallel: 1 });
+  const release = w.hold(C);
+  d.start();
+  await settle();
+  assert.deepEqual(
+    d.status().map((m) => [m.handle, m.state, m.ledger]),
+    [
+      [A, "completed", "complete"],
+      [C, "running", "running"],
+      [B, "queued", "ready"],
+    ],
+  );
+
+  d.message(A, "one more thing");
+  await settle();
+  assert.deepEqual(
+    [d.status()[0].state, d.status()[2].ledger],
+    ["needs_input", "blocked"],
+    "B is held while its prerequisite asks",
+  );
+  release();
+  await settle();
+  assert.equal(w.agents[B], undefined, "B never started on a result that was in question");
+
+  d.message(A, "the first one");
+  await settle();
+  assert.deepEqual(
+    d.status().map((m) => m.state),
+    ["completed", "completed", "completed"],
+  );
+  assert.match(w.agents[B].prompts[0], /completed text/, "B ran after A finished again, and saw its result");
+});
