@@ -13,13 +13,28 @@ const GITHUB_SUITE = "collaboration/pi-github-tools";
 // role-persona-NN; a persona name may itself contain hyphens (old-major, indiana-docs).
 const HANDLE = /^[a-z][a-z0-9]*-[a-z][a-z0-9]*(?:-[a-z][a-z0-9]*)*-\d{2}$/;
 
-const emptyLive = () => ({ turns: 0, toolCalls: 0, toolErrors: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+const emptyLive = () => ({
+  turns: 0,
+  toolCalls: 0,
+  toolErrors: 0,
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+  context: null,
+});
 function countEvent(live, event) {
   if (!live) return;
   if (event.type === "tool_start") live.toolCalls += 1;
   if (event.type === "tool_end" && event.error) live.toolErrors += 1;
   if (event.type === "turn") {
     live.turns += 1;
+    if (event.context) {
+      live.context = {
+        percent: event.context.percent ?? live.context?.percent ?? null,
+        window: event.context.contextWindow,
+      };
+    }
     for (const key of ["input", "output", "cacheRead", "cacheWrite"]) live[key] += Number(event.usage?.[key]) || 0;
   }
 }

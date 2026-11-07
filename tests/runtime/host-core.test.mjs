@@ -245,8 +245,35 @@ test("status carries live per-member totals that grow as the agent works, before
     output: 30,
     cacheRead: 5,
     cacheWrite: 1,
+    context: null,
   });
   report();
+});
+
+test("status reports the latest context and retains a known percent across compaction", async () => {
+  let emit;
+  const h = host({
+    deps: {
+      createMemberAgent: async ({ member: m, onEvent }) => {
+        emit = (event) => onEvent(m.handle, event);
+        return { run: { prompt: () => new Promise(() => {}), abort: async () => {} }, dispose: async () => {} };
+      },
+    },
+  });
+  await h.call("launch", launch());
+  await settle();
+  const context = async () => (await h.call("status", { runId: "run1" })).result.members[0].live.context;
+  assert.equal(await context(), null);
+  emit({ type: "turn", context: { percent: null, contextWindow: 1000 } });
+  assert.deepEqual(await context(), { percent: null, window: 1000 });
+  emit({ type: "turn", context: { percent: 25.5, contextWindow: 1000 } });
+  assert.deepEqual(await context(), { percent: 25.5, window: 1000 });
+  emit({ type: "turn", context: { percent: 12, contextWindow: 2000 } });
+  assert.deepEqual(await context(), { percent: 12, window: 2000 });
+  emit({ type: "turn", context: { percent: null, contextWindow: 3000 } });
+  assert.deepEqual(await context(), { percent: 12, window: 3000 });
+  emit({ type: "turn" });
+  assert.deepEqual(await context(), { percent: 12, window: 3000 });
 });
 
 test("a malformed suite grant fails the launch instead of silently granting nothing", async () => {
