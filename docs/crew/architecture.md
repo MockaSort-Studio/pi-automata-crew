@@ -1,7 +1,8 @@
 # Architecture
 
 How a Crew runs today. The earlier Comm/Lifecycle runtime (`extensions/crew/crew-runtime/`) is kept for the
-backend scale-up and is not loaded; its design notes are elsewhere in this directory.
+backend scale-up. Its extension entry point is not loaded, but some modules are still used, including
+`lib/crew-terminal-notifier.mjs`; its design notes are elsewhere in this directory.
 
 ## Shape
 
@@ -40,7 +41,9 @@ The runner decides, from the session's messages and facts it recorded itself:
 | `cancelled`   | Main cancelled it; the guest process group is killed                        |
 
 A member that fails or asks a question is **held** with its dependents, not terminal. Only a cancel ends it.
-Whenever a run ends, uncommitted work is salvaged to the member's `crew/<run>/<member>` branch.
+When a run ends, salvage is best-effort for members granted typed Git commit and push: the runner attempts to
+commit and push uncommitted work to the member's `crew/<run>/<member>` branch. Salvage failure is reported
+beside the result.
 
 ## Trust and limits
 

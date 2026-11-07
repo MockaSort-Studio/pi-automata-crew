@@ -23,7 +23,8 @@ You ◄────────── messages ◄──────────
   other refs are refused.
 - **Deterministic outcomes.** The runner, not the model, decides whether an agent completed, needs input
   or failed. A rate-limited or empty model turn is a failure with a category, never a silent success.
-- **No lost work.** When a run ends early, uncommitted work is committed and pushed to the member's own branch.
+- **Best-effort salvage.** For members granted typed Git commit and push, the runner attempts to commit and push
+  uncommitted work to the member's branch when a run ends. Salvage failure is reported beside the result.
 - **Ordering and conversation.** `dependsOn` makes a member wait for another and receive its result. A member
   can ask you a question (`request_input`) and continues in the same session when you answer.
 - **A TUI.** A footer line per active crew with live counts and tokens, and a dashboard
@@ -64,7 +65,7 @@ on the remote. Everything that can be checked is checked before any VM starts.
 | `runtime_cleanup`              | Dispose every crew from this session and close its VMs       |
 | `crew_doctor` / `/crew-doctor` | Check this machine                                           |
 
-Agents run until they finish; there are no automatic deadlines. A member that fails or asks a question is
+There is no deadline on an agent run. A member that fails or asks a question is
 held, not lost, until you message or cancel it. Quitting Pi closes every VM; `/reload` leaves running crews alone.
 
 ## Develop
@@ -82,7 +83,8 @@ Live tests run the real host, real VMs and an offline model.
 - `extensions/crew/runner/` — the crew host: dispatcher, member agents, routed tools, host-side suites.
 - `extensions/crew/crew/` — assembly, roles, the TUI, and the Pi tools.
 - `extensions/crew/env-runtime/` — Gondolin VMs, workspaces, guest network, credentials, doctor.
-- `extensions/crew/crew-runtime/` — the earlier Comm/Lifecycle runtime. Kept for the backend scale-up; not loaded.
+- `extensions/crew/crew-runtime/` — the earlier Comm/Lifecycle runtime, kept for the backend scale-up. Its
+  extension entry point is not loaded; some modules are still used, including `lib/crew-terminal-notifier.mjs`.
 - `skills/` and root `SPECIALIST_ROUTES` — Crew procedures and routing policy.
 - `tests/crew/`, `tests/runtime/` — behavior tests; live ones use real VMs.
 - `docs/crew/` — design notes and history. See [architecture](docs/crew/architecture.md).
