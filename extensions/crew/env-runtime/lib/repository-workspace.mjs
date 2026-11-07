@@ -1,6 +1,17 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { buildShallowCheckout } from "./repository-seed-archive.mjs";
@@ -52,6 +63,22 @@ export function archiveRevision(archive) {
   return /(?:^|\n)\d+ comment=([0-9a-f]{40})\n/.exec(archive.subarray(BLOCK, BLOCK + size).toString())?.[1];
 }
 
+const SEED_FILE = /^[0-9a-f]{64}\.tar$/;
+const KEEP_SEEDS = 10;
+
+// One archive per repository and revision accumulates for ever, so keep the most recently used few. Only files
+// named like a seed archive are ever touched, and never the one in use. Pruning is housekeeping: it never fails a launch.
+export function pruneRepositorySeeds(root, { keep = KEEP_SEEDS, protect } = {}) {
+  try {
+    const entries = readdirSync(root)
+      .filter((name) => SEED_FILE.test(name))
+      .map((name) => ({ name, at: statSync(join(root, name)).mtimeMs }))
+      .sort((a, b) => b.at - a.at);
+    for (const { name } of entries.slice(keep))
+      if (join(root, name) !== protect) rmSync(join(root, name), { force: true });
+  } catch {}
+}
+
 export function resolveRepositorySeed(
   authorization,
   {
@@ -72,6 +99,10 @@ export function resolveRepositorySeed(
     assertPrivate(path, lstat, uid);
     if (archiveRevision(readFileSync(path)) !== authorization.revision.toLowerCase())
       throw new Error("Repository seed cache does not match its authorized revision");
+    try {
+      const now = new Date();
+      utimesSync(path, now, now); // recently used: pruning keeps what is in use
+    } catch {}
     return path;
   }
   assertSourceRepository(cwd, authorization.repo, execFile);
@@ -94,6 +125,7 @@ export function resolveRepositorySeed(
   } catch (error) {
     if (!exists(path)) throw error;
   }
+  pruneRepositorySeeds(root, { protect: path });
   return path;
 }
 

@@ -5,9 +5,11 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,6 +21,7 @@ import {
   remoteMatchesRepository,
   repositorySeedPath,
   resolveRepositorySeed,
+  pruneRepositorySeeds,
 } from "../../extensions/crew/env-runtime/lib/repository-workspace.mjs";
 import { buildShallowCheckout } from "../../extensions/crew/env-runtime/lib/repository-seed-archive.mjs";
 
@@ -208,4 +211,36 @@ test("a seed is a shallow Git checkout of exactly the revision, with a GitHub or
   for (const leak of ["hooks", "logs", "FETCH_HEAD"])
     assert.equal(existsSync(join(workspace, ".git", leak)), false, leak);
   assert.doesNotMatch(readFileSync(join(workspace, ".git", "config"), "utf8"), new RegExp(source));
+});
+
+test("the seed cache keeps the most recently used archives and never touches anything else", () => {
+  const root = mkdtempSync(join(tmpdir(), "seed-prune-"));
+  try {
+    const name = (i) => `${String(i).padStart(64, "0")}.tar`;
+    for (let i = 0; i < 14; i += 1) {
+      writeFileSync(join(root, name(i)), "x");
+      utimesSync(join(root, name(i)), new Date(2026, 0, 1, 0, i), new Date(2026, 0, 1, 0, i)); // 0 is the oldest
+    }
+    writeFileSync(join(root, "notes.txt"), "not a seed");
+    writeFileSync(join(root, `${name(1)}.123.tmp`), "a build in progress");
+    const inUse = join(root, name(0)); // the oldest, but in use right now
+
+    pruneRepositorySeeds(root, { keep: 10, protect: inUse });
+    const left = readdirSync(root).sort();
+    assert.ok(left.includes(name(0)), "the archive in use survives even though it is the oldest");
+    for (const i of [1, 2, 3]) assert.ok(!left.includes(name(i)), `old archive ${i} was pruned`);
+    for (const i of [4, 13]) assert.ok(left.includes(name(i)), `recent archive ${i} was kept`);
+    assert.ok(
+      left.includes("notes.txt") && left.includes(`${name(1)}.123.tmp`),
+      "files that are not seed archives are untouched",
+    );
+    assert.equal(
+      left.filter((file) => /^[0-9a-f]{64}\.tar$/.test(file)).length,
+      11,
+      "ten most recent plus the one in use",
+    );
+    pruneRepositorySeeds(join(root, "missing")); // housekeeping never throws
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
