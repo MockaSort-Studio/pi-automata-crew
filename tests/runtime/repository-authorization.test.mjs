@@ -96,13 +96,13 @@ test("new read operations validate exact keys and bounded values", () => {
         failFast: ["true", 1],
       },
     ],
-    ["github_workflow_runs_list", { repo, workflow: "ci.yml", limit: 1 }, { workflow: [1, null], limit: [0, 101, 1.5] }],
-    ["github_workflow_run_view", { repo, runId: 1 }, { runId: [0, -1, 1.5, "1"] }],
     [
-      "github_workflow_run_failed_log",
-      { repo, runId: 1, maxChars: 1 },
-      { runId: [0, 1.5], maxChars: [0, 12001, 1.5] },
+      "github_workflow_runs_list",
+      { repo, workflow: "ci.yml", limit: 1 },
+      { workflow: [1, null], limit: [0, 101, 1.5] },
     ],
+    ["github_workflow_run_view", { repo, runId: 1 }, { runId: [0, -1, 1.5, "1"] }],
+    ["github_workflow_run_failed_log", { repo, runId: 1, maxChars: 1 }, { runId: [0, 1.5], maxChars: [0, 12001, 1.5] }],
   ];
   for (const [operation, input, invalid] of cases) {
     allow(operation, input);
