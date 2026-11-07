@@ -21,10 +21,12 @@ const emptyLive = () => ({
   output: 0,
   cacheRead: 0,
   cacheWrite: 0,
+  compactions: 0,
   context: null,
 });
 function countEvent(live, event) {
   if (!live) return;
+  if (event.type === "compaction") live.compactions += 1;
   if (event.type === "tool_start") live.toolCalls += 1;
   if (event.type === "tool_end" && event.error) live.toolErrors += 1;
   if (event.type === "turn") {
