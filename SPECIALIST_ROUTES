@@ -6,7 +6,6 @@
 /package-lock.json @mergio @bollo
 
 /extensions/crew/env-runtime/** @bollo @snowball
-/extensions/crew/env-runtime/lib/repository-dependency-cache.mjs @bollo @mergio
 /extensions/crew/crew-runtime/** @snowball @tomashco @bollo
 /extensions/crew/crew/prompts/** @snowball
 /skills/** @snowball

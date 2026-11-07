@@ -23,6 +23,17 @@ const runtime = (capture) => ({
   broadcast: async () => {},
 });
 
+test("start_crew ignores a stale dependencyCache property", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
+  try {
+    const prepared = await prepare(cwd, { dependencyCache: "obsolete" });
+    const environment = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8")).environment;
+    assert.deepEqual(environment, { microvm: "auto" });
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("prepareCrew records only Gondolin-capable environment selections", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {
@@ -30,39 +41,8 @@ test("prepareCrew records only Gondolin-capable environment selections", async (
     for (const path of [prepared.configFile, prepared.selectedCrewFile, prepared.rosterFile])
       assert.deepEqual(JSON.parse(readFileSync(join(cwd, path), "utf8")).environment, {
         microvm: "gondolin",
-        dependencyCache: "none",
-        guestProfile: "gondolin-alpine-node24",
       });
     await assert.rejects(prepare(cwd, { microvm: "none" }), /Unsupported Crew microVM environment/);
-  } finally {
-    rmSync(cwd, { recursive: true, force: true });
-  }
-});
-
-test("a required repository cache is resolved before Runtime launches a worker", async () => {
-  const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
-  try {
-    const prepared = await prepare(cwd, { dependencyCache: "required" });
-    const capture = {};
-    await launchPreparedCrew(cwd, prepared, {
-      resolveEnvironment: async () => gondolin,
-      resolveArmoryCatalog: async () => ({ release: "https://example.test/artifacts.json" }),
-      realizeArmorySuites: async () => [],
-      resolveArmoryToolSuites: async () => [],
-      resolveRepositoryDependencyCache: ({ cwd: resolvedCwd }) => {
-        assert.equal(resolvedCwd, cwd);
-        return {
-          key: "a".repeat(64),
-          profile: "gondolin-alpine-node24",
-          modulesPath: "/not-exposed-to-worker-config",
-        };
-      },
-      runtimeFor: () => runtime(capture),
-    });
-    assert.deepEqual(
-      capture.agents.map((agent) => agent.dependencyCache),
-      [{ key: "a".repeat(64), profile: "gondolin-alpine-node24" }],
-    );
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

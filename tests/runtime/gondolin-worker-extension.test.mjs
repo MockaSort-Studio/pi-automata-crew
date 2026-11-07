@@ -34,11 +34,9 @@ test("the Gondolin extension routes tools through a private persistent guest wor
   assert.match(source, /await activeVm\.close\(\)/);
 });
 
-test("a required lockfile-keyed cache replaces only guest node_modules with a read-only mount", () => {
+test("the private workspace has no node_modules child mount", () => {
   const source = readFileSync(extension, "utf8");
-  assert.match(source, /workerDependencyCache/);
-  assert.match(source, /GUEST_WORKSPACE}\/?node_modules/);
-  assert.match(source, /new ReadonlyProvider\(\s*new RealFSProvider\(dependencyCache\.modulesPath\)/);
+  assert.doesNotMatch(source, /GUEST_WORKSPACE}\/?node_modules/);
 });
 
 test("VM state is module-level, so a same-process reload never boots a second VM", () => {

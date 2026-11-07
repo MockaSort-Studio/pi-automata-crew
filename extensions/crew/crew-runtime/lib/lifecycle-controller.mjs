@@ -81,7 +81,6 @@ export class LifecycleController {
           namespace: config.namespace,
           sandbox: config.sandbox,
           armory: config.armory,
-          dependencyCache: config.dependencyCache,
           repositoryAuthorization: config.repositoryAuthorization,
           logFile,
         }),

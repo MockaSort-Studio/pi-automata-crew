@@ -34,14 +34,13 @@ export function buildLaunchSpec({ config, directory, env = process.env }) {
       dependsOn: plan.get(agent.name)?.dependsOn ?? [],
     };
   });
-  const { repository, dependencyCache, guestProfile } = config.environment ?? {};
+  const { repository } = config.environment ?? {};
   return {
     warnings,
     spec: {
       runId: config.runId,
       crewDir: directory,
       ...(repository ? { repository } : {}),
-      environment: { dependencyCache, guestProfile },
       members,
     },
   };

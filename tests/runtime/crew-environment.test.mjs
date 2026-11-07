@@ -21,18 +21,8 @@ test("unavailable Gondolin fails closed for auto and explicit requests", async (
   }
 });
 
-test("keeps repository dependency caches opt-in", () => {
-  assert.deepEqual(crewEnvironment({ microvm: "gondolin" }), {
-    microvm: "gondolin",
-    dependencyCache: "none",
-    guestProfile: "gondolin-alpine-node24",
-  });
-  assert.deepEqual(crewEnvironment({ dependencyCache: "required" }), {
-    microvm: "auto",
-    dependencyCache: "required",
-    guestProfile: "gondolin-alpine-node24",
-  });
-  assert.throws(() => crewEnvironment({ dependencyCache: "always" }), /Unsupported Crew dependency cache mode/);
+test("validates repository environment", () => {
+  assert.deepEqual(crewEnvironment({ microvm: "gondolin" }), { microvm: "gondolin" });
   assert.throws(
     () => crewEnvironment({ repository: { repo: "invalid", revision: "a".repeat(40), base: "main" } }),
     /repository/,
