@@ -82,3 +82,10 @@ test("Main keeps its footer and dashboard, fed by the crew host", () => {
   assert.match(monitor, /registerCrewDashboardCommand/);
   assert.match(monitor, /ctx\.mode !== "tui"/);
 });
+
+test("the doctor is a command and a tool", () => {
+  assert.match(source, /registerCrewDoctor\(pi\)/);
+  const doctor = readFileSync(new URL("../../extensions/crew/crew/lib/crew-doctor.ts", import.meta.url), "utf8");
+  assert.match(doctor, /registerCommand\("crew-doctor"/);
+  assert.match(doctor, /name: "crew_doctor"/);
+});
