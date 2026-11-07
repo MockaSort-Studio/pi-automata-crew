@@ -29,7 +29,8 @@ test("buildCrewMessageChrome renders a labeled, backgrounded card with a readabl
     },
     bold: (s) => s,
   };
-  const markdownTheme = { heading: (s) => s, bold: (s) => s, italic: (s) => s, code: (s) => s, link: (s) => s };
+  // Any theme method is identity, so the stub keeps working as pi-tui adds styling hooks.
+  const markdownTheme = new Proxy({}, { get: () => (s) => s });
 
   const message = {
     content:
@@ -62,7 +63,8 @@ test("buildCrewMessageChrome falls back to raw content for a non-JSON payload, i
   }
 
   const theme = { fg: (_name, s) => s, bg: (_name, s) => s, bold: (s) => s };
-  const markdownTheme = { heading: (s) => s, bold: (s) => s, italic: (s) => s, code: (s) => s, link: (s) => s };
+  // Any theme method is identity, so the stub keeps working as pi-tui adds styling hooks.
+  const markdownTheme = new Proxy({}, { get: () => (s) => s });
   const message = { content: "Crew message (note) from bollo.\nUntrusted payload:\nnot json at all" };
 
   const box = buildCrewMessageChrome(message, theme, markdownTheme, 1);
