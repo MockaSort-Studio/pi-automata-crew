@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { prepareCrew } from "../../extensions/crew/crew/lib/startup.mjs";
 import { buildLaunchSpec, launchOnHost } from "../../extensions/crew/crew/lib/host-launch.mjs";
 
 const GITHUB = "collaboration/pi-github-tools";
@@ -10,7 +11,8 @@ const agent = (name, extra = {}) => ({
   name,
   task: `instructions for ${name}`,
   tools: ["read", "bash", "github_issue_view", "comm_notify"],
-  suiteGrants: [{ suite: GITHUB, operations: ["github_issue_view"] }],
+  // The shape Crew assembly really produces: { suite, tools }.
+  suiteGrants: [{ suite: GITHUB, tools: ["github_issue_view"] }],
   grantsExplicit: false,
   model: "openai-codex/gpt-6.1-terra",
   thinking: undefined,
@@ -145,6 +147,37 @@ test("launching sends the spec to the host, tracks the run, and reports the memb
     );
     assert.equal(tracked.length, 1);
     assert.deepEqual([roster().status, roster().launchError], ["done", "Model not found"]);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("grants as assembly really produces them reach the host as operations, never silently empty", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "host-launch-contract-"));
+  try {
+    const git = ["github_issue_view", "github_workspace_checkout", "github_git_push", "github_pull_request_create"];
+    const prepared = await prepareCrew(
+      { getAllTools: () => [] },
+      {
+        model: "mock/mock-model",
+        members: [
+          {
+            name: "snowball",
+            role: "developer",
+            tools: [
+              { suite: "system", operations: ["read", "bash", "edit"] },
+              { suite: GITHUB, operations: git },
+            ],
+          },
+        ],
+      },
+      { cwd },
+      ".pi",
+    );
+    const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
+    const { spec } = buildLaunchSpec({ config, directory: "/d", env: { HALL_GITHUB_TOKEN: "t" } });
+    assert.deepEqual(spec.members[0].suiteGrants, [{ suite: GITHUB, operations: git }]);
+    assert.deepEqual(spec.members[0].tools, ["read", "bash", "edit"]);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

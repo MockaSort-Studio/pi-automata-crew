@@ -24,6 +24,14 @@ export function createHostClient({
   let tail = "";
   const pending = new Map();
 
+  function log(chunk) {
+    if (!logFile) return;
+    try {
+      mkdirSync(dirname(logFile), { recursive: true });
+      appendFileSync(logFile, chunk);
+    } catch {}
+  }
+
   function start() {
     if (child) return child;
     const spawned = spawnImpl(process.execPath, ["--import", here("pi-resolve-register.mjs"), here("host-main.mjs")], {
@@ -38,12 +46,7 @@ export function createHostClient({
     spawned.stdin.on("error", () => {});
     spawned.stderr.on("data", (chunk) => {
       tail = (tail + chunk).slice(-TAIL_BYTES);
-      if (logFile) {
-        try {
-          mkdirSync(dirname(logFile), { recursive: true });
-          appendFileSync(logFile, chunk);
-        } catch {}
-      }
+      log(chunk);
     });
     spawned.stdout.on("data", (chunk) => {
       buffer += chunk;
@@ -56,8 +59,14 @@ export function createHostClient({
         } catch {
           continue;
         }
-        if (message.id === undefined) onEvent(message);
-        else {
+        if (message.id === undefined) {
+          // A handler's failure must never become an uncaught exception in Main (this is its data callback).
+          try {
+            onEvent(message);
+          } catch (error) {
+            log(`event handler failed: ${error?.stack ?? error}\n`);
+          }
+        } else {
           const waiter = pending.get(message.id);
           pending.delete(message.id);
           if (message.ok) waiter?.resolve(message.result);
@@ -71,7 +80,11 @@ export function createHostClient({
       const reason = `The crew host exited (${signal ?? `code ${code}`})${tail.trim() ? `: ${tail.trim().split("\n").slice(-3).join(" | ")}` : ""}`;
       for (const waiter of pending.values()) waiter.reject(new Error(reason));
       pending.clear();
-      onExit({ code, signal, tail });
+      try {
+        onExit({ code, signal, tail });
+      } catch (error) {
+        log(`exit handler failed: ${error?.stack ?? error}\n`);
+      }
     });
     return spawned;
   }

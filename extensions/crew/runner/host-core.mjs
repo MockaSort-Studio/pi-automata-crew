@@ -55,6 +55,15 @@ export function createHostCore({ send, deps = {} }) {
     if (!Array.isArray(members) || !members.length) throw new Error("A crew needs at least one member");
     for (const member of members)
       if (!HANDLE.test(member.handle ?? "")) throw new Error(`Invalid member handle: ${member.handle}`);
+    for (const member of members)
+      for (const grant of member.suiteGrants ?? [])
+        if (
+          typeof grant?.suite !== "string" ||
+          !Array.isArray(grant.operations) ||
+          !grant.operations.length ||
+          grant.operations.some((operation) => typeof operation !== "string")
+        )
+          throw new Error(`${member.handle}: a suite grant needs a suite and a list of operations`);
     const activity = new Map();
     // Running totals per member, for Main's footer: they grow while a member works, not only when it reports.
     const live = new Map(members.map((member) => [member.handle, emptyLive()]));

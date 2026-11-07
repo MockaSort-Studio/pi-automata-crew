@@ -135,3 +135,21 @@ test("the plan is kept per run for the dashboard, peeking never starts a host, a
   host.untrack("run2");
   assert.deepEqual([host.runs(), host.plan("run2")], [[], []]);
 });
+
+test("a report that cannot be formatted still reaches Main, and is still recorded", (t) => {
+  const { host, created, pi, cwd } = setup(t);
+  const dir = join(cwd, ".pi/runtime/crews/run1");
+  host.client();
+  host.track("run1", dir);
+  const result = { status: "completed", finalText: "x" };
+  result.self = result; // JSON.stringify throws on this
+  assert.doesNotThrow(() =>
+    created[0].options.onEvent({ event: "result", runId: "run1", handle: "developer-a-00", result }),
+  );
+  assert.equal(pi.sent.length, 1);
+  assert.match(
+    pi.sent[0].message.content,
+    /developer-a-00 reported: completed\. The full report could not be formatted/,
+  );
+  assert.deepEqual(pi.sent[0].options, { triggerTurn: true, deliverAs: "steer" });
+});

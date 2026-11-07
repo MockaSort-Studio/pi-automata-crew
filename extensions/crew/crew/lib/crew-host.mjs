@@ -2,7 +2,7 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createCrewTerminalNotifier } from "../../crew-runtime/lib/crew-terminal-notifier.mjs";
 import { createHostClient } from "../../runner/host-client.mjs";
-import { crewReportMessage, hostExitMessage } from "./crew-reports.mjs";
+import { crewReportMessage, hostExitMessage, plainReportMessage } from "./crew-reports.mjs";
 
 // Main's one connection to the crew host. It lives on globalThis because Pi re-evaluates extensions on
 // /reload: the host process, its crews and this bookkeeping must survive that, while delivery always goes
@@ -34,7 +34,15 @@ function record(runId, event) {
 
 function onEvent(event) {
   record(event.runId, event);
-  if (event.event === "result") deliver(crewReportMessage(event));
+  if (event.event === "result") {
+    let message;
+    try {
+      message = crewReportMessage(event);
+    } catch (error) {
+      message = plainReportMessage(event, error);
+    }
+    deliver(message);
+  }
   if (event.event === "idle")
     holder.notifier.observe({
       namespace: event.runId,
