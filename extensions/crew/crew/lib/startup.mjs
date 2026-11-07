@@ -4,9 +4,7 @@ import { runtimeFor } from "../../crew-runtime/lib/shared-runtime.mjs";
 import { crewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
 import { assemble } from "./assembly.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
-import { BASE_TOOLS_PROFILE } from "./base-tools-profile.mjs";
 import { kickoffPayload } from "./kickoff-payload.mjs";
-import { suiteGrants } from "./suite-grants.mjs";
 import { writeLaunchFiles } from "./launch-files.mjs";
 import { resolveLaunchEnvironment } from "./launch-environment.mjs";
 import { requiredWorkerSkills } from "./worker-skills.mjs";
@@ -43,7 +41,6 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   const counts = new Map();
   const skills = input.members.map((member) => requiredWorkerSkills(ctx.cwd, member.skills));
   const actors = input.members.map((member, index) => {
-    const grants = suiteGrants(member.tools ?? BASE_TOOLS_PROFILE);
     if (!member.name?.trim() || !member.role?.trim()) throw new Error("Crew members require name and role.");
     const key = `${member.role}-${member.name}`;
     const ordinal = counts.get(key) ?? 0;
@@ -52,13 +49,11 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     // Specialists wait for a directed task after the manifest kickoff.
     const assembled = assemble(member.name, member.role, member.role === "lead" ? (member.task ?? "") : "", {
       ...member,
-      systemOperations: grants.system,
       runtimeTools: pi.getAllTools(),
     });
     return {
       ...assembled,
       profile: compileActorProfile({ tools: assembled.tools, commTools: assembled.commTools }),
-      suiteGrants: grants.suites,
       role: member.role,
       handle: handle(member.role, member.name, ordinal),
       // An explicit member model wins; otherwise inherit the Crew model. With neither, Pi uses its runtime default.
@@ -139,7 +134,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       ...(input.members[index].acceptanceCriteria
         ? { acceptanceCriteria: input.members[index].acceptanceCriteria }
         : {}),
-      ...(input.members[index].tools ? { tools: input.members[index].tools } : {}),
+      suiteGrants: actor.suiteGrants,
     })),
   };
   const kickoff = kickoffPayload(runId, topic, selected.members);

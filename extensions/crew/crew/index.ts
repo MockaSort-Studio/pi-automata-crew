@@ -2,7 +2,7 @@ import { CONFIG_DIR_NAME, type ExtensionAPI } from "@earendil-works/pi-coding-ag
 import { readFileSync } from "node:fs";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { assemble, validateAvailableRoleTools } from "./lib/assembly.mjs";
+import { assemble } from "./lib/assembly.mjs";
 import { prepareCrew, queuedMessage } from "./lib/startup.mjs";
 import { launchOnHost } from "./lib/host-launch.mjs";
 import { bindCrewHost, crewHost } from "./lib/crew-host.mjs";
@@ -107,7 +107,6 @@ export default function crewExtension(pi: ExtensionAPI) {
     }),
     async execute(_id, input) {
       const actor = assemble(input.name, input.role, input.task, { ...input, runtimeTools: pi.getAllTools() });
-      validateAvailableRoleTools(actor.tools, input.role);
       return output(actor);
     },
   });
