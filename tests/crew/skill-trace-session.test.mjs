@@ -59,10 +59,14 @@ test(
         { cwd: dir, env: { ...process.env, PI_OFFLINE: "1" }, stdio: ["pipe", "pipe", "ignore"] },
       );
       let finished = false;
+      let prompt;
       pi.stdout.on("data", (data) => {
+        // Pi installs its RPC reader asynchronously, so the prompt is retried until the agent starts. Once it has,
+        // another prompt would run the skill twice and double the trace entries (seen on a slow CI runner).
+        if (String(data).includes('"agent_start"')) clearInterval(prompt);
         if (String(data).includes('"agent_end"')) finished = true;
       });
-      const prompt = setInterval(
+      prompt = setInterval(
         () => pi.stdin.write(`${JSON.stringify({ type: "prompt", message: "/skill:demo go" })}\n`),
         1_000,
       );
