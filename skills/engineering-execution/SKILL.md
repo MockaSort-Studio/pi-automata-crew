@@ -26,7 +26,7 @@ description: Run a bounded engineering change through a Crew, from plan to integ
    trust a report on its own; check the branch, the pull request and the tests it names.
 5. **Integrate.** Merge the `crew/*` branches on a scratch branch, run `npm test` and the format check,
    resolve conflicts, and open a pull request. Never push Crew output straight to `main`.
-6. **Review** the diff with the `engineering-review` skill; fix findings (back to step 1 if sizeable).
+6. **Review** the diff independently against the requirements and tests; check failures and security boundaries, report evidence-backed findings, and fix them (back to step 1 if sizeable).
 7. **Disband** with `runtime_cleanup`, delete merged `crew/*` branches, and report what happened, truthfully,
    from tool results. A member's unsaved work is salvaged to its own `crew/*` branch whenever its run ends;
    look there before discarding anything.
