@@ -50,11 +50,10 @@ test("role policies match the prescribed table and invariants", () => {
       assert.ok(native.includes(tool) || GITHUB_BASE_TOOLS.includes(tool), `${role}: ${tool}`);
       assert.ok(!["github_pull_request_merge", "github_pull_request_review"].includes(tool));
       if (!["developer", "integrator"].includes(role)) {
-        assert.ok(
-          !["edit", "write", "github_workspace_checkout", "github_pull_request_create", "github_pull_request_update"].includes(
-            tool,
-          ),
-        );
+        const restricted = words(`
+          edit write github_workspace_checkout github_pull_request_create github_pull_request_update
+        `);
+        assert.ok(!restricted.includes(tool));
         assert.ok(!tool.startsWith("github_git_"));
       }
       if (tool.startsWith("github_pull_request_review_") && tool !== "github_pull_request_review_threads") {
@@ -96,9 +95,8 @@ test("defaults grant the role and persona union in assembly and launch", async (
 test("explicit grants narrow authority and unknown policy operations are rejected", () => {
   const persona = { tools: ["github_project_fields"] };
   assert.ok(validateMemberAuthority(persona, "reviewer").suiteGrants[0].tools.includes("github_project_fields"));
-  assert.deepEqual(validateMemberAuthority(persona, "reviewer", [{ suite: "system", operations: ["read"] }]).tools, [
-    "read",
-  ]);
+  const narrow = validateMemberAuthority(persona, "reviewer", [{ suite: "system", operations: ["read"] }]);
+  assert.deepEqual(narrow.tools, ["read"]);
   assert.throws(
     () => validateMemberAuthority(persona, "reviewer", [{ suite: github, operations: ["github_git_push"] }]),
     /Armory operation outside reviewer's capabilities/,
