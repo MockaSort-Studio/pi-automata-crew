@@ -245,9 +245,31 @@ test("status carries live per-member totals that grow as the agent works, before
     output: 30,
     cacheRead: 5,
     cacheWrite: 1,
+    compactions: 0,
     context: null,
   });
   report();
+});
+
+test("status counts completed compaction events per member", async () => {
+  const emit = new Map();
+  const h = host({
+    deps: {
+      createMemberAgent: async ({ member: m, onEvent }) => {
+        emit.set(m.handle, (event) => onEvent(m.handle, event));
+        return { run: { prompt: () => new Promise(() => {}), abort: async () => {} }, dispose: async () => {} };
+      },
+    },
+  });
+  await h.call("launch", launch({ members: [member(A), member(B)] }));
+  await settle();
+  const counts = async () => (await h.call("status", { runId: "run1" })).result.members.map((m) => m.live.compactions);
+  assert.deepEqual(await counts(), [0, 0]);
+  emit.get(A)({ type: "compaction" });
+  assert.deepEqual(await counts(), [1, 0]);
+  emit.get(A)({ type: "compaction" });
+  emit.get(B)({ type: "compaction" });
+  assert.deepEqual(await counts(), [2, 1]);
 });
 
 test("status reports the latest context and retains a known percent across compaction", async () => {

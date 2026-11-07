@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { AgentSession, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { createAgentRun } from "../../extensions/crew/runner/agent-run.mjs";
 import { runAgent } from "./run-agent.mjs";
@@ -75,6 +75,37 @@ test("turn events carry the session context usage", async (t) => {
   const turn = events.find((event) => event.type === "turn");
   assert.ok(turn?.context);
   assert.equal(typeof turn.context.contextWindow, "number");
+});
+
+test("only completed session compactions are forwarded", async (t) => {
+  const { run } = await scenario(t, () => ({ text: "ok" }));
+  const subscribe = AgentSession.prototype.subscribe;
+  AgentSession.prototype.subscribe = function (listener) {
+    const unsubscribe = subscribe.call(this, listener);
+    for (const event of [
+      { type: "compaction_start", reason: "threshold" },
+      { type: "compaction_end", reason: "threshold", result: {}, aborted: false, willRetry: false },
+      { type: "compaction_end", reason: "threshold", result: undefined, aborted: true, willRetry: false },
+      {
+        type: "compaction_end",
+        reason: "threshold",
+        result: undefined,
+        aborted: false,
+        willRetry: false,
+        errorMessage: "failed",
+      },
+      { type: "compaction_end", reason: "threshold", result: undefined, aborted: false, willRetry: false },
+    ])
+      listener(event);
+    return unsubscribe;
+  };
+  t.after(() => (AgentSession.prototype.subscribe = subscribe));
+  const events = [];
+  await run({ onEvent: (event) => events.push(event) });
+  assert.deepEqual(
+    events.filter((event) => event.type === "compaction"),
+    [{ type: "compaction" }],
+  );
 });
 
 test("the agent sees exactly the granted tools: no user extension, skill or built-in leaks in", async (t) => {
