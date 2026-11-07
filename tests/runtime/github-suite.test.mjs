@@ -156,6 +156,38 @@ test("the suite is installed with the injected workspace, transport and credenti
   assert.equal(result.usage.toolErrors, 1, "the blocked call surfaced to the agent as an error");
 });
 
+test("pull requests are forced to drafts without changing other calls or bypassing authorization", async () => {
+  const handlers = new Map();
+  githubSuiteExtension({
+    module: { activateSuite() {} },
+    workspace: new WorkspaceProvider(),
+    token: "t",
+    policy,
+    transport: { run: async () => "" },
+  })({ registerTool() {}, on: (name, handler) => handlers.set(name, handler) });
+  const call = handlers.get("tool_call");
+  const result = handlers.get("tool_result");
+  const base = { repo: policy.repo, head: policy.branch, base: policy.base, title: "test" };
+  for (const extra of [{}, { draft: false }, { draft: true }]) {
+    const event = { toolName: "github_pull_request_create", input: { ...base, ...extra } };
+    assert.equal(await call(event), undefined);
+    assert.equal(event.input.draft, true, "the tool receives a draft request");
+  }
+  const other = { toolName: "github_issue_view", input: { repo: policy.repo } };
+  assert.equal(await call(other), undefined);
+  assert.deepEqual(other.input, { repo: policy.repo });
+  const refused = { toolName: "github_pull_request_create", input: { ...base, base: "wrong" } };
+  assert.match((await call(refused)).reason, /outside the worker authorization/);
+  assert.equal(refused.input.draft, undefined);
+  const content = [{ type: "text", text: '{"number":1}' }];
+  assert.match(
+    result({ toolName: "github_pull_request_create", content, isError: false }).content.at(-1).text,
+    /draft/i,
+  );
+  assert.equal(result({ toolName: "github_pull_request_create", content, isError: true }), undefined);
+  assert.equal(result({ toolName: "github_issue_view", content, isError: false }), undefined);
+});
+
 test("a host-side tool call waits for the workspace to be seeded, and fails closed if seeding fails", async () => {
   const handlers = [];
   const pi = { registerTool() {}, on: (name, handler) => handlers.push([name, handler]) };
