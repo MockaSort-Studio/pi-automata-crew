@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { repositoryAuthorization } from "../env-runtime/lib/repository-authorization.mjs";
 import { populateRepositoryWorkspace } from "../env-runtime/lib/repository-workspace.mjs";
 import { createAgentRun } from "./agent-run.mjs";
+import { verifyPullRequest } from "./ci-verify.mjs";
 import { createEnvironment } from "./environment.mjs";
 import { createSuiteOperations, githubSuiteExtension } from "./github-suite.mjs";
 import { routedToolsExtension } from "./routing-extension.mjs";
@@ -10,6 +11,7 @@ import { salvage } from "./salvage.mjs";
 
 const GITHUB_SUITE = "collaboration/pi-github-tools";
 const WRITE_OPERATIONS = ["github_git_commit", "github_git_push"];
+const CREATE_PULL_REQUEST = "github_pull_request_create";
 
 // Everything one member needs, from its spec (the role's tools and grants, unchanged) and the crew's shared
 // context: its own VM environment seeded from the repository revision, the routed built-in tools, the GitHub
@@ -72,6 +74,11 @@ export async function createMemberAgent({ member, crew, onEvent }) {
       ? (status) =>
           environment.ready().then(() => salvage({ ops: suite, policy, member: member.handle, reason: status }))
       : undefined,
+    // A member that can open pull requests is held to a green CI on the one it opened (see ci-verify.mjs).
+    verify:
+      suite && operations.includes(CREATE_PULL_REQUEST)
+        ? ({ result, signal }) => verifyPullRequest({ ops: suite, policy, evidence: result.evidence, signal })
+        : undefined,
     async dispose() {
       run.dispose();
       await environment.close();

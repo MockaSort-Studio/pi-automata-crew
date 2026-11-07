@@ -337,3 +337,238 @@ test("a completed member that asks a question after a follow-up holds what has n
   );
   assert.match(w.agents[B].prompts[0], /completed text/, "B ran after A finished again, and saw its result");
 });
+
+// A member that opened a pull request is held to a green CI: `verify` answers with the suite's result.
+const ciWorld = ({ checks, outcomes }) => {
+  const w = world({ [A]: outcomes ?? [result("completed")] });
+  const prompts = [];
+  const seen = [];
+  const createAgent = async (member) => {
+    const agent = await w.createAgent(member);
+    const prompt = agent.run.prompt;
+    agent.run.prompt = (text) => (prompts.push(text), prompt(text));
+    agent.verify = ({ signal }) => {
+      seen.push(signal);
+      return checks.shift()(signal);
+    };
+    return agent;
+  };
+  return { ...w, createAgent, prompts, seen };
+};
+const green = () => async () => ({
+  state: "success",
+  pullNumber: 7,
+  checks: [{ name: "CI / test", conclusion: "success" }],
+  waitedSeconds: 90,
+});
+const red =
+  (name = "CI / test") =>
+  async () => ({ state: "failure", pullNumber: 7, failures: [{ name, url: "u" }], followUp: `CI is red: ${name}` });
+
+test("a member whose CI is green completes, and the report says so", async () => {
+  const w = ciWorld({ checks: [green()] });
+  const results = [];
+  const d = createDispatcher({
+    members: [{ handle: A, task: "a" }],
+    createAgent: w.createAgent,
+    onResult: (h, r) => results.push(r),
+  });
+  d.start();
+  await settle();
+  assert.equal(d.status()[0].state, "completed");
+  assert.equal(w.seen.length, 1, "CI was actually checked");
+  assert.deepEqual(w.prompts, ["a"], "nothing was added to the conversation");
+  assert.deepEqual([results[0].ci.state, results[0].ci.rounds, results[0].ci.pullNumber], ["success", 1, 7]);
+});
+
+test("red CI resumes the same session with what failed, until it is green", async () => {
+  const results = [];
+  const w = ciWorld({
+    checks: [red("CI / test"), red("CI / format"), green()],
+    outcomes: [result("completed"), result("completed"), result("completed")],
+  });
+  const d = createDispatcher({
+    members: [{ handle: A, task: "a" }],
+    createAgent: w.createAgent,
+    onResult: (h, r) => results.push(r),
+  });
+  d.start();
+  await settle();
+  assert.deepEqual(
+    w.prompts,
+    ["a", "CI is red: CI / test", "CI is red: CI / format"],
+    "each red result became a message to the same session",
+  );
+  assert.equal(results.length, 1, "Main hears about it once, at the end");
+  assert.equal(results[0].status, "completed");
+  assert.deepEqual(
+    [results[0].ci.state, results[0].ci.rounds, results[0].ci.checks],
+    ["success", 3, [{ name: "CI / test", conclusion: "success" }]],
+  );
+  assert.equal(d.status()[0].state, "completed");
+});
+
+test("the member is visibly waiting for CI, and cancelling ends the wait promptly", async () => {
+  let release;
+  const waiting = new Promise((resolve) => (release = resolve));
+  const w = ciWorld({
+    checks: [
+      (signal) =>
+        new Promise((_, reject) =>
+          signal.addEventListener("abort", () => reject(new Error("Cancelled while waiting for checks"))),
+        ),
+    ],
+  });
+  const results = [];
+  const d = createDispatcher({
+    members: [{ handle: A, task: "a" }],
+    createAgent: w.createAgent,
+    onResult: (h, r) => results.push(r),
+  });
+  d.start();
+  await settle();
+  assert.deepEqual([d.status()[0].state, d.status()[0].ledger], ["ci", "running"]);
+  await d.cancel(A);
+  await settle();
+  assert.equal(d.status()[0].state, "cancelled");
+  assert.equal(results.at(-1).status, "cancelled");
+  assert.equal(w.seen[0].aborted, true);
+  release();
+  await waiting;
+});
+
+test("after the allowed attempts the member asks Main instead of looping or silently completing", async () => {
+  const w = ciWorld({
+    checks: [red(), red(), red(), red()],
+    outcomes: [result("completed"), result("completed"), result("completed"), result("completed")],
+  });
+  const results = [];
+  const d = createDispatcher({
+    members: [{ handle: A, task: "a" }],
+    createAgent: w.createAgent,
+    maxCiRounds: 2,
+    onResult: (h, r) => results.push(r),
+  });
+  d.start();
+  await settle();
+  assert.deepEqual([d.status()[0].state, d.status()[0].ledger], ["needs_input", "blocked"]);
+  assert.match(results[0].question, /CI is still red on pull request #7 after 2 attempts to fix it: CI \/ test/);
+  assert.equal(results[0].ci.state, "failure");
+  assert.equal(w.prompts.length, 3, "the task and two fix attempts");
+});
+
+test("a question while fixing CI stops the loop and goes to Main", async () => {
+  const w = ciWorld({
+    checks: [red(), green()],
+    outcomes: [result("completed"), result("needs_input", { question: "which one?" })],
+  });
+  const d = createDispatcher({ members: [{ handle: A, task: "a" }], createAgent: w.createAgent });
+  d.start();
+  await settle();
+  assert.equal(d.status()[0].state, "needs_input");
+  assert.equal(w.prompts.length, 2);
+});
+
+test("CI that cannot be checked, a closed pull request, or no CI at all are each reported honestly", async () => {
+  const broken = ciWorld({
+    checks: [
+      async () => {
+        throw new Error("gh exploded");
+      },
+    ],
+  });
+  const r1 = [];
+  createDispatcher({
+    members: [{ handle: A, task: "a" }],
+    createAgent: broken.createAgent,
+    onResult: (h, r) => r1.push(r),
+  }).start();
+  await settle();
+  assert.equal(r1[0].status, "needs_input");
+  assert.match(r1[0].question, /could not check CI.*gh exploded/);
+
+  const closed = ciWorld({ checks: [async () => ({ state: "closed", pullNumber: 7, prState: "MERGED" })] });
+  const r2 = [];
+  createDispatcher({
+    members: [{ handle: A, task: "a" }],
+    createAgent: closed.createAgent,
+    onResult: (h, r) => r2.push(r),
+  }).start();
+  await settle();
+  assert.match(r2[0].question, /Pull request #7 is merged/);
+
+  const none = ciWorld({ checks: [async () => ({ state: "none", pullNumber: 7 })] });
+  const r3 = [];
+  createDispatcher({
+    members: [{ handle: A, task: "a" }],
+    createAgent: none.createAgent,
+    onResult: (h, r) => r3.push(r),
+  }).start();
+  await settle();
+  assert.deepEqual(
+    [r3[0].status, r3[0].ci.state],
+    ["completed", "none"],
+    "a repository without CI is not blocked, and the result says so",
+  );
+});
+
+test("a member with nothing to verify, or that did not complete, is not gated", async () => {
+  const w = ciWorld({ checks: [async () => null] });
+  const d = createDispatcher({ members: [{ handle: A, task: "a" }], createAgent: w.createAgent });
+  d.start();
+  await settle();
+  assert.equal(d.status()[0].state, "completed", "no pull request in the evidence: nothing to wait for");
+  const failedRun = ciWorld({ checks: [], outcomes: [result("failed", { failure: { category: "x" } })] });
+  const d2 = createDispatcher({ members: [{ handle: A, task: "a" }], createAgent: failedRun.createAgent });
+  d2.start();
+  await settle();
+  assert.equal(d2.status()[0].state, "failed", "verify was never called for a run that did not complete");
+});
+
+const greenWith = (gateFiles) => async () => ({ state: "success", pullNumber: 7, checks: [], gateFiles });
+
+test("a green CI that was made green by changing the checks is reported to Main, not silently completed", async () => {
+  const w = ciWorld({ checks: [greenWith([".prettierignore"])] });
+  const results = [];
+  const d = createDispatcher({
+    members: [{ handle: A, task: "a" }],
+    createAgent: w.createAgent,
+    onResult: (h, r) => results.push(r),
+  });
+  d.start();
+  await settle();
+  assert.deepEqual([d.status()[0].state, d.status()[0].ledger], ["needs_input", "blocked"]);
+  assert.match(
+    results[0].question,
+    /CI is green on pull request #7, but the change touches files that define the checks: \.prettierignore/,
+  );
+  assert.deepEqual(results[0].ci.gateFiles, [".prettierignore"]);
+});
+
+test("once Main has replied, the same files are accepted; a new one is asked about again", async () => {
+  const w = ciWorld({
+    checks: [
+      greenWith([".prettierignore"]),
+      greenWith([".prettierignore"]),
+      greenWith([".prettierignore", ".github/workflows/ci.yml"]),
+    ],
+    outcomes: [result("completed"), result("completed"), result("completed")],
+  });
+  const results = [];
+  const d = createDispatcher({
+    members: [{ handle: A, task: "a" }],
+    createAgent: w.createAgent,
+    onResult: (h, r) => results.push(r),
+  });
+  d.start();
+  await settle();
+  assert.equal(d.status()[0].state, "needs_input");
+  d.message(A, "yes, the ignore entry is intended");
+  await settle();
+  assert.equal(d.status()[0].state, "completed", "accepted: it completes");
+  assert.deepEqual(results.at(-1).ci.state, "success");
+  d.message(A, "now also touch the workflow");
+  await settle();
+  assert.equal(d.status()[0].state, "needs_input", "a file that was not accepted is asked about");
+  assert.deepEqual(results.at(-1).ci.gateFiles, [".github/workflows/ci.yml"], "only the new one");
+});

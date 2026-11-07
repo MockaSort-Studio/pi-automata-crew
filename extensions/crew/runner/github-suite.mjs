@@ -51,10 +51,10 @@ export function createSuiteOperations({ module, workspace, token, transport = ho
     injection({ workspace, token, transport }),
   );
   return {
-    async call(name, input) {
+    async call(name, input, { signal } = {}) {
       const tool = registry.get(name);
       if (!tool) throw new Error(`The suite has no operation ${name}`);
-      const result = await tool.execute(`runner-${name}`, input);
+      const result = await tool.execute(`runner-${name}`, input, signal);
       const text = (result?.content ?? []).map((part) => part.text ?? "").join("");
       try {
         return JSON.parse(text);

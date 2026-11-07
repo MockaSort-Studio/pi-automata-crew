@@ -8,6 +8,7 @@ const LIFECYCLE = {
   queued: "queued",
   held: "queued",
   running: "running",
+  ci: "running",
   needs_input: "attention",
   failed: "attention",
   completed: "PASS",
@@ -47,7 +48,7 @@ export function crewView({ runId, members }) {
   }
   const roster = { runId: short(runId), members: members.map(({ handle }) => ({ actorId: handle, name: handle })) };
   const snapshot = crewMonitorSnapshot(roster, { lifecycleByActor, workerMetricsByActor });
-  const phase = members.some((m) => m.state === "running")
+  const phase = members.some((m) => m.state === "running" || m.state === "ci")
     ? "Working"
     : members.some((m) => m.state === "needs_input" || m.state === "failed")
       ? "Needs you"

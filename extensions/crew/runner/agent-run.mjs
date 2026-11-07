@@ -13,16 +13,37 @@ import { createRequestInputTool } from "./request-input-tool.mjs";
 const EVIDENCE_TOOLS = new Set(["github_git_commit", "github_git_push", "github_pull_request_create"]);
 
 // Facts about what an agent produced come from tool results the runner saw, never from what the model says.
-function recordEvidence(evidence, event) {
-  if (!EVIDENCE_TOOLS.has(event.toolName) || event.isError) return;
-  const text = (event.result?.content ?? []).map((part) => part.text ?? "").join("");
+// The suite returns its result structured in `details`; the text parts are for the model and may carry notes added
+// after the JSON (the draft notice), so only the first text part is used, as a fallback. The first source that
+// yields something wins.
+const firstTextJson = (result) => {
   try {
-    const result = JSON.parse(text);
-    if (event.toolName === "github_git_commit" && result.commit && !evidence.commits.includes(result.commit))
-      evidence.commits.push(result.commit);
-    if (event.toolName === "github_git_push") evidence.pushed = { branch: result.branch, commit: result.commit };
-    if (event.toolName === "github_pull_request_create" && result.url) evidence.pullRequest = result.url;
-  } catch {}
+    return JSON.parse(result?.content?.[0]?.text ?? "");
+  } catch {
+    return undefined;
+  }
+};
+
+function apply(evidence, toolName, result) {
+  if (toolName === "github_git_commit" && result.commit) {
+    if (!evidence.commits.includes(result.commit)) evidence.commits.push(result.commit);
+    return true;
+  }
+  if (toolName === "github_git_push" && (result.branch || result.commit)) {
+    evidence.pushed = { branch: result.branch, commit: result.commit };
+    return true;
+  }
+  if (toolName === "github_pull_request_create" && result.url) {
+    evidence.pullRequest = result.url;
+    return true;
+  }
+  return false;
+}
+
+export function recordEvidence(evidence, event) {
+  if (!EVIDENCE_TOOLS.has(event.toolName) || event.isError) return;
+  for (const source of [event.result?.details, firstTextJson(event.result)])
+    if (source && typeof source === "object" && apply(evidence, event.toolName, source)) return;
 }
 
 // One agent, a conversation of assignments: a Pi SDK session driven from outside. Each `prompt` is one turn of

@@ -128,3 +128,10 @@ test("the picker names a crew by id and phase", () => {
     description: "1 member",
   });
 });
+
+test("a member waiting for CI shows as running, not queued", () => {
+  const { line, snapshot } = crewView({ runId: RUN, members: [m("developer-a-00", "ci")] });
+  assert.equal(line.view.phase, "Working");
+  assert.equal(buildAutomataTab(snapshot)[0].bucket, "running");
+  assert.equal(isActive([m("developer-a-00", "ci")]), true);
+});

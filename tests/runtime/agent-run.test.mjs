@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { AgentSession, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { createAgentRun } from "../../extensions/crew/runner/agent-run.mjs";
+import { createAgentRun, recordEvidence } from "../../extensions/crew/runner/agent-run.mjs";
 import { runAgent } from "./run-agent.mjs";
 import { mockModel, providerFor } from "./mock-model.mjs";
 
@@ -232,4 +232,41 @@ test("after request_input the same session continues with the answer, and each t
   assert.equal(typeof answer === "string" ? answer : answer.map((part) => part.text).join(""), "x.txt");
   await assert.rejects(Promise.all([run.prompt("a"), run.prompt("b")]), /already working/);
   run.dispose();
+});
+
+test("evidence comes from what the tools returned, even when a note is appended after the JSON", () => {
+  const fresh = () => ({ commits: [], pushed: undefined, pullRequest: undefined });
+  const created = { number: 7, url: "https://github.com/o/r/pull/7" };
+  // The shape the GitHub suite produces, as the Crew's draft notice leaves it: structured details plus two text parts.
+  const withNote = {
+    toolName: "github_pull_request_create",
+    isError: false,
+    result: {
+      details: created,
+      content: [
+        { type: "text", text: JSON.stringify(created) },
+        { type: "text", text: "Crew policy created this pull request as a draft." },
+      ],
+    },
+  };
+  const evidence = fresh();
+  recordEvidence(evidence, withNote);
+  assert.equal(evidence.pullRequest, "https://github.com/o/r/pull/7");
+
+  // Without details (an older suite) the first text part is still enough, a note after it does not break it.
+  const textOnly = fresh();
+  recordEvidence(textOnly, { ...withNote, result: { content: withNote.result.content } });
+  assert.equal(textOnly.pullRequest, "https://github.com/o/r/pull/7");
+
+  const pushed = fresh();
+  recordEvidence(pushed, {
+    toolName: "github_git_push",
+    isError: false,
+    result: { details: { branch: "b", commit: "c0ffee" }, content: [] },
+  });
+  assert.deepEqual(pushed.pushed, { branch: "b", commit: "c0ffee" });
+
+  const failed = fresh();
+  recordEvidence(failed, { ...withNote, isError: true });
+  assert.equal(failed.pullRequest, undefined, "a failed call records nothing");
 });
