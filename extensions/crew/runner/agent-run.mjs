@@ -25,16 +25,16 @@ function recordEvidence(evidence, event) {
   } catch {}
 }
 
-// One agent, one assignment: a Pi SDK session driven from outside. The result is what the run did, decided
-// by classifyRun. Built-in tools, Armory extensions and the environment routing all arrive as extensions so
-// this module knows nothing about Gondolin or GitHub.
-export async function runAgent({
+// One agent, a conversation of assignments: a Pi SDK session driven from outside. Each `prompt` is one turn of
+// that conversation (the assignment, then any follow-up such as the answer to a question) and returns what
+// the run did, decided by classifyRun. Built-in tools, Armory extensions and the environment routing all
+// arrive as extensions, so this module knows nothing about Gondolin or GitHub.
+export async function createAgentRun({
   name = "agent",
   cwd,
   model,
   thinking,
   instructions = "",
-  task,
   tools = [],
   extensionFactories = [],
   extensionPaths = [],
@@ -42,7 +42,6 @@ export async function runAgent({
   modelRuntime,
   settings,
   sessionDir,
-  signal,
   onEvent = () => {},
 }) {
   const runtime = modelRuntime ?? (await ModelRuntime.create());
@@ -64,12 +63,13 @@ export async function runAgent({
   });
   await resourceLoader.reload();
 
-  let inputRequest;
-  let cancelled = false;
+  // What the runner itself did during the current turn; reset for each prompt.
+  let turn = { inputRequest: undefined, cancelled: false };
   let sessionRef;
+  const evidence = { commits: [], pushed: undefined, pullRequest: undefined };
   const requestInput = createRequestInputTool({
     onRequest: (request) => {
-      inputRequest ??= request;
+      turn.inputRequest ??= request;
       // Ending the run is the point of asking; abort outside this tool call so it can return first.
       setTimeout(() => sessionRef?.abort(), 0);
     },
@@ -87,40 +87,70 @@ export async function runAgent({
     settingsManager: SettingsManager.inMemory(settings ?? {}),
   });
   sessionRef = session;
+  let busy = false;
 
-  const evidence = { commits: [], pushed: undefined, pullRequest: undefined };
-  const unsubscribe = session.subscribe((event) => {
-    if (event.type === "tool_execution_start") onEvent({ type: "tool_start", name: event.toolName });
-    if (event.type === "tool_execution_end") {
-      recordEvidence(evidence, event);
-      onEvent({ type: "tool_end", name: event.toolName, error: Boolean(event.isError) });
-    }
-    if (event.type === "turn_end") onEvent({ type: "turn" });
-  });
-  const onAbort = () => {
-    cancelled = true;
-    session.abort().catch(() => undefined);
-  };
-  if (signal?.aborted) onAbort();
-  else signal?.addEventListener("abort", onAbort, { once: true });
-
-  let thrown;
-  try {
-    await session.prompt(task);
-  } catch (error) {
-    thrown = error;
-  } finally {
-    signal?.removeEventListener("abort", onAbort);
-    unsubscribe();
-  }
-  const outcome = classifyRun({ messages: session.messages, cancelled, inputRequest, thrown });
-  const result = {
-    member: name,
-    ...outcome,
-    evidence,
+  return {
+    name,
     model: resolved && `${resolved.provider}/${resolved.id}`,
-    transcriptRef: session.sessionFile,
+    sessionFile: session.sessionFile,
+    get busy() {
+      return busy;
+    },
+    abort() {
+      turn.cancelled = true;
+      return session.abort().catch(() => undefined);
+    },
+    dispose: () => session.dispose(),
+    async prompt(text, { signal } = {}) {
+      if (busy) throw new Error(`Agent ${name} is already working`);
+      busy = true;
+      turn = { inputRequest: undefined, cancelled: false };
+      const unsubscribe = session.subscribe((event) => {
+        if (event.type === "tool_execution_start") onEvent({ type: "tool_start", name: event.toolName });
+        if (event.type === "tool_execution_end") {
+          recordEvidence(evidence, event);
+          onEvent({ type: "tool_end", name: event.toolName, error: Boolean(event.isError) });
+        }
+        if (event.type === "turn_end") onEvent({ type: "turn" });
+      });
+      const onAbort = () => {
+        turn.cancelled = true;
+        session.abort().catch(() => undefined);
+      };
+      if (signal?.aborted) onAbort();
+      else signal?.addEventListener("abort", onAbort, { once: true });
+      let thrown;
+      try {
+        await session.prompt(text);
+      } catch (error) {
+        thrown = error;
+      } finally {
+        signal?.removeEventListener("abort", onAbort);
+        unsubscribe();
+        busy = false;
+      }
+      return {
+        member: name,
+        ...classifyRun({
+          messages: session.messages,
+          cancelled: turn.cancelled,
+          inputRequest: turn.inputRequest,
+          thrown,
+        }),
+        evidence: structuredClone(evidence),
+        model: resolved && `${resolved.provider}/${resolved.id}`,
+        transcriptRef: session.sessionFile,
+      };
+    },
   };
-  session.dispose();
-  return result;
+}
+
+// One agent, one assignment, then it is disposed.
+export async function runAgent({ task, signal, ...options }) {
+  const run = await createAgentRun(options);
+  try {
+    return await run.prompt(task, { signal });
+  } finally {
+    run.dispose();
+  }
 }
