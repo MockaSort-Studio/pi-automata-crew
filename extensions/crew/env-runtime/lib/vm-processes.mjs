@@ -39,3 +39,23 @@ export function killVerified(entries, processes, kill = process.kill.bind(proces
 // Without a recorded start time the owner is judged by pid alone, which can only err towards "alive".
 export const ownerIsAlive = (owner, processes) =>
   processes.some((item) => item.pid === owner.pid && (!owner.start || item.start === owner.start));
+
+// `ps` start times are second-resolution local-time strings; Date parses them.
+const startMs = (value) => Date.parse(value);
+const GONDOLIN = /gondolin/i;
+
+// A VM process is registered with its owner's guardian only after the VM has booted, about a second after the
+// process exists. An owner killed inside that window leaves a VM nobody knows about. Gondolin VM processes are
+// always children of their owner, so one re-parented to init that started during the dead owner's lifetime is
+// that owner's leak.
+export const orphanedVmmsSince = (owner, processes) =>
+  processes.filter(
+    (item) =>
+      item.ppid === 1 &&
+      VMM_COMMAND.test(item.command) &&
+      GONDOLIN.test(item.command) &&
+      startMs(item.start) >= startMs(owner.start) - 1000,
+  );
+
+export const sweepOrphanedVmms = (owner, processes, kill) =>
+  owner?.start ? killVerified(orphanedVmmsSince(owner, processes), processes, kill) : [];
