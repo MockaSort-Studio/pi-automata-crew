@@ -21,6 +21,12 @@ const metricsOf = (live = {}) => ({
   turns: live.turns,
   toolCalls: live.toolCalls,
   toolErrors: live.toolErrors,
+  ...(live.context && {
+    sessionContext: {
+      lastPercent: live.context.percent == null ? null : Math.round(live.context.percent),
+      modelWindow: live.context.window,
+    },
+  }),
   providerTraffic: {
     uncachedInput: live.input,
     generatedOutput: live.output,

@@ -67,6 +67,24 @@ test("the Automata tab shows each member's live turns, tools, errors and tokens"
   assert.equal(renderCrewStatusFooter(snapshot).includes("40 output tokens"), true);
 });
 
+test("the Automata tab and snapshot show each member's context usage", () => {
+  const { snapshot } = crewView({
+    runId: RUN,
+    members: [
+      m("developer-a-00", "running", { live: live({ context: { percent: 37.5, window: 128000 } }) }),
+      m("developer-b-00", "running", { live: live({ context: { percent: 0.4, window: 128000 } }) }),
+      m("developer-c-00", "running", { live: live({ context: { percent: null, window: 64000 } }) }),
+      m("developer-d-00", "queued", { live: live({ context: null }) }),
+      m("developer-e-00", "queued"),
+    ],
+  });
+  assert.deepEqual(
+    buildAutomataTab(snapshot).map((row) => row.sessionContext),
+    ["38% / 128k", "0% / 128k", "— / 64k", "— / —", "— / —"],
+  );
+  assert.deepEqual(snapshot.contextSummary, { maxPercent: 38, modelWindows: [128000, 64000] });
+});
+
 test("the Plan tab lists each assignment with its dependencies and live status", () => {
   const plan = [
     { handle: "developer-a-00", task: "write it", dependsOn: [] },
