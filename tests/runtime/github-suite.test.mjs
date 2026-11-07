@@ -11,7 +11,7 @@ import { Type } from "typebox";
 import { repositoryAuthorization } from "../../extensions/crew/env-runtime/lib/repository-authorization.mjs";
 import { populateRepositoryWorkspace } from "../../extensions/crew/env-runtime/lib/repository-workspace.mjs";
 import { buildShallowCheckout } from "../../extensions/crew/env-runtime/lib/repository-seed-archive.mjs";
-import { WorkspaceProvider } from "../../extensions/crew/env-runtime/lib/workspace-provider.mjs";
+import { MemoryProvider } from "@earendil-works/gondolin";
 import { runAgent } from "./run-agent.mjs";
 import { githubSuiteExtension, hostGhTransport } from "../../extensions/crew/runner/github-suite.mjs";
 import { workspaceFs } from "../../extensions/crew/runner/workspace-fs.mjs";
@@ -52,7 +52,7 @@ test("isomorphic-git works on the host-held workspace through the fs adapter, ma
   const root = mkdtempSync(join(tmpdir(), "suite-fs-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const revision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-  const workspace = new WorkspaceProvider();
+  const workspace = new MemoryProvider();
   await populateRepositoryWorkspace(
     workspace,
     buildShallowCheckout({ cwd: process.cwd(), repo: policy.repo, revision }),
@@ -120,7 +120,7 @@ test("the suite is installed with the injected workspace, transport and credenti
     rmSync(dir, { recursive: true, force: true });
   });
   const calls = Object.assign([], { executed: [] });
-  const workspace = new WorkspaceProvider();
+  const workspace = new MemoryProvider();
   const transport = { run: async () => "" };
   const modelRuntime = await ModelRuntime.create({
     authPath: join(dir, "auth.json"),
@@ -160,7 +160,7 @@ test("pull requests are forced to drafts without changing other calls or bypassi
   const handlers = new Map();
   githubSuiteExtension({
     module: { activateSuite() {} },
-    workspace: new WorkspaceProvider(),
+    workspace: new MemoryProvider(),
     token: "t",
     policy,
     transport: { run: async () => "" },
@@ -205,7 +205,7 @@ test("PR ownership applies only to writes and fails closed", async () => {
   };
   githubSuiteExtension({
     module: { activateSuite() {} },
-    workspace: new WorkspaceProvider(),
+    workspace: new MemoryProvider(),
     token: "t",
     policy,
     transport,
@@ -269,7 +269,7 @@ test("a host-side tool call waits for the workspace to be seeded, and fails clos
   let seeded = false;
   githubSuiteExtension({
     module: { activateSuite() {} },
-    workspace: new WorkspaceProvider(),
+    workspace: new MemoryProvider(),
     token: "t",
     policy,
     transport: { run: async () => "" },
@@ -286,7 +286,7 @@ test("a host-side tool call waits for the workspace to be seeded, and fails clos
   const failing = [];
   githubSuiteExtension({
     module: { activateSuite() {} },
-    workspace: new WorkspaceProvider(),
+    workspace: new MemoryProvider(),
     token: "t",
     policy,
     transport: { run: async () => "" },

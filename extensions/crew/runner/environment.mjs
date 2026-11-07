@@ -1,10 +1,9 @@
-import { ReadonlyProvider, RealFSProvider } from "@earendil-works/gondolin";
+import { MemoryProvider, ReadonlyProvider, RealFSProvider } from "@earendil-works/gondolin";
 import { createGuestNetwork } from "../env-runtime/lib/guest-network.mjs";
 import { GUEST_WORKSPACE } from "../env-runtime/lib/gondolin-worker-paths.mjs";
 import { chooseVmm } from "../env-runtime/lib/guest-vmm.mjs";
 import { verifyGuestDependencyCache } from "../env-runtime/lib/repository-dependency-cache.mjs";
 import { createTrackedVm } from "../env-runtime/lib/vm-lifecycle.mjs";
-import { WorkspaceProvider } from "../env-runtime/lib/workspace-provider.mjs";
 
 // VM creation is serialized process-wide: a VM's own process is identified among this process's children
 // (vm-lifecycle.mjs), which is only unambiguous when creations do not overlap.
@@ -25,7 +24,7 @@ export function createEnvironment({
   createVm = createTrackedVm,
   vmm = chooseVmm(),
 }) {
-  const workspace = new WorkspaceProvider();
+  const workspace = new MemoryProvider();
   let vm,
     starting,
     seeded,
