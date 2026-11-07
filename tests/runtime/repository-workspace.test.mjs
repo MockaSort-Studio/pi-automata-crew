@@ -13,7 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { skipWithoutGit } from './requires-git.mjs';
+import { skipWithoutGit } from "./requires-git.mjs";
 import {
   populateRepositoryWorkspace,
   remoteMatchesRepository,

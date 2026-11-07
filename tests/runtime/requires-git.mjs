@@ -1,9 +1,9 @@
-import { spawnSync } from 'node:child_process';
+import { spawnSync } from "node:child_process";
 
 export function skipWithoutGit(t, spawn = spawnSync) {
-  const result = spawn('git', ['--version']);
-  if (result.error?.code === 'ENOENT') {
-    t.skip('git executable is not available on this runner');
+  const result = spawn("git", ["--version"]);
+  if (result.error?.code === "ENOENT") {
+    t.skip("git executable is not available on this runner");
     return true;
   }
   if (result.error) throw result.error;

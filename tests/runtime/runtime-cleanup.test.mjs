@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import test from "node:test";
-import { skipWithoutGit } from './requires-git.mjs';
+import { skipWithoutGit } from "./requires-git.mjs";
 import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
 
 const actors = (prefix) => ["a", "b"].map((name) => ({ name, actorId: `${prefix}-${name}`, task: "Reply done." }));

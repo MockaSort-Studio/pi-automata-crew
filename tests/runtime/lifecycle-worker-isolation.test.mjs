@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import test from "node:test";
-import { skipWithoutGit } from './requires-git.mjs';
+import { skipWithoutGit } from "./requires-git.mjs";
 import { LifecycleController } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
 
 // A spawned worker must never receive host-root discovery: it runs inside

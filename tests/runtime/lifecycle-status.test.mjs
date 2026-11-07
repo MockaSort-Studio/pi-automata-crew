@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import test from "node:test";
-import { skipWithoutGit } from './requires-git.mjs';
+import { skipWithoutGit } from "./requires-git.mjs";
 import { LifecycleController, terminalStatus } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
 
 const stubWorker = new URL("./fixtures/stub-worker.mjs", import.meta.url).pathname;

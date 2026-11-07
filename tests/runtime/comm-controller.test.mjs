@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { randomUUID } from "node:crypto";
 import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
 import test from "node:test";
-import { skipWithoutGit } from './requires-git.mjs';
+import { skipWithoutGit } from "./requires-git.mjs";
 import WebSocket from "ws";
 import { CommController } from "../../extensions/crew/crew-runtime/lib/comm-controller.mjs";
 import { connectComm } from "../../extensions/crew/crew-runtime/lib/comm-client.mjs";
