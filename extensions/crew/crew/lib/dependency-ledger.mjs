@@ -8,7 +8,8 @@ import { canonicalHandle } from "./discussion-templates.mjs";
 export const NODE_STATES = Object.freeze(["waiting", "ready", "running", "complete", "blocked", "failed"]);
 
 // `blocked` is not terminal: a member that blocks itself awaits input and resumes when it
-// receives it. Only complete and failed end a node.
+// receives it. complete and failed end a node, except that Main may reopen a complete node with
+// a follow-up (see reopen): a node's last word must stay true when the work is not over.
 const TERMINAL_STATES = new Set(["complete", "failed"]);
 // Every state a node can settle in without further work: a Crew whose nodes are all settled
 // needs Main, either to finish or to answer a blocked member.
@@ -16,9 +17,9 @@ const SETTLED_STATES = new Set(["complete", "blocked", "failed"]);
 
 const TRANSITIONS = Object.freeze({
   waiting: Object.freeze(["ready", "running", "blocked"]),
-  ready: Object.freeze(["running", "blocked"]),
+  ready: Object.freeze(["running", "blocked", "waiting"]),
   running: Object.freeze(["waiting", "complete", "failed", "blocked"]),
-  complete: Object.freeze([]),
+  complete: Object.freeze(["running"]),
   blocked: Object.freeze(["running", "waiting"]),
   failed: Object.freeze([]),
 });
@@ -140,6 +141,9 @@ export function createDependencyLedger() {
   function start(rawHandle) {
     const handle = requireNode(canonicalHandle(rawHandle));
     if (status.get(handle) === "blocked") return resume(handle, "running");
+    // A complete node is only ever brought back by reopen(), which also settles its dependents.
+    if (status.get(handle) === "complete")
+      throw new Error(`Illegal dependency ledger transition for ${handle}: complete -> running (use reopen)`);
     refreshOne(handle);
     return moveTo(handle, "running");
   }
@@ -164,6 +168,19 @@ export function createDependencyLedger() {
     const handle = canonicalHandle(rawHandle);
     const to = moveTo(handle, "complete");
     for (const dependent of dependents.get(handle)) refreshOne(dependent);
+    return to;
+  }
+
+  // A complete node that works again (Main sent it a follow-up) is running again, so whatever depends on it
+  // can no longer rely on its result: dependents that have not started return to waiting. Dependents that
+  // are already running or complete ran with the earlier result and are left alone. Without this, a
+  // member that fails or asks a question after being completed would still read as complete.
+  function reopen(rawHandle) {
+    const handle = requireNode(canonicalHandle(rawHandle));
+    if (status.get(handle) !== "complete")
+      throw new Error(`Illegal dependency ledger transition for ${handle}: only a complete node can be reopened`);
+    const to = moveTo(handle, "running");
+    for (const dependent of dependents.get(handle)) if (status.get(dependent) === "ready") moveTo(dependent, "waiting");
     return to;
   }
 
@@ -200,6 +217,7 @@ export function createDependencyLedger() {
     start,
     wait,
     complete,
+    reopen,
     fail,
     block,
     status: (rawHandle) => status.get(requireNode(canonicalHandle(rawHandle))),

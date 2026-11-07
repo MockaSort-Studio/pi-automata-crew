@@ -77,16 +77,16 @@ export function createDispatcher({
     }
     result = JSON.parse(scrub(JSON.stringify(result)));
     results.set(handle, result);
-    const first = ledger.status(handle) === "running";
+    // Every turn starts with the node running: pump() starts it, and a follow-up resumes or reopens it.
     if (result.status === "completed") {
-      if (first) ledger.complete(handle);
+      ledger.complete(handle);
       setState(handle, "completed");
     } else if (result.status === "cancelled") {
-      if (first) ledger.fail(handle);
+      ledger.fail(handle);
       setState(handle, "cancelled");
     } else {
       // needs_input and failed both wait for Main: the dependents stay held until this member completes.
-      if (first) ledger.block(handle);
+      ledger.block(handle);
       setState(handle, result.status);
     }
     onResult(handle, result);
@@ -141,7 +141,9 @@ export function createDispatcher({
       if (!["needs_input", "failed", "completed"].includes(current))
         throw new Error(`${handle} is ${current}; it can be messaged once it has reported`);
       if (running.has(handle)) throw new Error(`${handle} is already working`);
+      // A follow-up reopens a completed member: whatever it ends as must be what the ledger says.
       if (ledger.status(handle) === "blocked") ledger.start(handle);
+      else if (ledger.status(handle) === "complete") ledger.reopen(handle);
       launch(handle, text);
     },
     // Aborts what is running and ends members that have not started. The abort reaches the guest (Stage 1),
