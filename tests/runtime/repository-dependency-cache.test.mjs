@@ -52,7 +52,7 @@ test("cache executable links survive relocation and reject invalid targets", () 
     symlinkSync("../tool/cli.js", join(source, ".bin", "tool"));
     copyDependencyCacheModules(source, destination);
     rmSync(join(item.root, "build"), { recursive: true });
-    assert.equal(realpathSync(join(destination, ".bin", "tool")), join(destination, "tool", "cli.js"));
+    assert.equal(realpathSync(join(destination, ".bin", "tool")), realpathSync(join(destination, "tool", "cli.js")));
     symlinkSync("../missing", join(destination, ".bin", "broken"));
     assert.throws(() => copyDependencyCacheModules(destination, join(item.root, "invalid")), /link/i);
   } finally {
