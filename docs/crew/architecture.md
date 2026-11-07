@@ -56,6 +56,10 @@ beside the result.
 - A VM is fail-closed: no host fallback.
 - A repository is authorized as one exact repo, revision and branch; other refs, force pushes and
   other refspecs are refused. Git operations are pure JavaScript and run no hooks.
+- **Pull requests:** Crew enforces draft creation for developers. They can list and read PRs in the authorized
+  repository (including files, checks and review threads), but can change only their own PR's title, body,
+  open/closed state and labels. They cannot comment, request changes, approve, merge or mark a PR ready;
+  reviewers, Main and humans handle review and landing.
 - Tokens are never written to files, logs or transcripts; failures report fixed categories.
 - No automatic time limits. Cancel and manual intervention instead.
 
