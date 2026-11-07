@@ -188,6 +188,79 @@ test("pull requests are forced to drafts without changing other calls or bypassi
   assert.equal(result({ toolName: "github_issue_view", content, isError: false }), undefined);
 });
 
+test("PR ownership applies only to writes and fails closed", async () => {
+  const handlers = new Map();
+  const calls = [];
+  const transport = {
+    run: async (args) => {
+      calls.push(args);
+      const number = Number(args[2]);
+      if (number === 5) throw new Error("offline");
+      return JSON.stringify({
+        headRefName: number === 2 ? "other" : policy.branch,
+        baseRefName: number === 3 ? "other" : policy.base,
+        isCrossRepository: number === 4,
+      });
+    },
+  };
+  githubSuiteExtension({
+    module: { activateSuite() {} },
+    workspace: new WorkspaceProvider(),
+    token: "t",
+    policy,
+    transport,
+  })({ registerTool() {}, on: (name, handler) => handlers.set(name, handler) });
+  const guard = handlers.get("tool_call");
+  const call = (toolName, input) => guard({ toolName, input });
+  for (const name of [
+    "github_pull_requests_list",
+    "github_pull_request_view",
+    "github_pull_request_files",
+    "github_pull_request_checks",
+    "github_pull_request_review_threads",
+  ]) {
+    assert.equal(
+      await call(name, name.endsWith("list") ? { repo: policy.repo } : { repo: policy.repo, pullNumber: 2 }),
+      undefined,
+    );
+  }
+  for (const name of [
+    "github_pull_request_update",
+    "github_pull_request_add_label",
+    "github_pull_request_remove_label",
+  ]) {
+    const input = (pullNumber) => ({
+      repo: policy.repo,
+      pullNumber,
+      ...(name.endsWith("update") ? { title: "x" } : {}),
+    });
+    assert.equal(await call(name, input(1)), undefined);
+    for (const number of [2, 3, 4, 5])
+      assert.match((await call(name, input(number))).reason, /can only change its own pull request/);
+  }
+  assert.equal(calls.filter((args) => args[2] === "1").length, 1);
+  assert.deepEqual(calls[0], [
+    "pr",
+    "view",
+    "1",
+    "--repo",
+    policy.repo,
+    "--json",
+    "headRefName,baseRefName,isCrossRepository",
+  ]);
+  const count = calls.length;
+  for (const name of [
+    "github_pull_request_comment",
+    "github_pull_request_review",
+    "github_pull_request_review_start",
+    "github_pull_request_review_inline_comment",
+    "github_pull_request_review_submit",
+    "github_pull_request_merge",
+  ])
+    assert.equal(await call(name, { repo: "other/repo", pullNumber: 2 }), undefined);
+  assert.equal(calls.length, count);
+});
+
 test("a host-side tool call waits for the workspace to be seeded, and fails closed if seeding fails", async () => {
   const handlers = [];
   const pi = { registerTool() {}, on: (name, handler) => handlers.push([name, handler]) };

@@ -16,6 +16,33 @@ const allow = (operation, input) => assert.doesNotThrow(() => authorizeRepositor
 const deny = (operation, input, pattern = /outside the worker authorization/) =>
   assert.throws(() => authorizeRepositoryOperation(operation, input, policy), pattern);
 
+test("pull request inputs are narrowly authorized", () => {
+  const reads = [
+    "github_pull_requests_list",
+    "github_pull_request_view",
+    "github_pull_request_files",
+    "github_pull_request_checks",
+    "github_pull_request_review_threads",
+  ];
+  const writes = ["github_pull_request_update", "github_pull_request_add_label", "github_pull_request_remove_label"];
+  for (const operation of [...reads, ...writes]) {
+    const input =
+      operation === "github_pull_requests_list"
+        ? { repo }
+        : { repo, pullNumber: 42, ...(operation.endsWith("update") ? { title: "x" } : {}) };
+    allow(operation, input);
+    deny(operation, { ...input, repo: "other/repo" });
+    deny(operation, { ...input, unexpected: true }, /does not accept/);
+    assert.throws(() => authorizeRepositoryOperation(operation, input), /authorization is required/);
+    if (operation !== "github_pull_requests_list") deny(operation, { ...input, pullNumber: 0 }, /pullNumber/);
+  }
+  deny("github_pull_request_update", { repo, pullNumber: 1, base: "main" }, /does not accept/);
+  deny("github_pull_request_update", { repo, pullNumber: 1, state: "merged" }, /state/);
+  deny("github_pull_request_update", { repo, pullNumber: 1 }, /requires/);
+  deny("github_pull_requests_list", { repo, state: "bad" }, /state/);
+  deny("github_pull_requests_list", { repo, limit: 101 }, /limit/);
+});
+
 test("typed Git workflow is authorized only for the worker's repo, revision and branch", () => {
   allow("github_workspace_checkout", { repo, revision, branch });
   allow("github_git_status", { repo });
