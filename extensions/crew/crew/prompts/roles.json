@@ -22,7 +22,7 @@
   },
   "developer": {
     "prompt": "developer.md",
-    "tools": ["read", "grep", "find", "ls", "bash", "edit", "write"],
+    "tools": ["read", "grep", "find", "ls", "bash", "edit", "write", "github_workspace_checkout", "github_git_status", "github_git_diff", "github_git_stage", "github_git_commit", "github_git_push", "github_pull_request_create"],
     "thinking": "medium",
     "commTools": ["comm_notify", "comm_request", "comm_reply"],
     "discipline": "Implement bounded changes with focused tests and evidence."
