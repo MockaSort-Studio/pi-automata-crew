@@ -12,7 +12,7 @@ import { repositoryAuthorization } from "../../extensions/crew/env-runtime/lib/r
 import { populateRepositoryWorkspace } from "../../extensions/crew/env-runtime/lib/repository-workspace.mjs";
 import { buildShallowCheckout } from "../../extensions/crew/env-runtime/lib/repository-seed-archive.mjs";
 import { WorkspaceProvider } from "../../extensions/crew/env-runtime/lib/workspace-provider.mjs";
-import { runAgent } from "../../extensions/crew/runner/agent-run.mjs";
+import { runAgent } from "./run-agent.mjs";
 import { githubSuiteExtension, hostGhTransport } from "../../extensions/crew/runner/github-suite.mjs";
 import { workspaceFs } from "../../extensions/crew/runner/workspace-fs.mjs";
 import { mockModel, providerFor } from "./mock-model.mjs";

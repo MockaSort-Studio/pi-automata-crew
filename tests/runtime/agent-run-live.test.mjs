@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 // A member kept busy for a long time: not `sleep`, which the worker shell policy rejects as polling.
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { runAgent } from "../../extensions/crew/runner/agent-run.mjs";
+import { runAgent } from "./run-agent.mjs";
 import { createEnvironment } from "../../extensions/crew/runner/environment.mjs";
 import { routedToolsExtension } from "../../extensions/crew/runner/routing-extension.mjs";
 import { mockModel, providerFor } from "./mock-model.mjs";

@@ -16,6 +16,11 @@ const holder = (globalThis.__piCrewHost ??= {
   stopping: false,
 });
 
+// Quitting Pi stops the host, which closes every VM. A reload leaves running crews alone.
+export async function stopHostOnQuit(event, host) {
+  if (event?.reason === "quit") await host.stop();
+}
+
 export const bindCrewHost = (pi) => {
   holder.pi = pi;
 };

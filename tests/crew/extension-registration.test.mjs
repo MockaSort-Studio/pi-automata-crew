@@ -36,10 +36,11 @@ test("start_crew schema exposes the bounded microVM environment contract", () =>
   );
 });
 
-test("quitting stops the host (closing every VM) and a reload does not", () => {
-  assert.match(source, /pi\.on\("session_shutdown"/);
-  assert.match(source, /event\?\.reason === "quit"/);
-  assert.match(source, /host\(ctx\)\.stop\(\)/);
+test("the extension wires session shutdown to stopHostOnQuit (its behavior is tested in crew-host.test.mjs)", () => {
+  assert.match(
+    source,
+    /pi\.on\("session_shutdown", \(event: any, ctx: any\) => stopHostOnQuit\(event, host\(ctx\)\)\)/,
+  );
   assert.match(source, /bindCrewHost\(pi\)/);
 });
 
@@ -56,8 +57,8 @@ test("crew extension registers the host tools", () => {
 });
 
 test("start_crew no longer renders a redundant final success line", () => {
-  assert.doesNotMatch(source, /SDK Crew started/);
-  assert.match(source, /Launching SDK Crew\.\.\./, "the transient launch indication should remain");
+  assert.doesNotMatch(source, /Crew started/);
+  assert.match(source, /Launching crew\.\.\./, "the transient launch indication should remain");
   assert.match(source, /Crew launch failed/, "the error case should still render");
 });
 
@@ -66,7 +67,7 @@ test("crew extension registers a Markdown renderer for incoming crew-message del
   assert.match(source, /registerCrewMessageRenderer\(pi\)/);
 });
 
-test("roster tools module exports registration function", () => {
+test("earlier runtime (kept, not loaded): roster tools module still exports its registration function", () => {
   const rosterTools = readFileSync(new URL("../../extensions/crew/crew/lib/roster-tools.ts", import.meta.url), "utf8");
   assert.match(rosterTools, /export function registerRosterTools/);
   assert.match(rosterTools, /name: "crew_register"/);
