@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { VM } from "@earendil-works/gondolin";
-import { killVerified, listProcesses, ownerIsAlive, vmmChildrenOf } from "./vm-processes.mjs";
+import { killVerified, listProcesses, ownerIsAlive, sweepOrphanedVmms, vmmChildrenOf } from "./vm-processes.mjs";
 
 // A Gondolin VM's process outlives a hard-killed owner (measured: SIGKILL of the owner leaves the krun or
 // qemu process running under launchd). Every VM created here is tracked in two ways: a detached guardian
@@ -24,7 +24,10 @@ export function reapOrphanVms({ home, processes = listProcesses(), kill } = {}) 
     try {
       const record = JSON.parse(readFileSync(path, "utf8"));
       if (ownerIsAlive(record.owner, processes)) continue;
-      reaped.push(...killVerified(record.vmms ?? [], processes, kill));
+      reaped.push(
+        ...killVerified(record.vmms ?? [], processes, kill),
+        ...sweepOrphanedVmms(record.owner, processes, kill),
+      );
     } catch {}
     rmSync(path, { force: true });
   }
@@ -33,9 +36,10 @@ export function reapOrphanVms({ home, processes = listProcesses(), kill } = {}) 
 
 const state = { guardian: undefined, tracked: new Map(), file: undefined, owner: undefined, reaped: false };
 
+// The record exists as long as the guardian does, even with no VM yet: it is what lets a later start recognise
+// the VMs of an owner that died while one was still booting. The guardian removes it when it finishes.
 function persist() {
   if (!state.file) return;
-  if (!state.tracked.size) return rmSync(state.file, { force: true });
   writeFileSync(state.file, JSON.stringify({ owner: state.owner, vmms: [...state.tracked.values()] }));
 }
 
@@ -56,6 +60,8 @@ function guardianFor(home) {
   child.unref();
   child.stdin.unref?.();
   state.guardian = child;
+  send({ owner: state.owner });
+  persist();
   return child;
 }
 
