@@ -31,6 +31,36 @@ test("role and persona policy allows only authorized suite and system operations
   );
 });
 
+test("developer PR authority permits ownership operations but not review or merge", () => {
+  const permitted = [
+    "github_pull_requests_list",
+    "github_pull_request_view",
+    "github_pull_request_files",
+    "github_pull_request_checks",
+    "github_pull_request_review_threads",
+    "github_pull_request_update",
+    "github_pull_request_add_label",
+    "github_pull_request_remove_label",
+  ];
+  const inhibited = [
+    "github_pull_request_comment",
+    "github_pull_request_review",
+    "github_pull_request_review_start",
+    "github_pull_request_review_inline_comment",
+    "github_pull_request_review_submit",
+    "github_pull_request_merge",
+  ];
+  for (const operation of permitted) {
+    assert.doesNotThrow(() => validateMemberAuthority({ tools: [] }, "developer", grants(github, operation)));
+  }
+  for (const operation of inhibited) {
+    assert.throws(
+      () => validateMemberAuthority({ tools: [] }, "developer", grants(github, operation)),
+      new RegExp(`Armory operation outside developer's capabilities: ${operation}`),
+    );
+  }
+});
+
 test("persona capabilities union with role policy without widening other personas", () => {
   const domain = { tools: ["edit", "github_pull_request_view"] };
   assert.deepEqual(

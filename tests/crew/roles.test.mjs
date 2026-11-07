@@ -80,6 +80,14 @@ test("the developer prompt carries the Crew working rules and no stale Lead or D
   assert.doesNotMatch(instructions, /Lead|Discussion/);
 });
 
+test("developer owns draft PR feedback without reviewing or merging", () => {
+  const { instructions } = roleModule({ role: "developer", override: {} });
+  assert.match(instructions, /github_pull_request_checks/);
+  assert.match(instructions, /github_pull_request_review_threads/);
+  assert.match(instructions, /NOT comment, request changes, approve, merge, or mark.*ready/i);
+  assert.match(instructions, /request_input/);
+});
+
 test("developer has bounded implementation authority", () => {
   const result = roleModule({ role: "developer", override: {} });
   for (const tool of ["read", "edit", "write", "bash"]) assert.ok(result.tools.includes(tool));
