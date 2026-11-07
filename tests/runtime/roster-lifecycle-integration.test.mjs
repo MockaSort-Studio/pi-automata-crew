@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import test from "node:test";
+import { skipWithoutGit } from './requires-git.mjs';
 import { LifecycleController } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
 import { applyWorkerStatusToRosterFiles } from "../../extensions/crew/crew/lib/roster-lifecycle.mjs";
 
@@ -34,7 +35,8 @@ function writeRoster(crewLaunchDir, runId, actorId) {
   );
 }
 
-test("a worker that completes naturally lands its roster member on PASS", async () => {
+test("a worker that completes naturally lands its roster member on PASS", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const crewLaunchDir = mkdtempSync(join(tmpdir(), "crew-launch-"));
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
@@ -55,7 +57,8 @@ test("a worker that completes naturally lands its roster member on PASS", async 
   }
 });
 
-test("a worker that exits non-zero lands its roster member on FAIL", async () => {
+test("a worker that exits non-zero lands its roster member on FAIL", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const crewLaunchDir = mkdtempSync(join(tmpdir(), "crew-launch-"));
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
@@ -74,7 +77,8 @@ test("a worker that exits non-zero lands its roster member on FAIL", async () =>
   }
 });
 
-test("an intentional removal lands its roster member on BLOCKED, not FAIL", async () => {
+test("an intentional removal lands its roster member on BLOCKED, not FAIL", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const crewLaunchDir = mkdtempSync(join(tmpdir(), "crew-launch-"));
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });

@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
+import { skipWithoutGit } from './requires-git.mjs';
 import { Runtime } from "../../extensions/crew/crew-runtime/lib/runtime.mjs";
 import { connectComm } from "../../extensions/crew/crew-runtime/lib/comm-client.mjs";
 
@@ -108,7 +109,8 @@ test("dispatchRoots delivers only root tasks, idempotently and once", async (t) 
   assert.equal(got[0].payload.kind, "task");
 });
 
-test("a launch that never becomes ready removes its workers and stops Comm/Lifecycle", async () => {
+test("a launch that never becomes ready removes its workers and stops Comm/Lifecycle", async (t) => {
+  if (skipWithoutGit(t)) return;
   const runtime = new Runtime(process.cwd());
   const name = "developer-snowball-00";
   const id = `rollback-${process.pid}`;

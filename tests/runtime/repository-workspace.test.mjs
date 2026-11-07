@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { skipWithoutGit } from './requires-git.mjs';
 import {
   populateRepositoryWorkspace,
   remoteMatchesRepository,
@@ -180,6 +181,7 @@ const directoryProvider = (root) => ({
 });
 
 test("a seed is a shallow Git checkout of exactly the revision, with a GitHub origin and no host leaks", async (t) => {
+  if (skipWithoutGit(t)) return;
   const root = mkdtempSync(join(tmpdir(), "crew-seed-real-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const source = join(root, "source");

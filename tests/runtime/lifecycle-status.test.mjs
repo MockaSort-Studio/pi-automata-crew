@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import test from "node:test";
+import { skipWithoutGit } from './requires-git.mjs';
 import { LifecycleController, terminalStatus } from "../../extensions/crew/crew-runtime/lib/lifecycle-controller.mjs";
 
 const stubWorker = new URL("./fixtures/stub-worker.mjs", import.meta.url).pathname;
@@ -29,7 +30,8 @@ function gitRepo() {
   return cwd;
 }
 
-test("removing a live worker terminalizes its state as 'removed', not 'failed'", async () => {
+test("removing a live worker terminalizes its state as 'removed', not 'failed'", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   try {
@@ -44,7 +46,8 @@ test("removing a live worker terminalizes its state as 'removed', not 'failed'",
   }
 });
 
-test("removing an already-completed worker still terminalizes cleanly", async () => {
+test("removing an already-completed worker still terminalizes cleanly", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   try {
@@ -58,7 +61,8 @@ test("removing an already-completed worker still terminalizes cleanly", async ()
   }
 });
 
-test("inspecting a removed worker still returns its session context metrics", async () => {
+test("inspecting a removed worker still returns its session context metrics", async (t) => {
+  if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
   try {
