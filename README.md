@@ -51,6 +51,11 @@ Then check the machine from inside Pi:
 It boots a VM and checks everything a crew depends on, and says what to fix. For GitHub tools, export
 `HALL_GITHUB_TOKEN` (and have the `gh` CLI installed); crews that do not use GitHub run without it.
 
+Use a fine-grained token limited to the one repository the crew works on, with read and write on contents, pull
+requests and issues (plus metadata read). The token stays on your host and never enters a VM, and Crew policy only
+lets a member use it on the authorized repository, its own branch and its own pull request, but the token's own scope
+is the outer bound: keep it as narrow as the work needs.
+
 ## Use
 
 Ask Pi to start a crew (it uses `start_crew`; `crew_route` picks specialists for paths). Name a `model` as
