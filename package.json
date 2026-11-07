@@ -22,7 +22,7 @@
     "format:check": "prettier --check extensions tests docs README.md CONTRIBUTING.md"
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "0.87.1",
+    "@earendil-works/pi-coding-agent": "1.5.0",
     "prettier": "^3.5.3",
     "typebox": "^1.3.32",
     "yaml": "^2.9.1"
