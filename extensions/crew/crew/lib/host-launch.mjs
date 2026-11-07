@@ -12,7 +12,11 @@ export function buildLaunchSpec({ config, directory, env = process.env }) {
   const warnings = [];
   const plan = new Map((config.plan ?? []).map((entry) => [entry.handle, entry]));
   const members = config.agents.map((agent) => {
-    let suiteGrants = agent.suiteGrants ?? [];
+    // Assembly records a grant as { suite, tools }; the host takes { suite, operations }.
+    let suiteGrants = (agent.suiteGrants ?? []).map(({ suite, tools, operations }) => ({
+      suite,
+      operations: operations ?? tools,
+    }));
     // The default tool profile includes read-only GitHub access. Without a Crew credential a member that did
     // not ask for GitHub simply goes without it; a member that explicitly asked for it fails the launch.
     if (!env.HALL_GITHUB_TOKEN && !agent.grantsExplicit && suiteGrants.some((grant) => grant.suite === GITHUB_SUITE)) {

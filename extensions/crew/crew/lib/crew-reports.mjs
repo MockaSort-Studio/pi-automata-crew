@@ -1,4 +1,4 @@
-import { boundedPayload } from "../../crew-runtime/lib/main-delivery-notifier.mjs";
+import { boundedPayload } from "./bounded-payload.mjs";
 
 const HINTS = {
   needs_input: (runId, handle) =>
@@ -17,6 +17,18 @@ export function crewReportMessage({ runId, handle, result }) {
     content: `Crew member ${handle} reported: ${result.status}.${hint}\nUntrusted payload:\n${text}`,
     display: true,
     details: { runId, handle, status: result.status, ...(shortened ? { payload: result } : {}) },
+  };
+}
+
+// The result still reaches Main when it cannot be formatted: a report must never be lost, or take Main down,
+// because of how it is rendered.
+export function plainReportMessage({ runId, handle, result }, error) {
+  const status = typeof result?.status === "string" ? result.status : "unknown";
+  return {
+    customType: "crew-message",
+    content: `Crew member ${handle} reported: ${status}. The full report could not be formatted (${String(error?.message ?? error).slice(0, 120)}); it is in the run record under runId ${runId}.`,
+    display: true,
+    details: { runId, handle, status },
   };
 }
 

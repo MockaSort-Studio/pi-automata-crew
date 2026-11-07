@@ -248,3 +248,17 @@ test("status carries live per-member totals that grow as the agent works, before
   });
   report();
 });
+
+test("a malformed suite grant fails the launch instead of silently granting nothing", async () => {
+  const h = host();
+  const github = "collaboration/pi-github-tools";
+  for (const grant of [
+    { suite: github, tools: ["github_issue_view"] },
+    { suite: github, operations: [] },
+    { operations: ["x"] },
+  ]) {
+    const reply = await h.call("launch", launch({ members: [member(A, { suiteGrants: [grant] })] }));
+    assert.match(reply.error.message, /developer-alpha-00: a suite grant needs a suite and a list of operations/);
+  }
+  assert.deepEqual(h.created, [], "no agent was created");
+});
