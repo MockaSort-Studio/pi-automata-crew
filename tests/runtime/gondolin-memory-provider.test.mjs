@@ -1,11 +1,14 @@
 import { strict as assert } from "node:assert";
 import { MemoryProvider, VM } from "@earendil-works/gondolin";
 import test from "node:test";
-import { WorkspaceProvider } from "../../extensions/crew/env-runtime/lib/workspace-provider.mjs";
 import { skipLiveGondolin } from "./live-gondolin.mjs";
 
-// The guest's O_TRUNC arrives as: open a writer handle, then truncate through a second handle.
-async function truncateThroughSecondHandle(provider) {
+// The guest's O_TRUNC reaches the host as: a writer handle is open, then a truncate arrives through a second
+// handle. Gondolin 0.12 republished the writer's stale copy, so a shorter rewrite kept the old tail; we carried a
+// subclass to work around it. Fixed upstream in 0.14: these tests guard that we never go back to a version that
+// has the defect without noticing (the workspace is a plain MemoryProvider).
+test("a truncate through one handle reaches a writer handle opened before it", async () => {
+  const provider = new MemoryProvider();
   await provider.writeFile("/f", Buffer.alloc(5000, 1));
   const writer = await provider.open("/f", "r+");
   const truncator = await provider.open("/f", "r+");
@@ -13,28 +16,12 @@ async function truncateThroughSecondHandle(provider) {
   await truncator.close();
   await writer.write(Buffer.from("short"), 0, 5, 0);
   await writer.close();
-  return (await provider.readFile("/f")).toString();
-}
-
-test("a truncate through one handle reaches a writer handle opened before it", async () => {
-  assert.equal(await truncateThroughSecondHandle(new WorkspaceProvider()), "short");
-  // The defect this guards against: plain MemoryProvider republishes the writer's stale length.
-  assert.equal((await truncateThroughSecondHandle(new MemoryProvider())).length, 5000);
-});
-
-test("handles are tracked once and released on close", async () => {
-  const provider = new WorkspaceProvider();
-  await provider.writeFile("/f", "x".repeat(100));
-  for (let i = 0; i < 200; i += 1) await (await provider.open("/f", "r+")).close();
-  const writer = await provider.open("/f", "r+");
-  await (await provider.open("/f", "r+")).truncate(3);
-  await writer.close();
-  assert.equal((await provider.readFile("/f")).toString(), "xxx");
+  assert.equal((await provider.readFile("/f")).toString(), "short");
 });
 
 test("a guest Node rewrite that shrinks a workspace file leaves no stale tail", { timeout: 90_000 }, async (t) => {
   if (skipLiveGondolin(t)) return;
-  const workspace = new WorkspaceProvider();
+  const workspace = new MemoryProvider();
   await workspace.writeFile("/f", Buffer.alloc(70000, 1));
   const vm = await VM.create({ vfs: { mounts: { "/workspace": workspace } } });
   try {
