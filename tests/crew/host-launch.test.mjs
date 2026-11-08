@@ -150,6 +150,61 @@ test("launching sends the spec to the host, tracks the run, and reports the memb
   }
 });
 
+test("mixed roles and explicit narrow grants remain isolated at the active host boundary", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "host-launch-mixed-"));
+  try {
+    const prepared = await prepareCrew(
+      { getAllTools: () => [] },
+      {
+        members: [
+          { name: "snowball", role: "developer" },
+          {
+            name: "bollo",
+            role: "reviewer",
+            tools: [
+              { suite: "system", operations: ["read", "bash"] },
+              { suite: GITHUB, operations: ["github_pull_request_review_submit"] },
+            ],
+          },
+          {
+            name: "mergio",
+            role: "developer",
+            tools: [
+              { suite: "system", operations: ["read"] },
+              { suite: GITHUB, operations: ["github_issue_view"] },
+            ],
+          },
+        ],
+      },
+      { cwd },
+      ".pi",
+    );
+    let launched;
+    const host = {
+      client: () => ({ request: async (_method, spec) => ((launched = spec), { members: [] }) }),
+      track: () => {},
+    };
+    await launchOnHost({ host, prepared, cwd, configDir: ".pi", env: { HALL_GITHUB_TOKEN: "t" } });
+    const [developer, reviewer, narrow] = launched.members;
+    const operations = (member) => member.suiteGrants.flatMap((grant) => grant.operations);
+    for (const [index, member] of launched.members.entries()) {
+      assert.deepEqual(
+        operations(member),
+        prepared.agents[index].suiteGrants.flatMap((grant) => grant.tools),
+      );
+      assert.deepEqual(member.tools, prepared.agents[index].tools);
+    }
+    assert.ok(operations(developer).includes("github_git_push"));
+    assert.ok(!operations(developer).includes("github_pull_request_review_submit"));
+    assert.ok(operations(reviewer).includes("github_pull_request_review_submit"));
+    assert.ok(!operations(reviewer).includes("github_git_push"));
+    assert.deepEqual(narrow.tools, ["read"]);
+    assert.deepEqual(operations(narrow), ["github_issue_view"]);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("grants as assembly really produces them reach the host as operations, never silently empty", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "host-launch-contract-"));
   try {

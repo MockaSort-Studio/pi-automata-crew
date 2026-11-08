@@ -43,5 +43,12 @@ export const GITHUB_BASE_TOOLS = Object.freeze([
   "github_workflow_runs_list",
   "github_workflow_run_view",
   "github_workflow_run_failed_log",
+  "github_pull_request_create",
+  "github_workspace_checkout",
+  "github_git_status",
+  "github_git_diff",
+  "github_git_stage",
+  "github_git_commit",
+  "github_git_push",
 ]);
 export const GITHUB_BASE_TOOL_SET = new Set(GITHUB_BASE_TOOLS);
