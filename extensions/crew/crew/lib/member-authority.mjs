@@ -31,8 +31,16 @@ const personaReads = new Set([
   "github_workflow_run_view",
   "github_workflow_run_failed_log",
 ]);
-// Deferred until the repository boundary covers issue mutations and project targets.
-const deferredLeadDefaults = new Set([
+// Deferred in all grants until the repository boundary covers these targets.
+const deferredOperations = new Set([
+  "github_discussion_comments",
+  "github_discussion_view",
+  "github_discussions_list",
+  "github_discussion_post",
+  "github_issues_list",
+  "github_subissues_list",
+  "github_dependency_list",
+  "github_label_list",
   "github_issue_create",
   "github_issue_update",
   "github_issue_comment",
@@ -44,6 +52,7 @@ const deferredLeadDefaults = new Set([
   "github_project_item_add",
   "github_project_item_find",
   "github_project_field_set",
+  "github_pull_request_checks_wait",
 ]);
 const implementationRoleCeiling = new Set([
   "github_pull_request_comment",
@@ -64,10 +73,14 @@ export function validateMemberAuthority(automaton, role, requested) {
   for (const tool of [...policy.tools, ...automaton.tools.filter((tool) => personaReads.has(tool))]) {
     if (native.has(tool)) system.add(tool);
     else if (GITHUB_BASE_TOOL_SET.has(tool)) {
-      if (!(["developer", "integrator"].includes(role) && implementationRoleCeiling.has(tool))) operations.add(tool);
+      if (
+        !deferredOperations.has(tool) &&
+        !(["developer", "integrator"].includes(role) && implementationRoleCeiling.has(tool))
+      )
+        operations.add(tool);
     } else throw new Error(`Unknown policy capability "${tool}".`);
   }
-  const defaultOperations = [...operations].filter((tool) => role !== "lead" || !deferredLeadDefaults.has(tool));
+  const defaultOperations = [...operations];
   const defaults = [
     ...(system.size ? [{ suite: "system", operations: [...system] }] : []),
     ...(defaultOperations.length ? [{ suite: github, operations: defaultOperations }] : []),

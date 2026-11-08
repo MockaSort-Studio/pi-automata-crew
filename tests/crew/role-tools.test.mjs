@@ -69,7 +69,11 @@ test("defaults grant the role and persona union in assembly and launch", async (
   try {
     for (const role of ["developer", "reviewer"]) {
       const persona = getAutomaton("snowball");
-      const union = new Set([...roles[role].tools, ...persona.tools]);
+      const union = new Set(
+        [...roles[role].tools, ...persona.tools].filter(
+          (tool) => !["github_issues_list", "github_pull_request_checks_wait"].includes(tool),
+        ),
+      );
       const actor = assemble("snowball", role, "");
       const prepared = await prepareCrew(
         { getAllTools: () => [] },
@@ -93,8 +97,8 @@ test("defaults grant the role and persona union in assembly and launch", async (
 });
 
 test("explicit grants narrow authority and unknown policy operations are rejected", () => {
-  const persona = { tools: ["github_project_fields"] };
-  assert.ok(validateMemberAuthority(persona, "reviewer").suiteGrants[0].tools.includes("github_project_fields"));
+  const persona = { tools: ["github_pull_requests_list"] };
+  assert.ok(validateMemberAuthority(persona, "reviewer").suiteGrants[0].tools.includes("github_pull_requests_list"));
   const narrow = validateMemberAuthority(persona, "reviewer", [{ suite: "system", operations: ["read"] }]);
   assert.deepEqual(narrow.tools, ["read"]);
   assert.throws(
