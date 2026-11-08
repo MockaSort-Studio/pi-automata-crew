@@ -28,7 +28,23 @@ export function hostGhTransport({ token, exec = run }) {
   };
   return {
     async run(args, options = {}) {
-      const { stdout } = await exec("gh", args, { encoding: "utf8", maxBuffer: 32 * 1024 * 1024, ...options, env });
+      // Compatibility adapter for the pinned Armory release: its PR view selects the rollup but omits the head.
+      // Add the head to the same gh snapshot, without changing ownership queries or any other command.
+      let commandArgs = args;
+      if (args[0] === "pr" && args[1] === "view") {
+        const index = args.indexOf("--json");
+        const fields = index >= 0 && typeof args[index + 1] === "string" ? args[index + 1].split(",") : [];
+        if (fields.includes("statusCheckRollup") && !fields.includes("headRefOid")) {
+          commandArgs = [...args];
+          commandArgs[index + 1] = [...fields, "headRefOid"].join(",");
+        }
+      }
+      const { stdout } = await exec("gh", commandArgs, {
+        encoding: "utf8",
+        maxBuffer: 32 * 1024 * 1024,
+        ...options,
+        env,
+      });
       return stdout;
     },
   };
