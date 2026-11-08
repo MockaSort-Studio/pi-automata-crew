@@ -5,6 +5,8 @@ import { populateRepositoryWorkspace } from "../env-runtime/lib/repository-works
 import { createAgentRun } from "./agent-run.mjs";
 import { verifyPullRequest } from "./ci-verify.mjs";
 import { createEnvironment } from "./environment.mjs";
+import { prepareDependencyMount } from "./dependency-mount.mjs";
+import { verificationFacts } from "./verification-facts.mjs";
 import { githubCiHeadersAllowed, githubCiRequestAllowed } from "./github-ci-network.mjs";
 import { createSuiteOperations, githubSuiteExtension } from "./github-suite.mjs";
 import { routedToolsExtension } from "./routing-extension.mjs";
@@ -34,7 +36,10 @@ export async function createMemberAgent({ member, crew, onEvent }) {
   const ciAccess =
     github?.token &&
     operations.some((name) => ["github_workflow_runs_list", "github_workflow_run_view"].includes(name));
+  const hasBash = member.tools.includes("bash");
+  const sources = hasBash ? await prepareDependencyMount() : undefined;
   const environment = createEnvironment({
+    dependencySources: sources?.provider,
     localCwd: cwd,
     label: member.handle,
     idleMs: crew.idleMs,
@@ -67,7 +72,7 @@ export async function createMemberAgent({ member, crew, onEvent }) {
     cwd,
     model: member.model,
     thinking: member.thinking,
-    instructions: member.instructions,
+    instructions: `${member.instructions ?? ""}\n\n${verificationFacts(sources, hasBash)}`, 
     tools: [...member.tools, ...operations],
     extensionFactories,
     sessionDir: join(crew.dir, "agents", member.handle, "sessions"),
