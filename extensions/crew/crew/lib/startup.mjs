@@ -7,7 +7,6 @@ import { compileActorProfile } from "./actor-profile.mjs";
 import { kickoffPayload } from "./kickoff-payload.mjs";
 import { writeLaunchFiles } from "./launch-files.mjs";
 import { resolveLaunchEnvironment } from "./launch-environment.mjs";
-import { requiredWorkerSkills } from "./worker-skills.mjs";
 export function crewPaths(configDir, runId) {
   const root = join(configDir, "runtime", "crew-launch");
   return {
@@ -22,7 +21,7 @@ const handle = (role, name, ordinal) => `${role}-${name}-${String(ordinal).padSt
 const crewSection = (actor, runId, topic, directory) =>
   `## CREW\nYour handle is ${actor.handle}.\nRUN: ${runId}\nTOPIC: ${topic}\n\n## CREW DIRECTORY\n${directory}`;
 const workerTask = (actor, runId, topic, directory, repository) =>
-  `${actor.instructions}${actor.workerSkills ? `\n\n${actor.workerSkills}` : ""}${repository ? `\n\n## REPOSITORY AUTHORIZATION\nRepository: ${repository.repo}\nSnapshot revision: ${repository.revision}\nBase branch: ${repository.base}\nAuthorized worker branch: crew/${runId}/${actor.handle}` : ""}\n\n${crewSection(actor, runId, topic, directory)}`;
+  `${actor.instructions}${repository ? `\n\n## REPOSITORY AUTHORIZATION\nRepository: ${repository.repo}\nSnapshot revision: ${repository.revision}\nBase branch: ${repository.base}\nAuthorized worker branch: crew/${runId}/${actor.handle}` : ""}\n\n${crewSection(actor, runId, topic, directory)}`;
 export function queuedMessage(prepared) {
   return `Crew ${prepared.runId} launched. Reports arrive as messages: end your turn and wait.`;
 }
@@ -39,8 +38,8 @@ export async function prepareCrew(pi, input, ctx, configDir) {
   const topic = `crew.${runId}`;
   const paths = crewPaths(configDir, runId);
   const counts = new Map();
-  const skills = input.members.map((member) => requiredWorkerSkills(ctx.cwd, member.skills));
-  const actors = input.members.map((member, index) => {
+  const actors = input.members.map((member) => {
+    if (Object.hasOwn(member, "skills")) throw new Error("Member skills are not supported.");
     if (!member.name?.trim() || !member.role?.trim()) throw new Error("Crew members require name and role.");
     const key = `${member.role}-${member.name}`;
     const ordinal = counts.get(key) ?? 0;
@@ -58,8 +57,6 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       handle: handle(member.role, member.name, ordinal),
       // An explicit member model wins; otherwise inherit the Crew model. With neither, Pi uses its runtime default.
       model: member.model ?? input.model ?? assembled.model,
-      workerSkills: skills[index].text,
-      skills: skills[index].names,
     };
   });
   const leads = actors.filter((actor) => actor.role === "lead");
@@ -127,7 +124,6 @@ export async function prepareCrew(pi, input, ctx, configDir) {
       thinking: actor.thinking,
       task: String(input.members[index].task || "").trim(),
       dependsOn: input.members[index].dependsOn || [],
-      ...(actor.skills.length ? { skills: actor.skills } : {}),
       ...(input.members[index].inputs ? { inputs: input.members[index].inputs } : {}),
       ...(input.members[index].deliverTo ? { deliverTo: input.members[index].deliverTo } : {}),
       ...(input.members[index].authority ? { authority: input.members[index].authority } : {}),

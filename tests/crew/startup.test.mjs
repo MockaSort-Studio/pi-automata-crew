@@ -146,31 +146,29 @@ test("prepareCrew gives each worker its explicit model or the Crew model", async
   }
 });
 
-test("prepareCrew carries named skill procedures into an isolated worker prompt", async () => {
+test("prepareCrew rejects skill injection and never loads skill files into worker prompts", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "crew-sdk-"));
   try {
     const skill = join(cwd, "skills", "review-probe");
     mkdirSync(skill, { recursive: true });
     writeFileSync(join(skill, "SKILL.md"), "---\nname: review-probe\ndescription: test\n---\nSKILL-BODY-MARKER\n");
+    await assert.rejects(
+      prepareCrew(
+        { getAllTools: () => [] },
+        { members: [{ name: "snowball", role: "developer", skills: ["review-probe"] }] },
+        { cwd },
+        ".pi",
+      ),
+      /skills.*not supported/i,
+    );
     const prepared = await prepareCrew(
       { getAllTools: () => [] },
-      { members: [{ name: "snowball", role: "developer", skills: ["review-probe"] }] },
+      { members: [{ name: "snowball", role: "developer" }] },
       { cwd },
       ".pi",
     );
     const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
-    const selected = JSON.parse(readFileSync(join(cwd, prepared.selectedCrewFile), "utf8"));
-    assert.match(config.agents[0].task, /## REQUIRED SKILLS[\s\S]*SKILL-BODY-MARKER/);
-    assert.deepEqual(selected.members[0].skills, ["review-probe"]);
-    await assert.rejects(
-      prepareCrew(
-        { getAllTools: () => [] },
-        { members: [{ name: "snowball", role: "developer", skills: ["../escape"] }] },
-        { cwd },
-        ".pi",
-      ),
-      /Invalid worker skill name/,
-    );
+    assert.doesNotMatch(config.agents[0].task, /SKILL-BODY-MARKER/);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
