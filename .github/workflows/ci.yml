@@ -48,21 +48,40 @@ jobs:
             qemu-img --version
             qemu-system-x86_64 --version
           } 2>&1 | tee diagnostic-logs/host.txt
-      - name: Run explicit backend diagnostics
+      - name: Probe krun executable and boot
         run: |
           set -o pipefail
           export PATH="$PWD/node_modules/.bin:$PATH"
+          runner="$(node -p "require('node:path').join(require('node:path').dirname(require.resolve('@earendil-works/gondolin-krun-runner-linux-x64/package.json')), 'bin/gondolin-krun-runner')")"
           status=0
-          for file in gondolin-worker-smoke gondolin-idle-release vm-lifecycle; do
-            echo "Running $file"
-            if timeout --kill-after=15s 4m node --test-reporter=tap "tests/runtime/$file.test.mjs" 2>&1 | tee "diagnostic-logs/$file.tap"; then
-              echo "$file passed"
-            else
-              echo "$file failed or timed out"
-              status=1
-            fi
-          done
-          exit "$status"
+          {
+            echo "Runner: $runner"
+            ls -l "$runner"
+            file "$runner"
+            echo 'Shared libraries:'
+            ldd "$runner" || { code=$?; echo "ldd exit: $code"; status=1; }
+            echo 'Runner version:'
+            timeout --kill-after=5s 20s "$runner" --version || { code=$?; echo "version exit: $code"; status=1; }
+            echo 'Minimal krun boot:'
+            RUST_BACKTRACE=full timeout --kill-after=5s 60s node --input-type=module <<'EOF' || { code=$?; echo "boot exit: $code"; status=1; }
+          import { VM } from '@earendil-works/gondolin';
+          let vm;
+          try {
+            vm = await VM.create({ sandbox: { vmm: 'krun' } });
+            await vm.start();
+            const result = await vm.exec('echo krun-boot-ok');
+            console.log('Guest result:', JSON.stringify(result));
+            if (result.exitCode !== 0 || !result.stdout.includes('krun-boot-ok')) process.exitCode = 1;
+          } catch (error) {
+            console.error(error);
+            process.exitCode = 1;
+          } finally {
+            if (vm) await vm.close();
+          }
+          EOF
+            echo "Diagnostic status: $status"
+            exit "$status"
+          } 2>&1 | tee diagnostic-logs/krun-probe.txt
       - name: Upload diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4
