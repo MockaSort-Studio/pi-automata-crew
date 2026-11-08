@@ -6,12 +6,22 @@ const sha = "a".repeat(40);
 const other = "b".repeat(40);
 const policy = { repo: "o/r" };
 const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: sha } };
-const file = (head) => ({ filename: ".prettierignore", blob_url: `https://github.com/o/r/blob/${head}/.prettierignore` });
+const file = (head) => ({
+  filename: ".prettierignore",
+  blob_url: `https://github.com/o/r/blob/${head}/.prettierignore`,
+});
 const verify = (files, ev = evidence) =>
   verifyPullRequest({
     policy,
     evidence: ev,
-    ops: { call: async (name) => name === "github_pull_request_view" ? { state: "OPEN" } : name === "github_pull_request_checks" ? [{ __typename: "StatusContext", state: "SUCCESS" }] : files },
+    ops: {
+      call: async (name) =>
+        name === "github_pull_request_view"
+          ? { state: "OPEN" }
+          : name === "github_pull_request_checks"
+            ? [{ __typename: "StatusContext", state: "SUCCESS" }]
+            : files,
+    },
   });
 
 test("gate acknowledgement uses the current head and fails closed without a consistent head", async () => {

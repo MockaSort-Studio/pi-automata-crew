@@ -42,7 +42,7 @@ export function ciFollowUp({ pullNumber, sha, failures = [] }) {
 export function summarizeChecks(rollup) {
   const checks = rollup.map((entry) => {
     const isRun = entry.__typename === "CheckRun";
-    const conclusion = String(isRun ? entry.conclusion ?? "" : entry.state ?? "").toLowerCase();
+    const conclusion = String(isRun ? (entry.conclusion ?? "") : (entry.state ?? "")).toLowerCase();
     const pending = isRun ? entry.status !== "COMPLETED" : conclusion === "pending" || conclusion === "expected";
     return {
       name: isRun ? [entry.workflowName, entry.name].filter(Boolean).join(" / ") : entry.context,
@@ -53,7 +53,17 @@ export function summarizeChecks(rollup) {
     };
   });
   const failures = checks.filter((check) => !check.pending && !check.passed);
-  return { state: !checks.length ? "none" : failures.length ? "failure" : checks.some((c) => c.pending) ? "pending" : "success", checks, failures };
+  return {
+    state: !checks.length
+      ? "none"
+      : failures.length
+        ? "failure"
+        : checks.some((c) => c.pending)
+          ? "pending"
+          : "success",
+    checks,
+    failures,
+  };
 }
 
 function abortable(promise, signal) {
@@ -62,7 +72,9 @@ function abortable(promise, signal) {
   return new Promise((resolve, reject) => {
     const abort = () => reject(signal.reason ?? new Error("Aborted"));
     signal.addEventListener("abort", abort, { once: true });
-    Promise.resolve(promise).then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+    Promise.resolve(promise)
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener("abort", abort));
   });
 }
 
@@ -71,14 +83,24 @@ const headOf = (files) => {
   return heads.size === 1 ? [...heads][0] : undefined;
 };
 
-export async function verifyPullRequest({ ops, policy, evidence, signal, pollIntervalMs = 15000, noChecksGraceMs = 90000 }) {
+export async function verifyPullRequest({
+  ops,
+  policy,
+  evidence,
+  signal,
+  pollIntervalMs = 15000,
+  noChecksGraceMs = 90000,
+}) {
   const pullNumber = pullNumberOf(evidence?.pullRequest);
   if (!pullNumber) return null;
   const sha = evidence?.pushed?.commit;
   const input = { repo: policy.repo, pullNumber };
   const call = (name, args = input) => {
     if (signal?.aborted) return Promise.reject(signal.reason ?? new Error("Aborted"));
-    return abortable(Promise.resolve().then(() => ops.call(name, args, { signal })), signal);
+    return abortable(
+      Promise.resolve().then(() => ops.call(name, args, { signal })),
+      signal,
+    );
   };
   const started = Date.now();
   for (;;) {
@@ -104,14 +126,24 @@ export async function verifyPullRequest({ ops, policy, evidence, signal, pollInt
       });
       continue;
     }
-    const result = { ...check, pullNumber, headSha, headDiffersFromPush: Boolean(headSha && sha && headSha !== String(sha).toLowerCase()), waitedSeconds: (Date.now() - started) / 1000 };
+    const result = {
+      ...check,
+      pullNumber,
+      headSha,
+      headDiffersFromPush: Boolean(headSha && sha && headSha !== String(sha).toLowerCase()),
+      waitedSeconds: (Date.now() - started) / 1000,
+    };
     if (check.state === "failure") {
       for (const failure of check.failures) {
         const runId = Number(/\/actions\/runs\/(\d+)/.exec(failure.url ?? "")?.[1]);
         if (runId) {
           try {
-            const log = await call("github_workflow_run_failed_log", { repo: policy.repo, runId, maxChars: MAX_LOG_CHARS });
-            failure.logTail = typeof log === "string" ? log : log?.logTail ?? log?.log ?? "";
+            const log = await call("github_workflow_run_failed_log", {
+              repo: policy.repo,
+              runId,
+              maxChars: MAX_LOG_CHARS,
+            });
+            failure.logTail = typeof log === "string" ? log : (log?.logTail ?? log?.log ?? "");
           } catch (error) {
             if (signal?.aborted) throw error;
           }
