@@ -49,6 +49,7 @@ for (const vmm of ["krun", "qemu"]) {
         env: { ...process.env, HALL_VMM: vmm },
         timeout: 100_000,
       });
+      if (process.env.HALL_VM_DIAGNOSTICS === "1" && result.stderr) process.stderr.write(result.stderr);
       assert.equal(result.status, 0, result.stderr);
       const out = JSON.parse(result.stdout.trim().split("\n").at(-1));
       assert.deepEqual(out, {

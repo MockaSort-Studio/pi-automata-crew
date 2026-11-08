@@ -7,6 +7,69 @@ on:
     branches: [main]
 
 jobs:
+  krun-diagnostics:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      HALL_VMM: qemu
+      HALL_VM_DIAGNOSTICS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install VM prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-utils qemu-system-x86
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle
+          ls -l /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: Capture host and runner details
+        run: |
+          mkdir -p diagnostic-logs
+          {
+            uname -a
+            cat /etc/os-release
+            ls -l /dev/kvm
+            node -p "require('./node_modules/@earendil-works/gondolin/package.json').version"
+            node -p "require('./node_modules/@earendil-works/gondolin-krun-runner-linux-x64/package.json').version"
+            qemu-img --version
+            qemu-system-x86_64 --version
+          } 2>&1 | tee diagnostic-logs/host.txt
+      - name: Run explicit backend diagnostics
+        run: |
+          set -o pipefail
+          export PATH="$PWD/node_modules/.bin:$PATH"
+          status=0
+          for file in gondolin-worker-smoke gondolin-idle-release vm-lifecycle; do
+            echo "Running $file"
+            if timeout --kill-after=15s 4m node --test-reporter=tap "tests/runtime/$file.test.mjs" 2>&1 | tee "diagnostic-logs/$file.tap"; then
+              echo "$file passed"
+            else
+              echo "$file failed or timed out"
+              status=1
+            fi
+          done
+          exit "$status"
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: krun-diagnostics-${{ matrix.os }}
+          path: diagnostic-logs/
+          if-no-files-found: warn
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
