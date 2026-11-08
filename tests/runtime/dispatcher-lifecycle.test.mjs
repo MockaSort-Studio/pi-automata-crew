@@ -10,8 +10,19 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 const result = (status, extra = {}) => ({ status, finalText: `${status} text`, evidence: {}, ...extra });
 const withPr = (status, extra = {}) =>
   result(status, { evidence: { pullRequest: "https://github.com/o/r/pull/7", pushed: { commit: HEAD } }, ...extra });
-const green = async () => ({ state: "success", pullNumber: 7, headSha: HEAD, checks: [{ name: "ci", conclusion: "success" }] });
-const red = async () => ({ state: "failure", pullNumber: 7, headSha: HEAD, failures: [{ name: "ci" }], followUp: "fix ci" });
+const green = async () => ({
+  state: "success",
+  pullNumber: 7,
+  headSha: HEAD,
+  checks: [{ name: "ci", conclusion: "success" }],
+});
+const red = async () => ({
+  state: "failure",
+  pullNumber: 7,
+  headSha: HEAD,
+  failures: [{ name: "ci" }],
+  followUp: "fix ci",
+});
 
 function crew({ outcomes = {}, checks = [], members, dispose = async () => {}, hold = {} } = {}) {
   const created = [];
@@ -145,7 +156,10 @@ test("a handed-off member is recovered only by an explicit message, in a new ses
   await settle();
   assert.equal(c.created.filter((h) => h === A).length, 2, "a new VM and session");
   assert.equal(c.prompts[A].length, 2);
-  assert.match(c.prompts[A][1], /^do A\n\n## RECOVERY\n[\s\S]*"unmet":\["tests"\][\s\S]*## MAIN\nrecover and finish the tests$/);
+  assert.match(
+    c.prompts[A][1],
+    /^do A\n\n## RECOVERY\n[\s\S]*"unmet":\["tests"\][\s\S]*## MAIN\nrecover and finish the tests$/,
+  );
   assert.equal(c.of(A).state, "completed");
   assert.equal(c.of(A).handoff, undefined);
   assert.equal(c.of(B).state, "completed", "released only once the recovered member completed");
@@ -232,5 +246,8 @@ test("while a member repairs red CI it is running, with the red snapshot and its
   await settle();
   assert.deepEqual(c.prompts[A], ["a", "go on", "fix ci"]);
   const after = c.of(A);
-  assert.deepEqual([after.state, after.ci.state, after.ci.rounds, after.lastReport.current], ["completed", "success", 2, true]);
+  assert.deepEqual(
+    [after.state, after.ci.state, after.ci.rounds, after.lastReport.current],
+    ["completed", "success", 2, true],
+  );
 });

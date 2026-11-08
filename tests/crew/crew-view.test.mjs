@@ -135,3 +135,25 @@ test("a member waiting for CI shows as running, not queued", () => {
   assert.equal(buildAutomataTab(snapshot)[0].bucket, "running");
   assert.equal(isActive([m("developer-a-00", "ci")]), true);
 });
+
+test("a held member and a handed-off one are blocked, never passed, and only a handoff ends the crew", () => {
+  const { line, snapshot } = crewView({
+    runId: RUN,
+    members: [m("developer-a-00", "on_hold"), m("developer-b-00", "handed_off"), m("developer-c-00", "completed")],
+  });
+  assert.equal(line.view.phase, "On hold");
+  assert.deepEqual(
+    buildAutomataTab(snapshot).map((row) => row.bucket),
+    ["blocked", "blocked", "complete"],
+  );
+  assert.equal(isActive([m("a", "on_hold")]), true, "a hold waits for Main, it does not end the crew");
+  assert.equal(isActive([m("a", "handed_off"), m("b", "completed")]), false, "a handoff released its VM");
+  assert.equal(crewView({ runId: RUN, members: [m("a", "handed_off")] }).line.view.phase, "Handed off", "not Done");
+  assert.deepEqual(
+    planRows({
+      plan: [{ handle: "developer-b-00", task: "t", dependsOn: [] }],
+      members: [m("developer-b-00", "handed_off", { ledger: "blocked" })],
+    }).map((row) => row.status),
+    ["blocked"],
+  );
+});

@@ -1,6 +1,13 @@
 import { createDependencyLedger } from "../crew/lib/dependency-ledger.mjs";
 import { createCiGate } from "./dispatcher-ci.mjs";
-import { AWAITING_MAIN, MESSAGEABLE, handoffRecord, holdRecord, memberStatus, recoveryPrompt } from "./member-lifecycle.mjs";
+import {
+  AWAITING_MAIN,
+  MESSAGEABLE,
+  handoffRecord,
+  holdRecord,
+  memberStatus,
+  recoveryPrompt,
+} from "./member-lifecycle.mjs";
 
 const PREREQUISITE_CHARS = 4000;
 const DISPOSE_MS = 5000;
