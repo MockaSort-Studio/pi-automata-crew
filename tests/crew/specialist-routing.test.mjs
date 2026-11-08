@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  discoverSpecialistRoutes,
   parseSpecialistRoutes,
   routeSpecialists,
   specialistRoutesPath,
@@ -12,6 +13,30 @@ import {
 import { skipWithoutGit } from "../runtime/requires-git.mjs";
 
 const routes = parseSpecialistRoutes(readFileSync(new URL("../../SPECIALIST_ROUTES", import.meta.url), "utf8"));
+
+test("discovery exposes rules and roster domains, including unknown specialists", () => {
+  const policy = parseSpecialistRoutes("# comment\n/src/** @snowball @unknown\n");
+  assert.deepEqual(discoverSpecialistRoutes(policy, { automata: { snowball: { domains: ["skills"] } } }), {
+    rules: [{ line: 2, pattern: "/src/**", specialists: ["snowball", "unknown"] }],
+    specialists: [
+      { name: "snowball", domains: ["skills"] },
+      { name: "unknown", domains: null },
+    ],
+  });
+});
+
+test("discovery rejects oversized output rather than returning an unbounded policy", () => {
+  const policy = parseSpecialistRoutes(`/src/${"a".repeat(40000)} @snowball`);
+  assert.throws(() => discoverSpecialistRoutes(policy, { automata: {} }), /exceeds.*limit/i);
+});
+
+test("routing reports unmatched paths without changing matches", () => {
+  const policy = parseSpecialistRoutes("/src/** @snowball");
+  const result = routeSpecialists(["src/a", "./other"], policy);
+  assert.deepEqual(result.unmatchedPaths, ["other"]);
+  assert.equal(result.matches.length, 1);
+  assert.deepEqual(result.specialists, ["snowball"]);
+});
 
 test("last specialist-route rule selects the sensitive runtime specialists with evidence", () => {
   const result = routeSpecialists(["extensions/crew/crew-runtime/lib/lifecycle-log.mjs"], routes);

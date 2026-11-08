@@ -44,18 +44,32 @@ export function parseSpecialistRoutes(source) {
   });
 }
 
+function bounded(result) {
+  if (Buffer.byteLength(JSON.stringify(result)) > 32768) throw new RangeError("Routing output exceeds limit.");
+  return result;
+}
+
+export function discoverSpecialistRoutes(routes, roster) {
+  const rules = routes.map(({ line, pattern, specialists }) => ({ line, pattern, specialists }));
+  const names = [...new Set(rules.flatMap((rule) => rule.specialists))];
+  const specialists = names.map((name) => ({ name, domains: roster.automata[name]?.domains ?? null }));
+  return bounded({ rules, specialists });
+}
+
 export function routeSpecialists(paths, routes, maxSpecialists = 3) {
   if (!Array.isArray(paths) || !Number.isInteger(maxSpecialists) || maxSpecialists < 1)
     throw new TypeError("Paths and a positive specialist limit are required.");
-  const matches = paths
-    .map((value) => {
-      const path = pathOf(value);
-      const route = routes.filter((candidate) => candidate.matcher.test(path)).at(-1);
-      return route && { path, rule: { line: route.line, pattern: route.pattern }, specialists: route.specialists };
-    })
-    .filter(Boolean);
-  return {
+  const matches = [];
+  const unmatchedPaths = [];
+  for (const value of paths) {
+    const path = pathOf(value);
+    const route = routes.filter((candidate) => candidate.matcher.test(path)).at(-1);
+    if (route) matches.push({ path, rule: { line: route.line, pattern: route.pattern }, specialists: route.specialists });
+    else unmatchedPaths.push(path);
+  }
+  return bounded({
     specialists: [...new Set(matches.flatMap((match) => match.specialists))].slice(0, maxSpecialists),
     matches,
-  };
+    unmatchedPaths,
+  });
 }
