@@ -17,16 +17,14 @@ const verify = (files, ev = evidence) =>
     ops: {
       call: async (name) =>
         name === "github_pull_request_view"
-          ? { state: "OPEN" }
-          : name === "github_pull_request_checks"
-            ? [{ __typename: "StatusContext", state: "SUCCESS" }]
-            : files,
+          ? { state: "OPEN", headRefOid: sha, statusCheckRollup: [{ __typename: "StatusContext", state: "SUCCESS" }] }
+          : files,
     },
   });
 
 test("gate acknowledgement uses the current head and fails closed without a consistent head", async () => {
   assert.equal((await verify([file(sha)])).headSha, sha);
-  assert.equal((await verify([file(other)])).headSha, other);
+  await assert.rejects(verify([file(other)]), /head/i);
   await assert.rejects(verify([file(sha), file(other)]), /head/i);
   await assert.rejects(verify([{ filename: ".prettierignore" }]), /head/i);
   assert.equal((await verify([file(sha)], { pullRequest: evidence.pullRequest })).headSha, sha);

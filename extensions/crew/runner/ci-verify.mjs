@@ -103,15 +103,20 @@ export async function verifyPullRequest({
     );
   };
   const started = Date.now();
+  let graceHead;
+  let graceStarted = started;
   for (;;) {
     const view = await call("github_pull_request_view");
     if (view.state !== "OPEN") return { state: "closed", prState: view.state, pullNumber };
-    const before = await call("github_pull_request_files");
-    const check = summarizeChecks(await call("github_pull_request_checks"));
-    const files = await call("github_pull_request_files");
-    const headSha = headOf(files);
-    if (headOf(before) !== headSha) continue;
-    if (check.state === "pending" || (check.state === "none" && Date.now() - started < noChecksGraceMs)) {
+    if (!/^[a-f\d]{40}$/i.test(view.headRefOid ?? "")) throw new Error("Cannot establish the pull request head");
+    const headSha = view.headRefOid.toLowerCase();
+    if (headSha !== graceHead) {
+      graceHead = headSha;
+      graceStarted = Date.now();
+    }
+    if (!Array.isArray(view.statusCheckRollup)) throw new Error("Cannot establish the pull request checks");
+    const check = summarizeChecks(view.statusCheckRollup);
+    if (check.state === "pending" || (check.state === "none" && Date.now() - graceStarted < noChecksGraceMs)) {
       await new Promise((resolve, reject) => {
         if (signal?.aborted) return reject(signal.reason ?? new Error("Aborted"));
         const abort = () => {
@@ -151,8 +156,11 @@ export async function verifyPullRequest({
       }
       return { ...result, followUp: ciFollowUp({ pullNumber, sha: headSha, failures: check.failures }) };
     }
+    const files = await call("github_pull_request_files");
+    if (!Array.isArray(files)) throw new Error("Cannot establish changed pull request files");
     const gateFiles = gateFilesOf(files);
-    if (gateFiles.length && !headSha) throw new Error("Cannot establish the pull request head for changed gate files");
+    if (gateFiles.length && headOf(files) !== headSha)
+      throw new Error("Cannot establish the pull request head for changed gate files");
     return { ...result, gateFiles };
   }
 }

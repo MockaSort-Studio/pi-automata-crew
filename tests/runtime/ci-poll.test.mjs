@@ -26,8 +26,10 @@ test("summarizes checks with failures taking precedence over pending", () => {
 test("polls again and reports a head pushed by someone else", async () => {
   let polls = 0;
   const result = await run(async (name) => {
-    if (name === "github_pull_request_view") return { state: "OPEN" };
-    if (name === "github_pull_request_checks") return [++polls === 1 ? check("QUEUED") : check("COMPLETED", "SUCCESS")];
+    if (name === "github_pull_request_view") return {
+      state: "OPEN", headRefOid: (polls++ === 0 ? "a" : "b").repeat(40),
+      statusCheckRollup: [polls === 1 ? check("QUEUED") : check("COMPLETED", "SUCCESS")],
+    };
     if (name === "github_pull_request_files") return file("b".repeat(40));
     assert.fail(name);
   });
@@ -36,19 +38,13 @@ test("polls again and reports a head pushed by someone else", async () => {
   assert.equal(result.headDiffersFromPush, true);
 });
 
-test("discards a settled rollup when the head changes during its lookup", async () => {
-  let files = 0;
-  let polls = 0;
+test("uses the head from the same snapshot as the failure", async () => {
   const result = await run(async (name) => {
-    if (name === "github_pull_request_view") return { state: "OPEN" };
-    if (name === "github_pull_request_files") return file((++files === 1 ? "a" : "b").repeat(40));
-    if (name === "github_pull_request_checks") {
-      polls++;
-      return [check("COMPLETED", polls === 1 ? "SUCCESS" : "FAILURE")];
-    }
+    if (name === "github_pull_request_view") return {
+      state: "OPEN", headRefOid: "b".repeat(40), statusCheckRollup: [check("COMPLETED", "FAILURE")],
+    };
     assert.fail(name);
   });
-  assert.equal(polls, 2);
   assert.equal(result.state, "failure");
   assert.equal(result.headSha, "b".repeat(40));
 });
@@ -58,9 +54,11 @@ test("abort interrupts both sleep and a hung poll", async () => {
     const controller = new AbortController();
     const promise = run(
       async (name) => {
-        if (name === "github_pull_request_view") return { state: "OPEN" };
         if (hung) return new Promise(() => {});
-        return [check("QUEUED")];
+        if (name === "github_pull_request_view") return {
+          state: "OPEN", headRefOid: "a".repeat(40), statusCheckRollup: [check("QUEUED")],
+        };
+        assert.fail(name);
       },
       { signal: controller.signal, pollIntervalMs: 10000 },
     );
@@ -76,10 +74,9 @@ test("no checks grace polls before settling; closed PR exits", async () => {
   let polls = 0;
   const result = await run(
     async (name) => {
-      if (name === "github_pull_request_view") return { state: "OPEN" };
-      if (name === "github_pull_request_checks") {
+      if (name === "github_pull_request_view") {
         polls++;
-        return [];
+        return { state: "OPEN", headRefOid: "a".repeat(40), statusCheckRollup: [] };
       }
       return file("a".repeat(40));
     },
@@ -94,9 +91,10 @@ test("failure obtains workflow log tail", async () => {
   const calls = [];
   const result = await run(async (name, input) => {
     calls.push([name, input]);
-    if (name === "github_pull_request_view") return { state: "OPEN" };
-    if (name === "github_pull_request_checks")
-      return [{ ...check("COMPLETED", "FAILURE"), detailsUrl: "https://github.com/o/r/actions/runs/42/job/1" }];
+    if (name === "github_pull_request_view") return {
+      state: "OPEN", headRefOid: "b".repeat(40),
+      statusCheckRollup: [{ ...check("COMPLETED", "FAILURE"), detailsUrl: "https://github.com/o/r/actions/runs/42/job/1" }],
+    };
     if (name === "github_pull_request_files") return file("b".repeat(40));
     if (name === "github_workflow_run_failed_log") return "tail marker";
     assert.fail(name);
