@@ -103,7 +103,10 @@ test("settled checks require an identifiable matching file list before gate insp
 
 test("malformed PR state is invalid, while closed states return without file lookup", async () => {
   for (const state of [undefined, null, "", "INVALID"]) {
-    await assert.rejects(run(async () => ({ state })), /state/i);
+    await assert.rejects(
+      run(async () => ({ state })),
+      /state/i,
+    );
   }
   for (const state of ["CLOSED", "MERGED"]) {
     const result = await run(async (name) => {
