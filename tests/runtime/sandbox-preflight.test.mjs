@@ -1,4 +1,6 @@
 import { strict as assert } from "node:assert";
+import { spawnSync } from "node:child_process";
+import { nixBinary } from "../../extensions/crew/env-runtime/lib/armory-nix.mjs";
 import test from "node:test";
 import {
   gondolinCacheHome,
@@ -82,6 +84,15 @@ test("a Crew's later workers reuse a recent successful preflight instead of re-s
   await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
   await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
   assert.deepEqual(calls, ["qemu", "image", "nix", "assets"]);
+});
+
+test("real preflight reuses a recent success", async (t) => {
+  const nix = spawnSync(nixBinary(), ["--version"], { stdio: "ignore" });
+  if (nix.error?.code === "ENOENT") return t.skip("Nix is unavailable here");
+  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } });
+  const started = performance.now();
+  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } });
+  assert.ok(performance.now() - started < 20, `second preflight took ${Math.round(performance.now() - started)} ms`);
 });
 
 test("libkrun needs no QEMU: its absence is never checked", async () => {
