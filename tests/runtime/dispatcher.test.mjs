@@ -214,6 +214,125 @@ test("cancelling aborts the running member, salvages it, and holds what depends 
   );
 });
 
+test("cancellation during salvage wins and retains salvage evidence", async () => {
+  let release;
+  let entered;
+  const started = new Promise((resolve) => (entered = resolve));
+  const reports = [];
+  const created = [];
+  const dispatcher = createDispatcher({
+    members: members.slice(0, 2),
+    createAgent: async (member) => {
+      created.push(member.handle);
+      return {
+        run: { prompt: async () => result("completed"), abort: async () => {} },
+        salvage: async () => {
+          entered();
+          return new Promise((resolve) => (release = resolve));
+        },
+      };
+    },
+    onResult: (handle, outcome) => reports.push([handle, outcome]),
+  });
+  dispatcher.start();
+  await started;
+  const cancelling = dispatcher.cancel(A);
+  release({ branch: "crew/salvaged" });
+  await cancelling;
+  await settle();
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0][1].status, "cancelled");
+  assert.deepEqual(reports[0][1].salvage, { branch: "crew/salvaged" });
+  assert.equal(dispatcher.status()[0].ledger, "failed");
+  assert.equal(dispatcher.status()[1].state, "held");
+  assert.deepEqual(created, [A]);
+});
+
+test("an abort rejection reports cancelled and salvages exactly once", async () => {
+  let rejectPrompt;
+  const salvaged = [];
+  const r = reported();
+  const dispatcher = createDispatcher({
+    members,
+    createAgent: async () => ({
+      run: {
+        prompt: () => new Promise((resolve, reject) => (rejectPrompt = reject)),
+        abort: async () => rejectPrompt(new Error("aborted")),
+      },
+      salvage: async (status) => salvaged.push(status),
+    }),
+    ...r,
+  });
+  dispatcher.start();
+  await settle();
+  await dispatcher.cancel(A);
+  assert.deepEqual(r.results, [[A, "cancelled"]]);
+  assert.deepEqual(salvaged, ["cancelled"]);
+  assert.deepEqual(
+    dispatcher.status().map((item) => item.state),
+    ["cancelled", "held", "held"],
+  );
+});
+
+test("a prompt rejection without abort remains a startup error", async () => {
+  const results = [];
+  const dispatcher = createDispatcher({
+    members: [members[0]],
+    createAgent: async () => ({
+      run: {
+        prompt: async () => {
+          throw new Error("prompt failed");
+        },
+      },
+    }),
+    onResult: (_handle, result) => results.push(result),
+  });
+  dispatcher.start();
+  await settle();
+  assert.equal(results[0].status, "failed");
+  assert.equal(results[0].failure.category, "startup_error");
+});
+
+test("cancel bounds an unresponsive CI run and ignores its late completion", { timeout: 8000 }, async () => {
+  let release;
+  let disposed = false;
+  const r = reported();
+  const dispatcher = createDispatcher({
+    members: [members[0]],
+    createAgent: async () => ({
+      run: { prompt: async () => result("completed"), abort: async () => {} },
+      verify: () => new Promise((resolve) => (release = resolve)),
+      dispose: async () => (disposed = true),
+    }),
+    ...r,
+  });
+  dispatcher.start();
+  await settle();
+  assert.equal(dispatcher.status()[0].state, "ci");
+  await dispatcher.cancel(A);
+  assert.equal(dispatcher.status()[0].state, "cancelled");
+  assert.equal(dispatcher.status()[0].ledger, "failed");
+  await settle();
+  assert.equal(disposed, true);
+  release({ state: "success" });
+  await settle();
+  assert.equal(dispatcher.status()[0].state, "cancelled");
+  assert.deepEqual(r.results, [[A, "cancelled"]]);
+});
+
+test("dispose bounds an unresponsive run", { timeout: 8000 }, async () => {
+  const dispatcher = createDispatcher({
+    members: [members[0]],
+    createAgent: async () => ({
+      run: { prompt: () => new Promise(() => {}), abort: async () => {} },
+      dispose: async () => {},
+    }),
+  });
+  dispatcher.start();
+  await settle();
+  await dispatcher.dispose();
+});
+
 test("salvage runs after every outcome and is attached to the result without changing it", async () => {
   const seen = [];
   const w = world(

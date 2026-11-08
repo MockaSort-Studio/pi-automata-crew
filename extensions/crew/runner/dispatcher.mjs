@@ -99,6 +99,7 @@ export function createDispatcher({
           `I could not check CI for your pull request: ${scrub(String(error?.message ?? error)).slice(0, 300)}`,
         );
       }
+      if (signal.aborted) return { ...result, status: "cancelled" };
       if (!check) return result;
       if (check.state === "success" || check.state === "none") {
         const head = check.headSha;
@@ -142,19 +143,41 @@ export function createDispatcher({
     const stop = new AbortController();
     stops.set(handle, stop);
     let result;
+    let agent = agents.get(handle);
+    let salvageAttempted = false;
     try {
-      let agent = agents.get(handle);
       if (!agent) {
         agent = await createAgent(member);
         agents.set(handle, agent);
       }
+      if (state.get(handle) === "cancelled") {
+        void Promise.resolve()
+          .then(() => agent.dispose?.())
+          .catch(() => {});
+        return;
+      }
       result = await agent.run.prompt(text);
+      if (state.get(handle) === "cancelled") return;
       result = await ciGate(handle, agent, result, stop.signal);
+      if (state.get(handle) === "cancelled") return;
+      if (stop.signal.aborted) result = { ...result, status: "cancelled" };
+      salvageAttempted = true;
       const salvaged = await agent.salvage?.(result.status);
       if (salvaged) result = { ...result, salvage: salvaged };
     } catch (error) {
-      result = failure("startup_error", error?.message);
+      if (stop.signal.aborted) {
+        result = { status: "cancelled", finalText: "" };
+        if (state.get(handle) === "cancelled") return;
+        try {
+          const salvaged = salvageAttempted ? undefined : await agent?.salvage?.("cancelled");
+          if (salvaged) result.salvage = salvaged;
+        } catch {
+          // Cancellation remains terminal even if salvage fails.
+        }
+      } else result = failure("startup_error", error?.message);
     }
+    if (state.get(handle) === "cancelled") return;
+    if (stop.signal.aborted) result = { ...result, status: "cancelled" };
     stops.delete(handle);
     result = JSON.parse(scrub(JSON.stringify(result)));
     results.set(handle, result);
@@ -194,7 +217,7 @@ export function createDispatcher({
     const job = turn(handle, text)
       .catch(() => undefined)
       .finally(() => {
-        running.delete(handle);
+        if (running.get(handle) === job) running.delete(handle);
         pump();
       });
     running.set(handle, job);
@@ -241,25 +264,47 @@ export function createDispatcher({
     // and salvage still runs for a member that had work in progress.
     async cancel(handle) {
       const targets = handle ? [handle] : [...byHandle.keys()];
-      for (const target of targets) {
-        if (!byHandle.has(target)) throw new Error(`Unknown member: ${target}`);
+      for (const target of targets) if (!byHandle.has(target)) throw new Error(`Unknown member: ${target}`);
+      const jobs = targets.map(async (target) => {
         const agent = agents.get(target);
         stops.get(target)?.abort();
-        if (running.has(target)) await agent?.run.abort();
-        else if (!["completed", "cancelled"].includes(state.get(target))) {
-          // Not started (or waiting for Main): it ends here, and what depends on it stays held.
+        const job = running.get(target);
+        if (job) {
+          void Promise.resolve()
+            .then(() => agent?.run.abort())
+            .catch(() => {});
+          let timer;
+          await Promise.race([job, new Promise((resolve) => (timer = setTimeout(resolve, 5000)))]);
+          clearTimeout(timer);
+          if (running.get(target) === job && !["completed", "cancelled"].includes(state.get(target))) {
+            ledger.fail(target);
+            const result = { status: "cancelled", finalText: "" };
+            results.set(target, result);
+            setState(target, "cancelled");
+            onResult(target, result);
+            running.delete(target);
+            stops.delete(target);
+            void Promise.resolve()
+              .then(() => agent?.dispose?.())
+              .catch(() => {});
+            pump();
+          }
+        } else if (!["completed", "cancelled"].includes(state.get(target))) {
           if (["waiting", "ready"].includes(ledger.status(target))) ledger.block(target);
           setState(target, "cancelled");
         }
-      }
-      await Promise.all(targets.map((target) => running.get(target)));
+      });
+      await Promise.all(jobs);
     },
     async dispose() {
       disposed = true;
-      for (const stop of stops.values()) stop.abort();
-      await Promise.all([...agents.values()].map((agent) => agent.run.abort?.()));
-      await Promise.all([...running.values()]);
-      await Promise.all([...agents.values()].map((agent) => agent.dispose?.()));
+      await this.cancel();
+      let timer;
+      await Promise.race([
+        Promise.allSettled([...agents.values()].map((agent) => Promise.resolve().then(() => agent.dispose?.()))),
+        new Promise((resolve) => (timer = setTimeout(resolve, 5000))),
+      ]);
+      clearTimeout(timer);
     },
   };
 }

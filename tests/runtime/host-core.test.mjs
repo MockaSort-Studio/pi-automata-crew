@@ -191,6 +191,22 @@ test("message, cancel and dispose are routed to the right crew; unknown ones are
   assert.match((await h.call("nonsense", {})).error.message, /Unknown method/);
 });
 
+test("a launch resolving after close is rejected and its runtime is disposed", async () => {
+  let release;
+  let disposed = 0;
+  const h = host({ deps: { createModelRuntime: () => new Promise((resolve) => (release = resolve)) } });
+  const pending = h.call("launch", launch());
+  await h.core.close();
+  release({ dispose: async () => (disposed += 1) });
+  const response = await pending;
+  assert.equal(response.ok, false);
+  assert.match(response.error.message, /clos/i);
+  assert.equal(disposed, 1);
+  assert.deepEqual(h.created, []);
+  assert.deepEqual((await h.call("list", {})).result, { crews: [] });
+  assert.equal((await h.call("launch", launch())).ok, false);
+});
+
 test("closing the host disposes every crew's agents", async () => {
   const h = host();
   await h.call("launch", launch({ runId: "r1" }));

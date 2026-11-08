@@ -38,8 +38,9 @@ let closing = false;
 async function shutdown(code) {
   if (closing) return;
   closing = true;
-  await Promise.allSettled([...pending]);
-  await core.close();
+  const deadline = setTimeout(() => process.exit(code), 10000);
+  await Promise.allSettled([core.close(), ...pending]);
+  clearTimeout(deadline);
   process.exit(code);
 }
 
@@ -56,7 +57,11 @@ createInterface({ input: process.stdin })
   })
   .on("close", () => shutdown(0));
 
-for (const signal of ["SIGTERM", "SIGHUP"]) process.on(signal, () => shutdown(0));
+for (const signal of ["SIGTERM", "SIGHUP"])
+  process.on(signal, () => {
+    if (closing) process.exit(0);
+    shutdown(0);
+  });
 process.on("uncaughtException", (error) => {
   log("uncaught exception:", error?.stack ?? error);
   shutdown(1);
