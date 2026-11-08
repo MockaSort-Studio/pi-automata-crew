@@ -4,6 +4,7 @@ import { cachedCatalogWarning, resolveArmoryCatalog } from "../env-runtime/lib/a
 import { resolveRepositorySeed } from "../env-runtime/lib/repository-workspace.mjs";
 import { fetchSuiteExtension } from "./armory-source.mjs";
 import { createDispatcher } from "./dispatcher.mjs";
+import { prepareDependencySources } from "./dependency-mount.mjs";
 import { loadSuiteModule } from "./github-suite.mjs";
 import { createMemberAgent } from "./member-agent.mjs";
 import { resolveModel } from "./model.mjs";
@@ -52,6 +53,7 @@ const defaults = {
     return loadSuiteModule(await fetchSuiteExtension({ catalog, suiteId: GITHUB_SUITE }));
   },
   createMemberAgent,
+  prepareDependencySources,
 };
 
 // The crew host's brain: the commands Main can send and what they do, independent of how messages travel.
@@ -137,6 +139,15 @@ export function createHostCore({ send, deps = {} }) {
         crew.github = { module: githubModule, token };
       }
 
+      const warnings = crew.github && githubCatalogWarning ? [githubCatalogWarning] : [];
+      if (members.some((member) => member.tools?.includes("bash"))) {
+        try {
+          const sources = await d.prepareDependencySources();
+          warnings.push(...sources.failures.map((failure) => `Guest dependency source: ${failure}`));
+        } catch {
+          warnings.push("Guest dependency sources unavailable; dependency-backed verification may require hosted CI");
+        }
+      }
       assertOpen();
       crews.set(runId, { dispatcher, activity, live });
       registered = true;
@@ -144,7 +155,7 @@ export function createHostCore({ send, deps = {} }) {
       return {
         runId,
         members: dispatcher.status(),
-        ...(crew.github && githubCatalogWarning ? { warnings: [githubCatalogWarning] } : {}),
+        ...(warnings.length ? { warnings } : {}),
       };
     } finally {
       if (!registered) {

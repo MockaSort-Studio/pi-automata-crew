@@ -6,7 +6,7 @@ const MAX_ARCHIVE = 32 * 1024 * 1024;
 const MAX_UNPACKED = 128 * 1024 * 1024;
 const MAX_FILES = 12000;
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const field = (bytes) => bytes.toString("utf8").replace(/\0.*$/, "");
+const field = (bytes) => bytes.subarray(0, bytes.indexOf(0) < 0 ? bytes.length : bytes.indexOf(0)).toString("utf8");
 const octal = (bytes) => {
   const value = field(bytes).trim();
   if (!/^[0-7]+$/.test(value)) throw new Error("Invalid dependency archive numeric field");
@@ -32,6 +32,7 @@ export function extractVerifiedPackage(bytes, pin) {
     throw new Error(`Invalid dependency archive: ${pin.name}`);
   }
   const files = Object.create(null);
+  const directories = new Set();
   let ended = false,
     count = 0;
   for (let offset = 0; offset + BLOCK <= tar.length; ) {
@@ -54,17 +55,31 @@ export function extractVerifiedPackage(bytes, pin) {
     if (
       !path.startsWith("package/") ||
       path.includes("\\") ||
-      path.split("/").some((part) => part === ".." || part === "." || part.startsWith(".")) ||
+      /[\x00-\x1f\x7f]/.test(path) ||
+      path.replace(/\/$/, "").split("/").some((part) => !part || part === ".." || part === "." || part.startsWith(".")) ||
       ![0, 48, 53].includes(type) ||
-      (type === 53 && size)
+      (type === 53 && size) ||
+      (type !== 53 && path.endsWith("/"))
     )
       throw new Error("Unsafe dependency archive entry");
     const relative = path.slice(8).replace(/\/$/, "");
     offset += BLOCK;
     if (offset + size > tar.length || ++count > MAX_FILES) throw new Error("Dependency archive exceeds bounds");
-    if (type !== 53 && relative) {
-      if (Object.hasOwn(files, relative)) throw new Error("Duplicate dependency archive entry");
-      files[relative] = Buffer.from(tar.subarray(offset, offset + size));
+    if (relative) {
+      const parts = relative.split("/");
+      for (let i = 1; i < parts.length; i++) {
+        const parent = parts.slice(0, i).join("/");
+        if (Object.hasOwn(files, parent)) throw new Error("Invalid dependency archive path clash");
+        directories.add(parent);
+      }
+      if (type === 53) {
+        if (Object.hasOwn(files, relative)) throw new Error("Invalid dependency archive path clash");
+        directories.add(relative);
+      } else {
+        if (Object.hasOwn(files, relative)) throw new Error("Duplicate dependency archive entry");
+        if (directories.has(relative)) throw new Error("Invalid dependency archive path clash");
+        files[relative] = Buffer.from(tar.subarray(offset, offset + size));
+      }
     }
     offset += Math.ceil(size / BLOCK) * BLOCK;
   }

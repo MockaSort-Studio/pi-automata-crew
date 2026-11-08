@@ -31,7 +31,8 @@ export function downloadArtifact(pin, { get: requestGet = get, deadlineMs = 1000
         { hostname: "registry.npmjs.org", path, headers: { accept: "application/octet-stream" }, agent: false },
         (response) => {
           if (response.statusCode !== 200) {
-            response.resume();
+            response.destroy();
+            request.destroy();
             finish(new Error("Registry artifact unavailable"));
             return;
           }
@@ -58,6 +59,23 @@ export function downloadArtifact(pin, { get: requestGet = get, deadlineMs = 1000
       finish(error);
     }
   });
+}
+
+export function createSourceCache(pins, prepare) {
+  const verified = new Map();
+  let preparing;
+  return async () => {
+    if (!preparing) {
+      const missing = pins.filter((pin) => !verified.has(pin.name));
+      if (!missing.length) return { snapshots: [...verified.values()], failures: [] };
+      preparing = Promise.resolve().then(() => prepare(missing)).then((result) => {
+        for (const snapshot of result.snapshots) verified.set(snapshot.manifest.name, snapshot);
+        return result.failures;
+      }).finally(() => { preparing = undefined; });
+    }
+    const failures = await preparing;
+    return { snapshots: [...verified.values()], failures };
+  };
 }
 
 export async function prepareSources(pins = DEPENDENCY_PINS, download = downloadArtifact) {

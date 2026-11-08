@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { EventEmitter } from "node:events";
 import { DEPENDENCY_PINS } from "../../extensions/crew/runner/dependency-pins.mjs";
 import { extractVerifiedPackage } from "../../extensions/crew/runner/dependency-source.mjs";
-import { prepareSources, downloadArtifact } from "../../extensions/crew/runner/dependency-bootstrap.mjs";
+import { prepareSources, downloadArtifact, createSourceCache } from "../../extensions/crew/runner/dependency-bootstrap.mjs";
 import { verificationFacts } from "../../extensions/crew/runner/verification-facts.mjs";
 
 function archive(name, body, type = "0") {
@@ -53,6 +53,20 @@ test("absolute download deadline stops a continuously trickling response", async
   };
   await assert.rejects(downloadArtifact(DEPENDENCY_PINS[0], { get: fakeGet, deadlineMs: 30 }), /deadline/);
 });
+test("refused registry response is destroyed", async () => {
+  const response = new EventEmitter();
+  response.statusCode = 302;
+  let destroyed = false;
+  response.destroy = () => { destroyed = true; };
+  const fakeGet = (_options, callback) => {
+    const request = new EventEmitter();
+    request.destroy = () => {};
+    queueMicrotask(() => callback(response));
+    return request;
+  };
+  await assert.rejects(downloadArtifact(DEPENDENCY_PINS[0], { get: fakeGet }), /unavailable/);
+  assert.equal(destroyed, true);
+});
 test("facts distinguish missing formatter and project CI", () => {
   const text = verificationFacts({ available: [], failures: ["prettier unavailable"] }, true);
   assert.match(text, /prettier unavailable/);
@@ -60,6 +74,19 @@ test("facts distinguish missing formatter and project CI", () => {
   assert.doesNotMatch(text, /formatter available/i);
   assert.match(verificationFacts({ available: ["prettier"], failures: [] }, true), /bin\/prettier.cjs/);
   assert.match(verificationFacts(undefined, false), /bash.*not granted/i);
+});
+test("source cache retries failures and deduplicates simultaneous preparation", async () => {
+  let calls = 0;
+  const cache = createSourceCache([{ name: "demo" }], async () => {
+    calls++;
+    return calls === 1 ? { snapshots: [], failures: ["unavailable"] } : { snapshots: [{ manifest: { name: "demo" } }], failures: [] };
+  });
+  const [first, second] = await Promise.all([cache(), cache()]);
+  assert.equal(calls, 1);
+  assert.deepEqual(first.failures, second.failures);
+  assert.equal((await cache()).snapshots.length, 1);
+  assert.equal((await cache()).snapshots.length, 1);
+  assert.equal(calls, 2);
 });
 test("unavailable sources are reported rather than substituted", async () => {
   const result = await prepareSources([{ name: "demo", version: "1.0.0", integrity: "sha512-invalid" }], async () => {
@@ -90,7 +117,7 @@ test("verifies full artifact before extraction and manifests actual file bytes",
     () => extractVerifiedPackage(bytes, { name: "demo", version: "1.2.3", integrity: "sha512-bad" }),
     /integrity/,
   );
-  for (const name of ["package/../secret", "/etc/passwd", "package/.npmrc"]) {
+  for (const name of ["package/../secret", "/etc/passwd", "package/.npmrc", "package//a", "package/a/", "package/a\u0001b"]) {
     const bad = archive(name, "secret");
     assert.throws(
       () => extractVerifiedPackage(bad, { name: "demo", version: "1.2.3", integrity: sri(bad) }),
@@ -104,6 +131,16 @@ test("verifies full artifact before extraction and manifests actual file bytes",
       /archive/,
     );
   }
+  const nulName = gunzipSync(archive("package/a", "hello"));
+  nulName.write("\0\nzz", 9);
+  nulName.fill(32, 148, 156);
+  nulName.write([...nulName.subarray(0, 512)].reduce((a, b) => a + b, 0).toString(8).padStart(6, "0") + "\0 ", 148);
+  const nulArchive = gzipSync(nulName);
+  assert.ok(extractVerifiedPackage(nulArchive, { name: "demo", version: "1.2.3", integrity: sri(nulArchive) }).files.a);
+  const parent = gunzipSync(archive("package/a", "hello"));
+  const child = gunzipSync(archive("package/a/b", "hello"));
+  const clash = gzipSync(Buffer.concat([parent.subarray(0, 1024), child]));
+  assert.throws(() => extractVerifiedPackage(clash, { name: "demo", version: "1.2.3", integrity: sri(clash) }), /archive/i);
   const first = gunzipSync(archive("package/index.js", "hello"));
   const duplicate = gzipSync(Buffer.concat([first.subarray(0, 1024), first]));
   assert.throws(

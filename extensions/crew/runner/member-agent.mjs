@@ -37,7 +37,14 @@ export async function createMemberAgent({ member, crew, onEvent, prepareSources 
     github?.token &&
     operations.some((name) => ["github_workflow_runs_list", "github_workflow_run_view"].includes(name));
   const hasBash = member.tools.includes("bash");
-  const sources = hasBash ? await prepareSources() : undefined;
+  let sources;
+  if (hasBash) {
+    try {
+      sources = await prepareSources();
+    } catch {
+      sources = { available: [], failures: ["Verified dependency source mount unavailable"] };
+    }
+  }
   const environment = createEnvironment({
     dependencySources: sources?.provider,
     localCwd: cwd,

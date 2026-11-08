@@ -13,7 +13,29 @@ test("verified formatter runs in the guest and source mount denies writes", { ti
   const result = await environment.withVm((vm) =>
     vm.exec(`set -e
     test -r ${GUEST_SOURCES}/prettier/package.json
-    if echo bad > ${GUEST_SOURCES}/prettier/package.json 2>/dev/null; then exit 12; fi
+    target=${GUEST_SOURCES}/prettier/package.json
+    before=$(sha256sum "$target")
+    mkdir /workspace/probe
+    touch /workspace/probe/a
+    chmod 600 /workspace/probe/a
+    truncate -s 1 /workspace/probe/a
+    ln /workspace/probe/a /workspace/probe/hard
+    ln -s a /workspace/probe/sym
+    mv /workspace/probe/a /workspace/probe/b
+    rm /workspace/probe/b /workspace/probe/hard /workspace/probe/sym
+    rmdir /workspace/probe
+    touch /workspace/move-source
+    if echo bad > "$target" 2>/dev/null; then exit 12; fi
+    if mv "$target" /workspace/stolen 2>/dev/null; then exit 13; fi
+    if mv /workspace/move-source ${GUEST_SOURCES}/prettier/new 2>/dev/null; then exit 14; fi
+    if ln -s /workspace/move-source ${GUEST_SOURCES}/prettier/new 2>/dev/null; then exit 15; fi
+    if ln "$target" ${GUEST_SOURCES}/prettier/new 2>/dev/null; then exit 16; fi
+    if mkdir ${GUEST_SOURCES}/prettier/new 2>/dev/null; then exit 17; fi
+    if touch "$target" 2>/dev/null; then exit 18; fi
+    if truncate -s 0 "$target" 2>/dev/null; then exit 19; fi
+    if rm "$target" 2>/dev/null; then exit 20; fi
+    if chmod 600 "$target" 2>/dev/null; then exit 21; fi
+    test "$(sha256sum "$target")" = "$before"
     printf 'const x={a:1}\n' > /workspace/format.js
     node ${GUEST_SOURCES}/prettier/bin/prettier.cjs --write /workspace/format.js
     cat /workspace/format.js`),
