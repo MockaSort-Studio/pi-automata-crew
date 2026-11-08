@@ -91,10 +91,22 @@ test("valid statements are normalized and deduplicated; forbidden-only and allow
   assert.doesNotMatch(allowed, /Forbidden files/);
 });
 
-test("the instructions tell the worker how to treat traversal and backslash paths", () => {
+test("the instructions escalate on traversal paths instead of dropping `..` segments", () => {
   const { instructions } = assembleWith([statement]);
-  assert.match(instructions, /backslashes are separators, drop `\.` and `\.\.` segments/);
-  assert.match(instructions, /if it matches, or you cannot tell, stop and call `request_input`/);
+  assert.match(instructions, /with backslashes as separators/);
+  assert.match(instructions, /contains a `\.\.` segment \(for example `tests\/\.\.\/\.github\/ci\.yml`/);
+  assert.match(instructions, /which is really `\.github\/ci\.yml`\) or you cannot be certain/);
+  assert.match(instructions, /do not guess: stop and call `request_input`/);
+  assert.doesNotMatch(instructions, /drop `\.` and `\.\.` segments/);
+});
+
+test("with no optional context at all, the base prompts still carry the default named-files guidance", () => {
+  const { instructions } = assemble("snowball", "developer", "Fix the cached lookup.");
+  assert.doesNotMatch(instructions, /## ASSIGNMENT CONTEXT/);
+  assert.doesNotMatch(instructions, /## AUTONOMY SCOPE/);
+  assert.match(instructions, /Named files are a scope hint/);
+  assert.match(instructions, /Stop and ask only for files or classes the assignment forbids/);
+  assert.match(instructions, /### Autonomy and escalation/);
 });
 
 test("the request_input tool separates authority questions from implementation questions, schema unchanged", () => {

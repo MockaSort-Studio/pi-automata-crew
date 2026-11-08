@@ -65,7 +65,7 @@ function autonomySection(inputs) {
   ];
   if (scope.forbiddenFiles.length) {
     lines.push(
-      `- Forbidden files (repo-relative paths or globs): ${scope.forbiddenFiles.join(", ")}. Forbidden always takes precedence over the allowed classes and over "the change requires it". Before editing a file, resolve its path (backslashes are separators, drop \`.\` and \`..\` segments); if it matches, or you cannot tell, stop and call \`request_input\`.`,
+      `- Forbidden files (repo-relative paths or globs): ${scope.forbiddenFiles.join(", ")}. Forbidden always takes precedence over the allowed classes and over "the change requires it". Before editing a file, read its path with backslashes as separators. If the path contains a \`..\` segment (for example \`tests/../.github/ci.yml\`, which is really \`.github/ci.yml\`) or you cannot be certain what it resolves to, do not guess: stop and call \`request_input\`. If it matches a forbidden entry, stop and call \`request_input\`.`,
     );
   }
   if (scope.allowedFileClasses.length) {
