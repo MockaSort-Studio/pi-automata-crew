@@ -68,15 +68,20 @@ test("preflight rejects with an install hint, before downloading assets, when Ni
   );
 });
 
-test("a Crew's later workers reuse a recent successful preflight instead of re-spawning the checks", async (t) => {
-  try {
-    await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } });
-  } catch {
-    return t.skip("QEMU, Nix or the guest assets are unavailable here");
-  }
-  const started = performance.now();
-  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } });
-  assert.ok(performance.now() - started < 20, `second preflight took ${Math.round(performance.now() - started)} ms`);
+test("a Crew's later workers reuse a recent successful preflight instead of re-spawning the checks", async () => {
+  const calls = [];
+  const dependencies = {
+    memo: {},
+    environment: {},
+    vmm: "qemu",
+    verifyQemu: () => calls.push("qemu"),
+    verifyQemuImage: () => calls.push("image"),
+    verifyNix: () => calls.push("nix"),
+    gondolin: { ensureGuestAssets: async () => calls.push("assets") },
+  };
+  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
+  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
+  assert.deepEqual(calls, ["qemu", "image", "nix", "assets"]);
 });
 
 test("libkrun needs no QEMU: its absence is never checked", async () => {

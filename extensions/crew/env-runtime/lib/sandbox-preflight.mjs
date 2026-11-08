@@ -41,13 +41,13 @@ function verifyNix(binary = nixBinary()) {
 // after another, so a recent success is reused. Callers that inject their own checks
 // (tests) are never memoized.
 const VERIFIED_FOR_MS = 30_000;
-let verifiedAt = 0;
+const productionMemo = { verifiedAt: 0 };
 
 export async function preflightWorkerSandbox(config, dependencies = {}) {
   if (!config.sandbox) return;
   if (config.sandbox.kind !== "gondolin") throw new Error(`Unsupported worker sandbox: ${config.sandbox.kind}`);
-  const memoize = Object.keys(dependencies).length === 0;
-  if (memoize && Date.now() - verifiedAt < VERIFIED_FOR_MS) return;
+  const memo = dependencies.memo ?? (Object.keys(dependencies).length === 0 ? productionMemo : undefined);
+  if (memo?.verifiedAt && Date.now() - memo.verifiedAt < VERIFIED_FOR_MS) return;
   const environment = dependencies.environment ?? process.env;
   environment.XDG_CACHE_HOME ??= gondolinCacheHome(environment);
   // QEMU is only required when it is the chosen VMM; libkrun needs nothing installed.
@@ -62,5 +62,5 @@ export async function preflightWorkerSandbox(config, dependencies = {}) {
   } catch (error) {
     throw new Error(`Gondolin sandbox preflight failed: ${error.message}`);
   }
-  if (memoize) verifiedAt = Date.now();
+  if (memo) memo.verifiedAt = Date.now();
 }
