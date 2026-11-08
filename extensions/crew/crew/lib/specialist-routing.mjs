@@ -11,9 +11,11 @@ function glob(pattern) {
 }
 
 function pathOf(path) {
-  if (typeof path !== "string" || !path || path.startsWith("/") || path.split("/").includes(".."))
+  if (typeof path !== "string") throw new TypeError(`Route path must be a relative repository path: ${path}`);
+  const normalized = path.replaceAll("\\", "/");
+  if (!normalized || normalized.startsWith("/") || normalized.split("/").includes(".."))
     throw new TypeError(`Route path must be a relative repository path: ${path}`);
-  return path.replaceAll("\\", "/").replace(/^\.\//, "");
+  return normalized.replace(/^\.\//, "");
 }
 
 // Routing policy belongs to the checked-out repository, never the installed package or .pi state.

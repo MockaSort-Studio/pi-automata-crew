@@ -69,6 +69,8 @@ test("every routed specialist exists in the roster", () => {
 
 test("routing rejects paths outside the repository rather than guessing", () => {
   assert.throws(() => routeSpecialists(["../secrets"], routes), /relative repository path/);
+  assert.throws(() => routeSpecialists(["..\\secrets"], routes), /relative repository path/);
+  assert.throws(() => routeSpecialists(["\\secrets"], routes), /relative repository path/);
   assert.throws(() => parseSpecialistRoutes("*.mjs @snowball"), /Invalid specialist route/);
 });
 
