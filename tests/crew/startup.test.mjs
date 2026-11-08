@@ -152,15 +152,21 @@ test("prepareCrew rejects skill injection and never loads skill files into worke
     const skill = join(cwd, "skills", "review-probe");
     mkdirSync(skill, { recursive: true });
     writeFileSync(join(skill, "SKILL.md"), "---\nname: review-probe\ndescription: test\n---\nSKILL-BODY-MARKER\n");
-    await assert.rejects(
-      prepareCrew(
+    let preparedWithSkill;
+    let rejection;
+    try {
+      preparedWithSkill = await prepareCrew(
         { getAllTools: () => [] },
         { members: [{ name: "snowball", role: "developer", skills: ["review-probe"] }] },
         { cwd },
         ".pi",
-      ),
-      /skills.*not supported/i,
-    );
+      );
+    } catch (error) {
+      rejection = error;
+    }
+    // Restoring the old loader would return a worker prompt containing this selected skill's marker.
+    if (preparedWithSkill) assert.doesNotMatch(preparedWithSkill.agents[0].task, /SKILL-BODY-MARKER/);
+    assert.match(String(rejection), /skills.*not supported/i);
     const prepared = await prepareCrew(
       { getAllTools: () => [] },
       { members: [{ name: "snowball", role: "developer" }] },
