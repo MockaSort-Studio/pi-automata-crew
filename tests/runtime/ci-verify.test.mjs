@@ -22,7 +22,12 @@ test("it checks the current pull request with the supplied signal", async () => 
   const ops = {
     call: async (name, input, options) => {
       calls.push([name, input, options]);
-      if (name === "github_pull_request_view") return { state: "OPEN", headRefOid: "f".repeat(40), statusCheckRollup: [{ __typename: "StatusContext", state: "SUCCESS" }] };
+      if (name === "github_pull_request_view")
+        return {
+          state: "OPEN",
+          headRefOid: "f".repeat(40),
+          statusCheckRollup: [{ __typename: "StatusContext", state: "SUCCESS" }],
+        };
       return [];
     },
   };
@@ -42,17 +47,21 @@ test("a red result carries a bounded follow-up naming each failing check with it
     call: async (name) => {
       if (name === "github_workflow_run_failed_log") return huge;
       if (name !== "github_pull_request_view") assert.fail(name);
-      return { state: "OPEN", headRefOid: "abcdef0123456789".padEnd(40, "0"), statusCheckRollup: [
-        {
-          __typename: "CheckRun",
-          workflowName: "CI",
-          name: "test",
-          status: "COMPLETED",
-          conclusion: "FAILURE",
-          detailsUrl: "https://github.com/o/r/actions/runs/1",
-        },
-        { __typename: "CheckRun", workflowName: "CI", name: "format", status: "COMPLETED", conclusion: "FAILURE" },
-      ] };
+      return {
+        state: "OPEN",
+        headRefOid: "abcdef0123456789".padEnd(40, "0"),
+        statusCheckRollup: [
+          {
+            __typename: "CheckRun",
+            workflowName: "CI",
+            name: "test",
+            status: "COMPLETED",
+            conclusion: "FAILURE",
+            detailsUrl: "https://github.com/o/r/actions/runs/1",
+          },
+          { __typename: "CheckRun", workflowName: "CI", name: "format", status: "COMPLETED", conclusion: "FAILURE" },
+        ],
+      };
     },
   };
   const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: "abcdef0123456789" } };
@@ -100,17 +109,21 @@ test("a green result reports whether the pull request changed the files that def
   const ops = {
     call: async (name) =>
       name === "github_pull_request_view"
-        ? { state: "OPEN", headRefOid: "f".repeat(40), statusCheckRollup: [{ __typename: "StatusContext", state: "SUCCESS" }] }
+        ? {
+            state: "OPEN",
+            headRefOid: "f".repeat(40),
+            statusCheckRollup: [{ __typename: "StatusContext", state: "SUCCESS" }],
+          }
         : [
-              {
-                filename: "docs/ci-probe.md",
-                blob_url: `https://github.com/o/r/blob/${"f".repeat(40)}/docs/ci-probe.md`,
-              },
-              {
-                filename: ".prettierignore",
-                blob_url: `https://github.com/o/r/blob/${"f".repeat(40)}/.prettierignore`,
-              },
-            ],
+            {
+              filename: "docs/ci-probe.md",
+              blob_url: `https://github.com/o/r/blob/${"f".repeat(40)}/docs/ci-probe.md`,
+            },
+            {
+              filename: ".prettierignore",
+              blob_url: `https://github.com/o/r/blob/${"f".repeat(40)}/.prettierignore`,
+            },
+          ],
   };
   const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: "f".repeat(40) } };
   const check = await verifyPullRequest({ ops, policy, evidence });
@@ -119,7 +132,11 @@ test("a green result reports whether the pull request changed the files that def
   const red = {
     call: async (name) =>
       name === "github_pull_request_view"
-        ? { state: "OPEN", headRefOid: "f".repeat(40), statusCheckRollup: [{ __typename: "StatusContext", state: "FAILURE" }] }
+        ? {
+            state: "OPEN",
+            headRefOid: "f".repeat(40),
+            statusCheckRollup: [{ __typename: "StatusContext", state: "FAILURE" }],
+          }
         : assert.fail(name),
   };
   assert.equal((await verifyPullRequest({ ops: red, policy, evidence })).state, "failure");

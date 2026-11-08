@@ -39,7 +39,12 @@ export function hostGhTransport({ token, exec = run }) {
           commandArgs[index + 1] = [...fields, "headRefOid"].join(",");
         }
       }
-      const { stdout } = await exec("gh", commandArgs, { encoding: "utf8", maxBuffer: 32 * 1024 * 1024, ...options, env });
+      const { stdout } = await exec("gh", commandArgs, {
+        encoding: "utf8",
+        maxBuffer: 32 * 1024 * 1024,
+        ...options,
+        env,
+      });
       return stdout;
     },
   };
