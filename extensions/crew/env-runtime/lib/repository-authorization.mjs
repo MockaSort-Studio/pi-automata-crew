@@ -26,6 +26,9 @@ const guardedOperations = new Set([
   "github_pull_request_create",
   ...readPullRequestOperations,
   ...ownPullRequestOperations,
+  "github_workflow_runs_list",
+  "github_workflow_run_view",
+  "github_workflow_run_failed_log",
 ]);
 
 // Every guarded operation accepts exactly these fields. Anything else, including ref-like fields
@@ -42,6 +45,9 @@ const allowedKeysByOperation = {
   github_pull_request_view: new Set(["repo", "pullNumber"]),
   github_pull_request_files: new Set(["repo", "pullNumber"]),
   github_pull_request_checks: new Set(["repo", "pullNumber"]),
+  github_workflow_runs_list: new Set(["repo", "workflow", "limit"]),
+  github_workflow_run_view: new Set(["repo", "runId"]),
+  github_workflow_run_failed_log: new Set(["repo", "runId", "maxChars"]),
   github_pull_request_review_threads: new Set(["repo", "pullNumber", "includeResolved"]),
   github_pull_request_update: new Set(["repo", "pullNumber", "title", "body", "state"]),
   github_pull_request_add_label: new Set(["repo", "pullNumber", "labels"]),
@@ -104,6 +110,17 @@ export function authorizeRepositoryOperation(operation, input, policy) {
     if ("limit" in input && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100))
       throw new Error("Invalid list limit");
   }
+  if (operation === "github_workflow_runs_list") {
+    if ("workflow" in input && typeof input.workflow !== "string") throw new Error("Invalid workflow");
+    if ("limit" in input && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100))
+      throw new Error("Invalid list limit");
+  }
+  if (operation === "github_workflow_run_view" || operation === "github_workflow_run_failed_log") {
+    if (!Number.isSafeInteger(input.runId) || input.runId <= 0) throw new Error("Invalid runId");
+  }
+  if (operation === "github_workflow_run_failed_log" && "maxChars" in input &&
+      (!Number.isInteger(input.maxChars) || input.maxChars < 1 || input.maxChars > 12000))
+    throw new Error("Invalid maxChars");
   if (operation === "github_pull_request_update") {
     if (!["title", "body", "state"].some((key) => key in input))
       throw new Error("Update requires title, body or state");
