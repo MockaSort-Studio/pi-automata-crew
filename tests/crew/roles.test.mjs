@@ -4,6 +4,8 @@ import { test } from "node:test";
 import { roleModule } from "../../extensions/crew/crew/lib/automaton-body/lib/modules/role.mjs";
 import { assemble } from "../../extensions/crew/crew/lib/assembly.mjs";
 import { GITHUB_BASE_TOOLS } from "../../extensions/crew/crew/lib/github-base-tools.mjs";
+import { validateMemberAuthority } from "../../extensions/crew/crew/lib/member-authority.mjs";
+import { AUTOMATA } from "../../extensions/crew/crew/lib/roster.mjs";
 
 test("roles provide bounded native capabilities", () => {
   for (const [role, tool, thinking] of [
@@ -24,6 +26,24 @@ test("roles provide bounded native capabilities", () => {
 test("GitHub base catalog declares bounded workflow inspection operations", () => {
   for (const operation of ["github_workflow_runs_list", "github_workflow_run_view", "github_workflow_run_failed_log"])
     assert.ok(GITHUB_BASE_TOOLS.includes(operation));
+});
+
+test("checks wait is recognized without granting it to unrelated personas or roles", () => {
+  const operation = "github_pull_request_checks_wait";
+  assert.ok(GITHUB_BASE_TOOLS.includes(operation));
+  const roles = JSON.parse(
+    readFileSync(new URL("../../extensions/crew/crew/prompts/roles.json", import.meta.url), "utf8"),
+  );
+  for (const [role, policy] of Object.entries(roles)) {
+    assert.ok(!policy.tools.includes(operation), role);
+    assert.throws(
+      () =>
+        validateMemberAuthority(AUTOMATA.snowball, role, [
+          { suite: "collaboration/pi-github-tools", operations: [operation] },
+        ]),
+      /outside/,
+    );
+  }
 });
 
 test("base Crew policy gives a member its operating contract and no implicit GitHub operations", () => {
