@@ -2,6 +2,39 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildDependencyMount } from "../../extensions/crew/runner/dependency-mount.mjs";
 import { createEnvironment } from "../../extensions/crew/runner/environment.mjs";
+import { constants } from "node:os";
+
+const EROFS = { code: "EROFS", errno: constants.errno.EROFS };
+
+test("denied snapshot mutations carry the same EROFS errno as Gondolin ReadonlyProvider", async () => {
+  const { provider } = await buildDependencyMount({
+    snapshots: [{ manifest: { name: "demo", version: "1", files: {} }, files: { "index.js": Buffer.from("source") } }],
+    failures: [],
+  });
+  // mkdir is refused by the unmodified Gondolin ReadonlyProvider: it is the reference error.
+  const reference = await provider.mkdir("/demo/new").catch((error) => error);
+  assert.equal(reference.code, "EROFS");
+  assert.equal(typeof reference.errno, "number");
+  for (const flag of ["r+", "w", "w+", "a", "a+", "wx", "ax"]) {
+    const error = await provider.open("/demo/index.js", flag).catch((caught) => caught);
+    assert.equal(error.code, reference.code, flag);
+    assert.equal(error.errno, reference.errno, flag);
+    assert.equal(error.syscall, "open");
+    assert.equal(error.path, "/demo/index.js");
+    assert.throws(() => provider.openSync("/demo/index.js", flag), { code: reference.code, errno: reference.errno });
+  }
+  assert.equal(reference.errno, EROFS.errno);
+  await assert.rejects(provider.appendFile("/demo/index.js", "x"), { code: "EROFS" });
+  const handle = await provider.open("/demo/index.js", "r");
+  await assert.rejects(handle.write(Buffer.from("x"), 0, 1, 0), { ...EROFS, syscall: "write" });
+  await assert.rejects(handle.writeFile("x"), { ...EROFS, syscall: "write" });
+  await assert.rejects(handle.truncate(0), { ...EROFS, syscall: "truncate" });
+  assert.throws(() => handle.writeSync(Buffer.from("x"), 0, 1, 0), EROFS);
+  assert.throws(() => handle.writeFileSync("x"), EROFS);
+  assert.throws(() => handle.truncateSync(0), { ...EROFS, syscall: "truncate" });
+  await handle.close();
+  assert.equal(String(await provider.readFile("/demo/index.js")), "source");
+});
 
 test("dependency snapshot is readable but refuses mutation", async () => {
   const { provider } = await buildDependencyMount({
