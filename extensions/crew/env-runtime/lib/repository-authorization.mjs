@@ -117,11 +117,11 @@ export function authorizeRepositoryOperation(operation, input, policy) {
   }
   if (target === "reviewInline" && (!Number.isInteger(input.pullNumber) || input.pullNumber <= 0))
     throw new Error("pullNumber must be a positive integer");
-  // bodyFile is checked lexically on purpose. Where it is read is already isolated: the host-side suite reads
-  // through the in-memory workspace VFS (a symlink to a host path is unreadable, see
-  // gondolin-private-workspace.test.mjs), and the retained guest-suite path reads inside the member's own VM
-  // with the member's own privileges, where the member can already read the same file with bash. A symlink
-  // therefore never reaches anything the member could not already read.
+  // bodyFile is checked lexically on purpose; the boundary is privilege, not literal workspace containment.
+  // The host-side suite reads through the in-memory workspace VFS (a symlink to a host path is unreadable, see
+  // gondolin-private-workspace.test.mjs). The retained guest-suite path reads inside the member's own VM with
+  // the member's own privileges, so a symlink can only reach guest files, never host files; a role without bash
+  // (lead) can still address guest paths through its read tool. It is not proven to enforce literal containment.
   if (operation === "github_issue_create" && (!safeWorkspacePath(input.bodyFile) || input.bodyFile.includes("\\")))
     throw new Error("bodyFile must be a workspace-relative file path");
   if (
