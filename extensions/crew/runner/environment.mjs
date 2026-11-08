@@ -18,6 +18,7 @@ export function createEnvironment({
   allowedHosts = [],
   secrets = {},
   onDenied,
+  onRequest,
   idleMs = 20_000,
   createVm = createTrackedVm,
   vmm = chooseVmm(),
@@ -43,7 +44,7 @@ export function createEnvironment({
 
   async function boot() {
     await ready();
-    network = createGuestNetwork({ allowedHosts, secrets, onDenied });
+    network = createGuestNetwork({ allowedHosts, secrets, onDenied, onRequest });
     const created = await createVm({
       sandbox: { vmm },
       sessionLabel: `crew ${label}`,
