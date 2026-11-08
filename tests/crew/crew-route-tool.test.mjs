@@ -12,6 +12,7 @@ function setup() {
   crewExtension({
     registerTool: (tool) => tools.set(tool.name, tool),
     registerCommand: noop,
+    registerShortcut: noop,
     registerEntryRenderer: noop,
     registerMessageRenderer: noop,
     on: noop,
