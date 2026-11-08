@@ -28,13 +28,13 @@ export function readCachedCatalog(name, { home, validate, uid = process.getuid }
 }
 
 // Caching is best effort and never prevents a launch.
-export function writeCachedCatalog(doc, { home, now = () => new Date(), uid = process.getuid } = {}) {
+export function writeCachedCatalog(doc, { home, now = () => new Date(), uid = process.getuid, latest = true } = {}) {
   let temporary;
   let created = false;
   try {
     if (!safeDirectory(home, uid, true)) return false;
     const body = JSON.stringify({ fetchedAt: now().toISOString(), doc });
-    for (const name of ["latest", doc.revision]) {
+    for (const name of latest ? ["latest", doc.revision] : [doc.revision]) {
       const path = fileFor(name, home);
       temporary = `${path}.${randomBytes(16).toString("hex")}.tmp`;
       writeFileSync(temporary, body, { mode: 0o600, flag: "wx" });

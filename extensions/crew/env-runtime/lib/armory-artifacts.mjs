@@ -84,7 +84,11 @@ export async function resolveArmoryCatalog({ release, fetchImpl = fetch, cache, 
   const pinned = match && release === pinnedReleaseUrl(match[1]) ? match[1] : undefined;
   const cached = (name) => {
     const hit = readCachedCatalog(name, { home, validate: (doc) => validateArtifactCatalog(doc, cache) });
-    return hit && { ...referenceFromArtifacts(hit.doc), fromCache: true, cachedAt: hit.fetchedAt };
+    try {
+      return hit && { ...referenceFromArtifacts(hit.doc), fromCache: true, cachedAt: hit.fetchedAt };
+    } catch {
+      return undefined;
+    }
   };
   if (pinned) {
     const hit = cached(pinned);
@@ -103,12 +107,16 @@ export async function resolveArmoryCatalog({ release, fetchImpl = fetch, cache, 
     const doc = validateArtifactCatalog(await response.json(), cache);
     if (pinned && doc.revision !== pinned) throw new Error("Armory catalog revision does not match pinned release");
     const reference = referenceFromArtifacts(doc);
-    writeCachedCatalog(doc, { home });
+    if (release === undefined || pinned) writeCachedCatalog(doc, { home, latest: release === undefined });
     return reference;
   }
   const hit = release === undefined ? cached("latest") : undefined;
   if (hit) return hit;
   throw new Error(`${failure?.message ?? "Armory release unavailable"} (no cached Armory catalog to fall back to)`, { cause: failure });
+}
+
+export function cachedCatalogWarning(catalog) {
+  return catalog?.fromCache ? `Using cached Armory catalog ${catalog.revision} (cached at ${catalog.cachedAt}; possibly stale).` : undefined;
 }
 
 export function readCatalogSuite(reference, manifestPath) {

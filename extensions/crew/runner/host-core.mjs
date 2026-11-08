@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { resolveArmoryCatalog } from "../env-runtime/lib/armory-artifacts.mjs";
+import { cachedCatalogWarning, resolveArmoryCatalog } from "../env-runtime/lib/armory-artifacts.mjs";
 import { resolveRepositorySeed } from "../env-runtime/lib/repository-workspace.mjs";
 import { fetchSuiteExtension } from "./armory-source.mjs";
 import { createDispatcher } from "./dispatcher.mjs";
@@ -47,8 +47,8 @@ const defaults = {
   resolveModel,
   // The repository's seed archive for an exact revision, built from the local repository before any VM exists.
   buildSeed: ({ repo, revision }, cwd) => readFileSync(resolveRepositorySeed({ repo, revision }, { cwd })),
-  async loadGithubModule() {
-    const catalog = await resolveArmoryCatalog();
+  resolveArmoryCatalog,
+  async loadGithubModule(catalog) {
     return loadSuiteModule(await fetchSuiteExtension({ catalog, suiteId: GITHUB_SUITE }));
   },
   createMemberAgent,
@@ -62,6 +62,7 @@ export function createHostCore({ send, deps = {} }) {
   const d = { ...defaults, ...deps };
   const crews = new Map();
   let githubModule;
+  let githubCatalogWarning;
 
   const secretsOf = () => [d.env.HALL_GITHUB_TOKEN].filter(Boolean);
   const scrub = (text) => secretsOf().reduce((out, secret) => out.split(secret).join("[redacted]"), String(text));
@@ -117,13 +118,17 @@ export function createHostCore({ send, deps = {} }) {
     if (members.some((member) => member.suiteGrants?.some((grant) => grant.suite === GITHUB_SUITE))) {
       const token = d.env.HALL_GITHUB_TOKEN;
       if (!token) throw new Error("The GitHub suite is granted but no Crew credential is set (HALL_GITHUB_TOKEN)");
-      githubModule ??= await d.loadGithubModule();
+      if (!githubModule) {
+        const catalog = await d.resolveArmoryCatalog();
+        githubModule = await d.loadGithubModule(catalog);
+        githubCatalogWarning = cachedCatalogWarning(catalog);
+      }
       crew.github = { module: githubModule, token };
     }
 
     crews.set(runId, { dispatcher, activity, live });
     dispatcher.start();
-    return { runId, members: dispatcher.status() };
+    return { runId, members: dispatcher.status(), ...(crew.github && githubCatalogWarning ? { warnings: [githubCatalogWarning] } : {}) };
   }
 
   const crewOf = (runId) => {

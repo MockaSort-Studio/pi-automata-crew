@@ -1,8 +1,9 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawn } from "node:child_process";
 import { catalogCacheRoot, readCachedCatalog, writeCachedCatalog } from "../../extensions/crew/env-runtime/lib/armory-catalog-cache.mjs";
 
 const home = () => mkdtempSync(join(tmpdir(), "armory-cache-"));
@@ -16,6 +17,8 @@ const read = (dir, options = {}) => readCachedCatalog("latest", { home: dir, val
 test("cache round trips and ignores truncated files", () => {
   const dir = home();
   assert.equal(writeCachedCatalog(doc, { home: dir }), true);
+  assert.equal(statSync(catalogCacheRoot(dir)).mode & 0o777, 0o700);
+  assert.equal(statSync(join(catalogCacheRoot(dir), "latest.json")).mode & 0o777, 0o600);
   assert.deepEqual(read(dir).doc, doc);
   writeFileSync(join(catalogCacheRoot(dir), "latest.json"), "{");
   assert.equal(read(dir), undefined);
@@ -61,6 +64,13 @@ test("predictable hostile symlink is not followed", () => {
 
 test("concurrent writers leave a complete valid catalog", async () => {
   const dir = home();
-  await Promise.all(Array.from({ length: 20 }, async () => assert.equal(writeCachedCatalog(doc, { home: dir }), true)));
+  const moduleUrl = new URL("../../extensions/crew/env-runtime/lib/armory-catalog-cache.mjs", import.meta.url).href;
+  const script = `import { writeCachedCatalog } from ${JSON.stringify(moduleUrl)}; for (let i = 0; i < 20; i++) if (!writeCachedCatalog(${JSON.stringify(doc)}, { home: ${JSON.stringify(dir)} })) process.exit(1);`;
+  const jobs = Array.from({ length: 8 }, () => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ["--input-type=module", "-e", script]);
+    child.on("error", reject);
+    child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`writer exited ${code}`)));
+  }));
+  await Promise.all(jobs);
   assert.deepEqual(read(dir).doc, doc);
 });

@@ -144,3 +144,13 @@ test("pinned responses must match and explicit noncanonical URLs never fall back
   assert.equal(pinned.fromCache, true);
   assert.equal(called, false);
 });
+
+test("explicit release downloads do not replace the latest cache", async () => {
+  const home = freshHome();
+  await resolveArmoryCatalog({ home, fetchImpl: respond(document()) });
+  const other = document();
+  other.revision = "b".repeat(40);
+  await resolveArmoryCatalog({ home, release: pinnedReleaseUrl(other.revision), fetchImpl: respond(other) });
+  const latest = await resolveArmoryCatalog({ home, fetchImpl: respond({}, false, 503) });
+  assert.equal(latest.revision, revision);
+});
