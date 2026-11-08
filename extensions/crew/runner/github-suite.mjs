@@ -78,7 +78,6 @@ export function githubSuiteExtension({
   transport = hostGhTransport({ token }),
 }) {
   return (pi) => {
-    const ownedPullRequests = new Set();
     module.activateSuite(pi, injection({ workspace, token, transport }));
     pi.on("tool_call", async (event) => {
       try {
@@ -86,7 +85,7 @@ export function githubSuiteExtension({
       } catch (error) {
         return { block: true, reason: error.message };
       }
-      if (ownPullRequestOperations.has(event.toolName) && !ownedPullRequests.has(event.input.pullNumber)) {
+      if (ownPullRequestOperations.has(event.toolName)) {
         try {
           const pr = JSON.parse(
             await transport.run([
@@ -101,7 +100,6 @@ export function githubSuiteExtension({
           );
           if (pr.headRefName !== policy.branch || pr.baseRefName !== policy.base || pr.isCrossRepository !== false)
             throw new Error("not owned");
-          ownedPullRequests.add(event.input.pullNumber);
         } catch {
           return { block: true, reason: "A worker can only change its own pull request" };
         }
