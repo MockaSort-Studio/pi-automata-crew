@@ -1,5 +1,8 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   armoryCache,
   fetchArtifactCatalog,
@@ -10,6 +13,7 @@ import {
   validateArtifactCatalog,
 } from "../../extensions/crew/env-runtime/lib/armory-artifacts.mjs";
 
+const freshHome = () => mkdtempSync(join(tmpdir(), "armory-artifacts-"));
 const revision = "0123456789abcdef0123456789abcdef01234567";
 const path = (seed) => `/nix/store/${seed.repeat(32).slice(0, 32)}-x`;
 const narHash = `sha256-${"A".repeat(43)}=`;
@@ -84,9 +88,9 @@ test("an unavailable release is an error the resolver can fall back from", async
 });
 
 test("the release is the only entrypoint: an unreachable one is an error, never a second source", async () => {
-  await assert.rejects(resolveArmoryCatalog({ fetchImpl: respond({}, false, 503) }), /HTTP 503/);
+  await assert.rejects(resolveArmoryCatalog({ home: freshHome(), fetchImpl: respond({}, false, 503) }), /HTTP 503/);
   await assert.rejects(
-    resolveArmoryCatalog({ fetchImpl: async () => Promise.reject(new Error("offline")) }),
+    resolveArmoryCatalog({ home: freshHome(), fetchImpl: async () => Promise.reject(new Error("offline")) }),
     /offline/,
   );
 });
@@ -102,8 +106,41 @@ test("a pinned release is fetched from its immutable URL", async () => {
   let requested;
   const resolved = await resolveArmoryCatalog({
     release: pinnedReleaseUrl(revision),
+    home: freshHome(),
     fetchImpl: async (url) => ((requested = url), respond(document())()),
   });
   assert.equal(requested, pinnedReleaseUrl(revision));
   assert.equal(resolved.revision, revision);
+});
+
+test("offline latest uses only a validated cached catalog", async () => {
+  const home = freshHome();
+  await resolveArmoryCatalog({ home, fetchImpl: respond(document()) });
+  const hit = await resolveArmoryCatalog({ home, fetchImpl: respond({}, false, 503) });
+  assert.equal(hit.fromCache, true);
+  assert.equal(hit.revision, revision);
+  assert.match(hit.cachedAt, /^\d{4}-/);
+});
+
+test("invalid received payloads never fall back to cache", async () => {
+  const home = freshHome();
+  await resolveArmoryCatalog({ home, fetchImpl: respond(document()) });
+  await assert.rejects(resolveArmoryCatalog({ home, fetchImpl: async () => ({ ok: true, json: async () => { throw new SyntaxError("malformed"); } }) }), SyntaxError);
+  const invalid = document();
+  invalid.suites["collaboration/pi-github-tools"].systems["aarch64-linux"].closure = {};
+  await assert.rejects(resolveArmoryCatalog({ home, fetchImpl: respond(invalid) }), TypeError);
+  invalid.cache.publicKey = "wrong";
+  await assert.rejects(resolveArmoryCatalog({ home, fetchImpl: respond(invalid) }), /different binary cache/);
+});
+
+test("pinned responses must match and explicit noncanonical URLs never fall back", async () => {
+  const home = freshHome();
+  await resolveArmoryCatalog({ home, fetchImpl: respond(document()) });
+  const other = "a".repeat(40);
+  await assert.rejects(resolveArmoryCatalog({ home, release: pinnedReleaseUrl(other), fetchImpl: respond(document()) }), /revision/i);
+  await assert.rejects(resolveArmoryCatalog({ home, release: `https://evil.test/releases/download/armory-${revision}/artifacts.json`, fetchImpl: respond({}, false, 503) }), /HTTP 503/);
+  let called = false;
+  const pinned = await resolveArmoryCatalog({ home, release: pinnedReleaseUrl(revision), fetchImpl: async () => { called = true; throw new Error("offline"); } });
+  assert.equal(pinned.fromCache, true);
+  assert.equal(called, false);
 });
