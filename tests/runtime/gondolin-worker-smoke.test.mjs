@@ -21,7 +21,6 @@ function rpcBash(cwd, vmm) {
     stdio: ["pipe", "pipe", "pipe"],
     env: { ...process.env, HALL_VMM: vmm },
   });
-  if (process.env.HALL_VM_DIAGNOSTICS === "1") child.stderr.pipe(process.stderr, { end: false });
   let output = "";
   const response = new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("Pi Gondolin smoke timed out")), 90_000);

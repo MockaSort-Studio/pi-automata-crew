@@ -8,6 +8,8 @@ on:
 
 jobs:
   test:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Required coverage uses QEMU. Explicit krun cases run in the experimental job below.
@@ -93,6 +95,20 @@ jobs:
           sudo apt-get install -y qemu-utils qemu-system-x86
           sudo chmod a+rw /dev/kvm
           test -r /dev/kvm && test -w /dev/kvm
+      - name: Require an installed krun runner (unavailability is a visible experimental failure)
+        run: |
+          node --input-type=module <<'EOF'
+          import assert from 'node:assert/strict';
+          import { createRequire } from 'node:module';
+          import { dirname, join } from 'node:path';
+          import { execFileSync } from 'node:child_process';
+          import { chooseVmm } from './extensions/crew/env-runtime/lib/guest-vmm.mjs';
+          assert.notEqual(process.env.HALL_SKIP_GONDOLIN_LIVE_TESTS, '1');
+          assert.equal(chooseVmm({ env: {} }), 'krun');
+          const require = createRequire(import.meta.url);
+          const runner = join(dirname(require.resolve('@earendil-works/gondolin-krun-runner-linux-x64/package.json')), 'bin/gondolin-krun-runner');
+          execFileSync(runner, ['--version'], { stdio: 'inherit', timeout: 10000 });
+          EOF
       - name: Run explicit krun coverage
         run: |
           set -o pipefail

@@ -1,9 +1,31 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { parse } from "yaml";
 
 const workflow = parse(readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8"));
+
+test("the experimental selector covers exactly the four paired backend cases", () => {
+  const runtime = new URL("../runtime/", import.meta.url);
+  const names = [];
+  for (const file of readdirSync(runtime).filter((name) => name.endsWith(".test.mjs"))) {
+    const source = readFileSync(new URL(file, runtime), "utf8");
+    for (const match of source.matchAll(/test\(\s*`\$\{vmm\}: ([^`]+)`/g)) {
+      names.push(match[1]);
+      assert.ok(source.includes('"krun"') && source.includes('"qemu"'), `${file} must retain both backends`);
+    }
+    assert.ok(!/test\(\s*["'`]krun: /.test(source), `${file}: unexpected unpaired krun case`);
+  }
+  assert.deepEqual(
+    names.sort(),
+    [
+      "a VM does not outlive a SIGKILLed owner, and a closed VM leaves nothing behind",
+      "an idle worker releases its VM and boots a fresh one on the next tool call",
+      "an owner killed while its VM is still booting leaks nothing",
+      "the registered Gondolin worker extension routes Pi's built-in bash through the guest",
+    ].sort(),
+  );
+});
 
 test("required CI retains generic, QEMU and extension-load coverage; only explicit krun cases are experimental", () => {
   const required = workflow.jobs.test;
@@ -28,6 +50,10 @@ test("required CI retains generic, QEMU and extension-load coverage; only explic
 test("experimental krun coverage still executes, records failures and cannot fail the required job", () => {
   const experimental = workflow.jobs["krun-experimental"];
   assert.equal(experimental["continue-on-error"], true);
+  const preflight = experimental.steps.find((step) => step.name?.startsWith("Require an installed krun"));
+  assert.ok(preflight);
+  assert.match(preflight.run, /execFileSync\(runner/);
+  assert.match(preflight.run, /assert.equal\(chooseVmm/);
   const command = experimental.steps.find((step) => step.name === "Run explicit krun coverage").run;
   assert.match(command, /set -o pipefail/);
   assert.match(command, /--test-name-pattern='\^krun: '/);
