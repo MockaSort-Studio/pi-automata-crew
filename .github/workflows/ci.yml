@@ -12,7 +12,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Required coverage uses QEMU. Explicit krun cases run in the experimental job below.
+    # Required coverage uses QEMU. Explicit krun cases are excluded until Linux krun coverage is restored (docs/crew/ci-backends.md).
     # This user-approved gate policy does not change production VMM selection.
     env:
       HALL_VMM: qemu
@@ -61,7 +61,7 @@ jobs:
           key: gondolin-${{ runner.os }}-${{ runner.arch }}-${{ steps.gondolin.outputs.version }}
       # Crew workers run this suite from inside a worker; set their identity variables so every CI
       # run proves the suite does not depend on, or break under, an inherited worker environment.
-      - name: Required tests (all except explicit experimental krun cases)
+      - name: Required tests (all except the excluded krun cases)
         run: |
           export PATH="$PWD/node_modules/.bin:$PATH"
           env -u PI_SDK_ACTOR_ID -u PI_CREW_WORKER_CONFIG -u PI_CREW_COMM_TOKEN -u PI_CREW_ROOT -u PI_SESSION_ID \
@@ -73,58 +73,3 @@ jobs:
           PI_CREW_COMM_TOKEN: ci-probe-token
           PI_SESSION_ID: ci-probe-session
       - run: npm run format:check
-
-  krun-experimental:
-    name: krun (experimental, non-blocking)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    continue-on-error: true
-    permissions:
-      contents: read
-    env:
-      HALL_VMM: krun
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - name: Install VM prerequisites and enable KVM
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-utils qemu-system-x86
-          sudo chmod a+rw /dev/kvm
-          test -r /dev/kvm && test -w /dev/kvm
-      - name: Require an installed krun runner (unavailability is a visible experimental failure)
-        run: |
-          node --input-type=module <<'EOF'
-          import assert from 'node:assert/strict';
-          import { createRequire } from 'node:module';
-          import { dirname, join } from 'node:path';
-          import { execFileSync } from 'node:child_process';
-          import { chooseVmm } from './extensions/crew/env-runtime/lib/guest-vmm.mjs';
-          assert.notEqual(process.env.HALL_SKIP_GONDOLIN_LIVE_TESTS, '1');
-          assert.equal(chooseVmm({ env: {} }), 'krun');
-          const require = createRequire(import.meta.url);
-          const runner = join(dirname(require.resolve('@earendil-works/gondolin-krun-runner-linux-x64/package.json')), 'bin/gondolin-krun-runner');
-          execFileSync(runner, ['--version'], { stdio: 'inherit', timeout: 10000 });
-          EOF
-      - name: Run explicit krun coverage
-        run: |
-          export PATH="$PWD/node_modules/.bin:$PATH"
-          set -o pipefail
-          timeout --kill-after=10s 360s node --test --test-reporter=tap --test-name-pattern='^krun: ' \
-            tests/runtime/gondolin-worker-smoke.test.mjs tests/runtime/gondolin-idle-release.test.mjs tests/runtime/vm-lifecycle.test.mjs 2>&1 | tee krun-experimental.tap
-      - name: Preserve experimental failures
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: krun-experimental-results
-          path: krun-experimental.tap
-          if-no-files-found: warn
-      - name: Explain experimental status
-        if: always()
-        run: |
-          echo '### krun is experimental and non-blocking' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Linux x86_64 raw-kernel compatibility is unresolved (earendil-works/gondolin#91). Failures remain in the job log and artifact. Required QEMU and generic live coverage must pass; production backend selection is unchanged.' >> "$GITHUB_STEP_SUMMARY"
