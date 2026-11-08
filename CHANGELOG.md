@@ -21,6 +21,11 @@ First release in preparation. What the Crew does today:
   with the failing checks, and changes to the files that define the checks are reported to Main.
 - Dependencies between members (`dependsOn`), questions (`request_input`), follow-ups that reopen a completed
   member, cancel (kills the running commands), and best-effort salvage of unsaved work to the member's branch.
+- Main's lifecycle decisions: `crew_hold` acknowledges a waiting member without a turn (blocker, owner, resume
+  condition, optional PR/head/artifact), and `crew_handoff` ends one as partial or superseded work with its unmet
+  criteria and saved evidence, releasing its VM but never its dependents. `crew_status` shows one current state,
+  the latest report with its time, and the latest CI snapshot of an exact head; `none` and `unavailable` checks
+  are never green, and `completed` is not review or acceptance.
 - Specialist routing from `SPECIALIST_ROUTES` (`crew_route`): which persona works on which path.
 - A TUI: a footer line per active crew and a dashboard (`/crew-dashboard`) with live turns, tools, errors,
   tokens, context usage and compactions.
