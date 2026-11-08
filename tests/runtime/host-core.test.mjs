@@ -238,7 +238,7 @@ test("closing while the GitHub catalog resolves prevents module loading and regi
   assert.equal(loads, 0);
   assert.equal(disposed, 1);
   assert.deepEqual(h.created, []);
-  assert.deepEqual(events(h.sent, "state"), []);
+  assert.deepEqual(events(h.sent, "state"), [{ event: "state", runId: "run1", handle: A, state: "cancelled" }]);
   assert.deepEqual((await h.call("list", {})).result, { crews: [] });
 });
 
