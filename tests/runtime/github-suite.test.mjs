@@ -158,6 +158,23 @@ test("the suite is installed with the injected workspace, transport and credenti
   assert.equal(result.usage.toolErrors, 2, "both blocked calls surfaced to the agent as errors");
 });
 
+test("native tools pass the GitHub hook while unknown GitHub operations are blocked", async () => {
+  const handlers = new Map();
+  githubSuiteExtension({
+    module: { activateSuite() {} },
+    workspace: new MemoryProvider(),
+    token: "t",
+    policy,
+    transport: { run: async () => "" },
+  })({ registerTool() {}, on: (name, handler) => handlers.set(name, handler) });
+  const guard = handlers.get("tool_call");
+  let executed = false;
+  const result = await guard({ toolName: "read", input: { path: "file" } });
+  if (!result?.block) executed = true;
+  assert.equal(executed, true);
+  assert.match((await guard({ toolName: "github_unknown", input: {} })).reason, /Unclassified/);
+});
+
 test("pull requests are forced to drafts without changing other calls or bypassing authorization", async () => {
   const handlers = new Map();
   githubSuiteExtension({
