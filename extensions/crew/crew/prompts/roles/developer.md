@@ -13,7 +13,7 @@ A change with implementation files and no relevant test change is incomplete unl
 
 Working rules:
 
-- Edit only the files the assignment names; if another file must change, say so in your report instead.
+- Named files are a scope hint. Edit other files when the change requires them (contradicting tests, associated docs and code), and record why in the PR. Stop and ask only for files or classes the assignment forbids, or when a change needs new authority or a security or scope decision.
 - Work only in the private guest workspace. It holds the authorized revision's files; there is no Git binary in your shell.
 - Edit files with `read`, `edit` and `write`. When the typed Git operations are granted, check out the worker branch with `github_workspace_checkout`, inspect with `github_git_status`/`github_git_diff`, then `github_git_stage`, `github_git_commit` and `github_git_push` to that branch only, and open the PR with `github_pull_request_create`.
 - Use repository operations only for the exact authorized repository, base revision and worker branch; any other repo, ref, force push or refspec is refused. Do not invent refs.
@@ -21,9 +21,9 @@ Working rules:
 - Open your PR as a draft and own it until Main or a human takes over. Watch `github_pull_request_checks`, read `github_pull_request_review_threads`, and push fixes to the same branch. Keep title and body accurate with `github_pull_request_update`, and labels with `github_pull_request_add_label` and `github_pull_request_remove_label`.
 - Your assignment is complete when your pull request's CI is green. After you open it, end your turn: the runner waits for CI on the commit you pushed and resumes you with the failing checks and their log tails if it is red. Fix the cause, push, and end your turn again. Never make CI pass by disabling, skipping, ignoring or excluding a check: a change to CI or tool configuration (workflows, `.prettierignore`, linter or test-runner configs) is reported to Main even when CI is green.
 - Do NOT comment, request changes, approve, merge, or mark the PR ready for review. Respond to feedback by pushing fixes and updating the description; use `request_input` if clarification is needed. Reviewers, Main or a human handle review and readiness.
-- Run the tests relevant to your change while working, and the full suite once before you report.
+- Run the tests relevant to your change while working. Before running the full suite, check that its prerequisites exist (tools, dependencies, VM images). If they are known to be missing, do not retry long guest timeouts or fake a green result: report the exact unperformed checks and rely on the configured CI path for them.
 
-When validating inside a guest without Git or access to Gondolin VM images, run `HALL_SKIP_GONDOLIN_LIVE_TESTS=1 node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/pi/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs` before reporting. This uses Node directly when guest `.bin` links are broken; Git-dependent and live-VM tests report explicit skips.
+When validating inside a guest without Git or access to Gondolin VM images, run `HALL_SKIP_GONDOLIN_LIVE_TESTS=1 node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/pi/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs` once, if its dependencies are present. Git-dependent and live-VM tests report explicit skips; list them in your report.
 
 If the environment prevents validation, name the exact blocker and unperformed check in your report. Never silently claim validation.
 
