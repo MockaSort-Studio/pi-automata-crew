@@ -3,6 +3,7 @@ import test from "node:test";
 import { lazyGuest, registerArmoryWorkerProxies } from "../../extensions/crew/env-runtime/lib/guest-suite.mjs";
 
 const rootPath = "/nix/store/0123456789abcdefghijklmnopqrstuv-github";
+const repositoryAuthorization = { repo: "owner/repo", revision: "a".repeat(40), base: "main", branch: "worker" };
 
 function guest() {
   const files = new Map();
@@ -34,11 +35,11 @@ test("worker proxy registers only guest-described approved operations", async ()
   const tools = [];
   await registerArmoryWorkerProxies(
     { registerTool: (tool) => tools.push(tool) },
-    { config: { suites: [{ rootPath, tools: ["github_issue_view"] }] }, guest: guest() },
+    { config: { suites: [{ rootPath, tools: ["github_issue_view"] }], repositoryAuthorization }, guest: guest() },
   );
   assert.equal(tools.length, 1);
   assert.equal(tools[0].name, "github_issue_view");
-  assert.deepEqual(await tools[0].execute("id", { number: 1 }), {
+  assert.deepEqual(await tools[0].execute("id", { repo: repositoryAuthorization.repo, number: 1 }), {
     content: [{ type: "text", text: JSON.stringify({ issue: 1 }) }],
     details: { issue: 1 },
   });
@@ -51,10 +52,12 @@ test("a lazy guest resolves its VM on every call, so a released VM can be replac
   const ensure = async () => (current ??= ((boots += 1), guest()));
   await registerArmoryWorkerProxies(
     { registerTool: (tool) => tools.push(tool) },
-    { config: { suites: [{ rootPath, tools: ["github_issue_view"] }] }, guest: lazyGuest(ensure) },
+    { config: { suites: [{ rootPath, tools: ["github_issue_view"] }], repositoryAuthorization }, guest: lazyGuest(ensure) },
   );
   assert.equal(boots, 1);
   current = undefined; // the idle release
-  assert.deepEqual((await tools[0].execute("id", { number: 1 })).details, { issue: 1 });
+  assert.deepEqual((await tools[0].execute("id", { repo: repositoryAuthorization.repo, number: 1 })).details, {
+    issue: 1,
+  });
   assert.equal(boots, 2, "the next call booted a fresh VM; the proxies were never re-registered");
 });
