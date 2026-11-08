@@ -1,4 +1,6 @@
 import { strict as assert } from "node:assert";
+import { spawnSync } from "node:child_process";
+import { nixBinary } from "../../extensions/crew/env-runtime/lib/armory-nix.mjs";
 import test from "node:test";
 import {
   gondolinCacheHome,
@@ -68,12 +70,64 @@ test("preflight rejects with an install hint, before downloading assets, when Ni
   );
 });
 
-test("a Crew's later workers reuse a recent successful preflight instead of re-spawning the checks", async (t) => {
-  try {
-    await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } });
-  } catch {
-    return t.skip("QEMU, Nix or the guest assets are unavailable here");
-  }
+test("a Crew's later workers reuse a recent successful preflight instead of re-spawning the checks", async () => {
+  const calls = [];
+  const dependencies = {
+    memo: {},
+    environment: {},
+    vmm: "qemu",
+    verifyQemu: () => calls.push("qemu"),
+    verifyQemuImage: () => calls.push("image"),
+    verifyNix: () => calls.push("nix"),
+    gondolin: { ensureGuestAssets: async () => calls.push("assets") },
+  };
+  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
+  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
+  assert.deepEqual(calls, ["qemu", "image", "nix", "assets"]);
+});
+
+test("an expired preflight is checked again", async () => {
+  const calls = [];
+  const dependencies = {
+    memo: {},
+    environment: {},
+    vmm: "krun",
+    verifyNix: () => calls.push("nix"),
+    gondolin: { ensureGuestAssets: async () => calls.push("assets") },
+  };
+  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
+  dependencies.memo.verifiedAt = Date.now() - 30_001;
+  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
+  assert.deepEqual(calls, ["nix", "assets", "nix", "assets"]);
+});
+
+test("a failed preflight is retried rather than memoized", async () => {
+  const calls = [];
+  let fail = true;
+  const dependencies = {
+    memo: {},
+    environment: {},
+    vmm: "krun",
+    verifyNix: () => calls.push("nix"),
+    gondolin: {
+      ensureGuestAssets: async () => {
+        calls.push("assets");
+        if (fail) throw new Error("unavailable");
+      },
+    },
+  };
+  const config = { sandbox: { kind: "gondolin" } };
+  await assert.rejects(preflightWorkerSandbox(config, dependencies), /unavailable/);
+  fail = false;
+  await preflightWorkerSandbox(config, dependencies);
+  await preflightWorkerSandbox(config, dependencies);
+  assert.deepEqual(calls, ["nix", "assets", "nix", "assets"]);
+});
+
+test("real preflight reuses a recent success", async (t) => {
+  const nix = spawnSync(nixBinary(), ["--version"], { stdio: "ignore" });
+  if (nix.error?.code === "ENOENT") return t.skip("Nix is unavailable here");
+  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } });
   const started = performance.now();
   await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } });
   assert.ok(performance.now() - started < 20, `second preflight took ${Math.round(performance.now() - started)} ms`);

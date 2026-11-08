@@ -1,9 +1,15 @@
 import { strict as assert } from "node:assert";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { createEnvironment } from "../../extensions/crew/runner/environment.mjs";
 import { createTrackedVm } from "../../extensions/crew/env-runtime/lib/vm-lifecycle.mjs";
+import { writeSeedArchive } from "../../extensions/crew/env-runtime/lib/repository-seed-archive.mjs";
 import { githubCiHeadersAllowed, githubCiRequestAllowed } from "../../extensions/crew/runner/github-ci-network.mjs";
 import { skipLiveGondolin } from "./live-gondolin.mjs";
+import { scanForSecret } from "./github-ci-secret-scan.mjs";
 
 // The proxy resolves api.github.com normally, but this fake upstream never delegates HTTP.
 test("guest proxy confines CI metadata and revokes placeholders on VM release", { timeout: 120_000 }, async (t) => {
@@ -40,7 +46,12 @@ test("guest proxy confines CI metadata and revokes placeholders on VM release", 
     },
   });
   t.after(() => environment.close());
-  const run = (command) => environment.withVm((vm) => vm.exec(command));
+  const records = [];
+  const run = async (command) => {
+    const record = await environment.withVm((vm) => vm.exec(command));
+    records.push(record);
+    return record;
+  };
   const curl = (path, auth = "$GH_TOKEN") =>
     `curl -skS -m 15 -w ' status=%{http_code}' -H "Authorization: Bearer ${auth}" 'https://api.github.com${path}'`;
   const first = await run(
@@ -83,5 +94,19 @@ test("guest proxy confines CI metadata and revokes placeholders on VM release", 
   assert.match(reboot.stdout, /status=403/);
   assert.ok(!reboot.stdout.includes(token));
   assert.equal(String(await environment.workspace.readFile("/seed.txt")), "seed-evidence");
-  assert.ok(!JSON.stringify({ first, reboot, logs }).includes(token));
+  // If guest env receives the real token instead of the placeholder, this persisted record leaks it.
+  assert.equal((await run('printf "%s" "$GH_TOKEN" > /workspace/guest-env-record')).exitCode, 0);
+  const exported = await run("tar -C /workspace -cf - . | base64");
+  assert.equal(exported.exitCode, 0, exported.stderr);
+  const tar = Buffer.from(exported.stdout, "base64");
+  const directory = mkdtempSync(join(tmpdir(), "ci-guest-archive-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const tarPath = join(directory, "workspace.tar");
+  const tree = join(directory, "tree");
+  execFileSync("mkdir", [tree]);
+  writeFileSync(tarPath, tar);
+  execFileSync("tar", ["-xf", tarPath, "-C", tree]);
+  // This seed archive is reconstructed from the exported workspace, not an artifact written by the run.
+  const seedArchive = writeSeedArchive(tree, "a".repeat(40));
+  assert.deepEqual(scanForSecret(token, { workspaceTar: tar, seedArchive, runRecords: { records, logs } }), []);
 });
