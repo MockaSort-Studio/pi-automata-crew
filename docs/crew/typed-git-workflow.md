@@ -16,7 +16,8 @@ records the commit id. The seed is cached by a key binding `repo` and
 to the current user on every read, and unpacked into the guest filesystem
 (`repository-workspace.mjs: populateRepositoryWorkspace`) before the worker's
 first tool call. The worker's `/workspace` is therefore always this exact
-revision — nothing fetched, nothing guessed.
+revision — nothing fetched, nothing guessed. The private in-memory VFS contains
+symlink resolution within the worker's workspace, including issue body file reads.
 
 ## Editing
 
