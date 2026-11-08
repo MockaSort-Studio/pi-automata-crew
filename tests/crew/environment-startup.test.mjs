@@ -37,7 +37,11 @@ test("retained launch intersects shared suite resolution with each member's gran
   const requests = agents.flatMap((agent) => agent.suiteGrants ?? []);
   const catalog = { release: "https://example.test/catalog", revision: "abc", fromCache: true, cachedAt: "today" };
   const result = await resolveLaunchEnvironment(
-    { agents, runId: "run", environment: { microvm: "gondolin", repository: { repo: "org/repo", revision: "rev", base: "main" } } },
+    {
+      agents,
+      runId: "run",
+      environment: { microvm: "gondolin", repository: { repo: "org/repo", revision: "rev", base: "main" } },
+    },
     {
       resolveEnvironment: async () => gondolin,
       resolveArmoryCatalog: async () => catalog,
@@ -49,18 +53,32 @@ test("retained launch intersects shared suite resolution with each member's gran
     },
   );
   assert.deepEqual(result.resolution, gondolin);
-  for (const [index, expected] of [[0, ["alpha"]], [1, ["beta"]], [2, []], [3, []]]) {
+  for (const [index, expected] of [
+    [0, ["alpha"]],
+    [1, ["beta"]],
+    [2, []],
+    [3, []],
+  ]) {
     const agent = result.agents[index];
     const suites = expected.length ? [{ suite, tools: expected }] : [];
     const tools = [...agents[index].tools, ...expected];
     assert.deepEqual(agent.tools, tools);
     assert.deepEqual(agent.environmentProfile, {
-      format: "hall.crew-profile/v1", tools, commTools: agents[index].commTools ?? [],
-      builtins: agents[index].tools, suites,
+      format: "hall.crew-profile/v1",
+      tools,
+      commTools: agents[index].commTools ?? [],
+      builtins: agents[index].tools,
+      suites,
     });
-    assert.deepEqual(agent.armory, expected.length ? { catalog: { release: catalog.release }, requests: suites } : undefined);
+    assert.deepEqual(
+      agent.armory,
+      expected.length ? { catalog: { release: catalog.release }, requests: suites } : undefined,
+    );
     assert.deepEqual(agent.repositoryAuthorization, {
-      repo: "org/repo", revision: "rev", base: "main", branch: `crew/run/${agent.name}`,
+      repo: "org/repo",
+      revision: "rev",
+      base: "main",
+      branch: `crew/run/${agent.name}`,
     });
     assert.deepEqual(agent.sandbox, gondolin.sandbox);
   }
