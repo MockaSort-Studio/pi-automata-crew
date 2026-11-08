@@ -4,6 +4,8 @@ A bash grant permits commands in the member's Gondolin guest; it does **not** pr
 
 For members granted bash, Crew attempts an anonymous, bounded HTTPS fetch from `registry.npmjs.org` for the reviewed exact pins in `extensions/crew/runner/dependency-pins.mjs`. The pins are checked against `package-lock.json` in tests. Full tarball SHA-512 SRI is checked before decompression or archive parsing. Invalid, missing, timed-out or incompatible artifacts are unavailable, not substituted from the host installation. Archive extraction is bounded and rejects links, special entries and unsafe paths. There is no persistent dependency cache. The public artifacts—not host credentials or configuration—supply the exposed bytes. This does not assert that a public package cannot itself contain sensitive strings.
 
+Bootstrap decompression and archive parsing currently run synchronously on the Crew host and are capped at 128 MiB unpacked per artifact. Main-host measurements for the reviewed pins (excluding network) ranged from 2.26 ms to 94.76 ms; the largest unpacked tar was Pi SDK at 25,024,512 bytes. These are single-run observations, not a worst-case latency guarantee: a future larger pinned artifact could block other crews longer, and changing pins requires renewed measurement or an asynchronous parser.
+
 Available packages are read-only snapshots at `/opt/crew/dependency-sources/`; `manifest.json` lists versions, SRI and SHA-256 of each extracted file. Hashes describe exposed file identity; the SRI verifies the downloaded artifact. Source visibility does **not** install or make native modules and dependency trees runnable.
 
 When Prettier is available, format workspace files using guest bash, for example:

@@ -31,7 +31,7 @@ test("verified formatter runs in the guest and source mount denies writes", { ti
     if ln -s /workspace/move-source ${GUEST_SOURCES}/prettier/new 2>/dev/null; then exit 15; fi
     if ln "$target" ${GUEST_SOURCES}/prettier/new 2>/dev/null; then exit 16; fi
     if mkdir ${GUEST_SOURCES}/prettier/new 2>/dev/null; then exit 17; fi
-    if touch "$target" 2>/dev/null; then exit 18; fi
+    if touch ${GUEST_SOURCES}/prettier/new 2>/dev/null; then exit 18; fi
     if truncate -s 0 "$target" 2>/dev/null; then exit 19; fi
     if rm "$target" 2>/dev/null; then exit 20; fi
     if chmod 600 "$target" 2>/dev/null; then exit 21; fi

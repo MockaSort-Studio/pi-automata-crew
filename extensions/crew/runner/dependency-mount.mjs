@@ -1,4 +1,5 @@
-import { MemoryProvider, ReadonlyProvider } from "@earendil-works/gondolin";
+import { MemoryProvider } from "@earendil-works/gondolin";
+import { ReadonlySnapshotProvider } from "./readonly-snapshot.mjs";
 import { posix } from "node:path";
 import { createSourceCache, prepareSources } from "./dependency-bootstrap.mjs";
 import { DEPENDENCY_PINS } from "./dependency-pins.mjs";
@@ -22,7 +23,7 @@ export async function buildDependencyMount({ snapshots, failures }) {
     "/manifest.json",
     JSON.stringify({ packages: snapshots.map((item) => item.manifest), failures }, null, 2),
   );
-  return { provider: new ReadonlyProvider(memory), available: snapshots.map((item) => item.manifest.name), failures };
+  return { provider: new ReadonlySnapshotProvider(memory), available: snapshots.map((item) => item.manifest.name), failures };
 }
 
 export async function prepareDependencyMount() {

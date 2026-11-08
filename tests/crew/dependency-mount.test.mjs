@@ -25,7 +25,14 @@ test("dependency snapshot is readable but refuses mutation", async () => {
   const handle = await provider.open("/demo/index.js", "r");
   await assert.rejects(handle.write(Buffer.from("x"), 0, 1, 0));
   await assert.rejects(handle.truncate(0));
+  await assert.rejects(handle.writeFile("bad"));
+  assert.throws(() => handle.writeSync(Buffer.from("x"), 0, 1, 0));
+  assert.throws(() => handle.writeFileSync("bad"));
+  assert.throws(() => handle.truncateSync(0));
   await handle.close();
+  const syncHandle = provider.openSync("/demo/index.js", "r");
+  assert.throws(() => syncHandle.writeSync(Buffer.from("x"), 0, 1, 0));
+  syncHandle.closeSync();
   assert.equal(String(await provider.readFile("/demo/index.js")), "source");
 });
 

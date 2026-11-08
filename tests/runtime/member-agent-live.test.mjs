@@ -51,9 +51,9 @@ async function setup(t, respond) {
     server.close();
     rmSync(dir, { recursive: true, force: true });
   });
-  const build = async (member, extra = {}) => {
+  const build = async (member, extra = {}, prepareSources = async () => ({ available: [], failures: ["fixture: source unavailable"] })) => {
     const agent = await createMemberAgent({
-      prepareSources: async () => ({ available: [], failures: ["fixture: source unavailable"] }),
+      prepareSources,
       member: {
         handle: "developer-snowball-00",
         instructions: "You are Snowball, a careful developer.",
@@ -73,6 +73,14 @@ const offeredTools = (server) =>
   JSON.parse(server.requests[0])
     .tools.map((tool) => tool.function.name)
     .sort();
+
+test("source mount failures do not prevent a member from starting", { timeout: 120_000 }, async (t) => {
+  if (skipLiveGondolin(t)) return;
+  const { server, build } = await setup(t, () => ({ text: "ok" }));
+  const agent = await build({}, {}, async () => { throw new Error("provider failure"); });
+  assert.equal((await agent.run.prompt("hello")).status, "completed");
+  assert.match(server.requests[0], /Verified dependency source mount unavailable/);
+});
 
 test(
   "a read-only member gets its role's tools and instructions, no GitHub suite and no salvage",
