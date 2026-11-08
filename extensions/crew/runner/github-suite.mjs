@@ -78,6 +78,7 @@ export function githubSuiteExtension({
   transport = hostGhTransport({ token }),
 }) {
   return (pi) => {
+    const reviews = new Map();
     module.activateSuite(pi, injection({ workspace, token, transport }));
     pi.on("tool_call", async (event) => {
       if (!event.toolName.startsWith("github_")) return;
@@ -85,6 +86,18 @@ export function githubSuiteExtension({
         authorizeRepositoryOperation(event.toolName, event.input, policy);
       } catch (error) {
         return { block: true, reason: error.message };
+      }
+      if (
+        event.toolName === "github_pull_request_review_inline_comment" ||
+        event.toolName === "github_pull_request_review_submit"
+      ) {
+        const review = reviews.get(event.input.reviewId);
+        if (
+          !review ||
+          (event.toolName === "github_pull_request_review_inline_comment" &&
+            (event.input.repo !== review.repo || event.input.pullNumber !== review.pullNumber))
+        )
+          return { block: true, reason: "Review ID was not started for this target in this session" };
       }
       if (ownPullRequestOperations.has(event.toolName)) {
         try {
@@ -113,6 +126,28 @@ export function githubSuiteExtension({
       }
     });
     pi.on("tool_result", (event) => {
+      if (event.toolName === "github_pull_request_review_submit" && !event.isError)
+        reviews.delete(event.input?.reviewId);
+      if (event.toolName === "github_pull_request_review_start" && !event.isError) {
+        let result = event.details;
+        if (!result) {
+          try {
+            result = JSON.parse(event.content?.find((part) => part.type === "text")?.text);
+          } catch {}
+        }
+        const input = event.input;
+        if (
+          policy &&
+          input?.repo === policy.repo &&
+          Number.isInteger(input.pullNumber) &&
+          input.pullNumber > 0 &&
+          result?.repo === input.repo &&
+          result.pullNumber === input.pullNumber &&
+          typeof result.reviewId === "string" &&
+          result.reviewId.length > 0
+        )
+          reviews.set(result.reviewId, { repo: result.repo, pullNumber: result.pullNumber });
+      }
       if (event.toolName === "github_pull_request_create" && !event.isError)
         return {
           content: [...event.content, { type: "text", text: "Crew policy created this pull request as a draft." }],

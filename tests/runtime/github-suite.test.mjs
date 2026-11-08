@@ -272,8 +272,6 @@ test("PR ownership applies only to writes and fails closed", async () => {
     "github_pull_request_comment",
     "github_pull_request_review",
     "github_pull_request_review_start",
-    "github_pull_request_review_inline_comment",
-    "github_pull_request_review_submit",
     "github_pull_request_merge",
   ])
     assert.equal(await call(name, { repo: policy.repo, pullNumber: 2 }), undefined);
