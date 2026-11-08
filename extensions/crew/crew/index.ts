@@ -83,7 +83,7 @@ export default function crewExtension(pi: ExtensionAPI) {
     label: "Crew: route specialists",
     description: "Inspect SPECIALIST_ROUTES or select specialist personas for repository paths. Does not select roles.",
     parameters: Type.Object({
-      paths: Type.Optional(Type.Array(Type.String({ maxLength: 4096 }), { minItems: 1, maxItems: 256 })),
+      paths: Type.Optional(Type.Array(Type.String(), { minItems: 1 })),
       maxSpecialists: Type.Optional(Type.Integer({ minimum: 1, maximum: 8 })),
     }),
     async execute(_id, input, _signal, _update, ctx) {
