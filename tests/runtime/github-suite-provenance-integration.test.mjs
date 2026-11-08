@@ -90,7 +90,6 @@ test("Pi dispatch blocks later-hook starts and failed starts from review provena
   ]);
   assert.deepEqual(results, [
     { pullNumber: 7, isError: false },
-    { pullNumber: 8, isError: true },
     { pullNumber: 9, isError: true },
   ]);
 });
