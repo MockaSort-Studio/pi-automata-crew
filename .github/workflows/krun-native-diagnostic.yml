@@ -1,0 +1,125 @@
+name: Krun native diagnostic
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/krun-native-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  native-backtrace:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install debugger and image tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdb qemu-utils
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: Capture sanitized native backtrace
+        run: |
+          set -euo pipefail
+          private="$(mktemp -d)"
+          trap 'rm -rf "$private"' EXIT
+          mkdir -p "$private/home" "$private/cache" diagnostic-output
+          ulimit -c 0
+          node_binary="$(command -v node)"
+          set +e
+          timeout --kill-after=10s 180s env -i \
+            HOME="$private/home" XDG_CACHE_HOME="$private/cache" \
+            PATH="$PATH" LANG=C RUST_BACKTRACE=full DEBUGINFOD_URLS= \
+            gdb --batch \
+              -ex 'set pagination off' \
+              -ex 'set print frame-arguments none' \
+              -ex 'set print thread-events off' \
+              -ex 'set detach-on-fork off' \
+              -ex 'set follow-fork-mode parent' \
+              -ex 'set schedule-multiple on' \
+              -ex 'handle SIGABRT stop print nopass' \
+              -ex run -ex 'thread apply all bt' -ex quit \
+              --args "$node_binary" --input-type=module -e '
+          import { VM, MemoryProvider } from "@earendil-works/gondolin";
+          let vm;
+          try {
+            vm = await VM.create({ sandbox: { vmm: "krun" }, vfs: { mounts: { "/workspace": new MemoryProvider() } } });
+            await vm.start();
+            await vm.exec("echo diagnostic");
+          } finally {
+            if (vm) await vm.close();
+          }
+          ' >"$private/gdb.txt" 2>&1
+          debug_status=$?
+          set -e
+          # Keep only symbol names and library basenames: no argv, locals, memory or source paths.
+          python3 - "$private/gdb.txt" "$debug_status" <<'PY'
+          import pathlib, re, sys
+          raw = pathlib.Path(sys.argv[1]).read_text(errors="replace")
+          lines = [f"Debugger exit status: {int(sys.argv[2])}"]
+          stopped = bool(re.search(r"received signal SIGABRT\b", raw))
+          denied = bool(re.search(r"(?:ptrace|attach).*?(?:operation not permitted|permission denied)", raw, re.I))
+          if denied:
+              denial = re.search(r"(?:ptrace|attach):\s*(?:Operation not permitted|Permission denied)", raw, re.I)
+              lines.append(f"Debugger limitation: {denial.group(0)}" if denial else "Debugger limitation: ptrace or attach permission denied")
+          elif stopped:
+              lines.append("Debugger stopped on SIGABRT")
+          else:
+              lines.append("Debugger limitation: SIGABRT was not captured")
+          count = 0
+          for line in raw.splitlines():
+              thread = re.match(r"^Thread (\d+(?:\.\d+)?)\b", line)
+              if thread:
+                  lines.append(f"Thread {thread.group(1)}")
+                  continue
+              frame = re.match(r"^#(\d+)\s+(?:0x[0-9a-fA-F]+\s+in\s+)?([A-Za-z0-9_.$:~+-]+|\?\?)", line)
+              if not frame:
+                  continue
+              library = re.search(r"\sfrom\s+(/[^\s]+)", line)
+              suffix = f" [{pathlib.PurePosixPath(library.group(1)).name}]" if library else ""
+              lines.append(f"#{frame.group(1)} {frame.group(2)}{suffix}")
+              count += 1
+          text = "\n".join(lines) + "\n"
+          # Fail closed rather than print or archive anything resembling credentials.
+          if re.search(r"token|secret|password|authorization|api[_-]?key|gh[opsu]_|github_pat", text, re.I):
+              raise SystemExit("Sanitized backtrace rejected by credential-pattern inspection")
+          pathlib.Path("diagnostic-output/backtrace.txt").write_text(text)
+          print(text, end="")
+          if not stopped or not count:
+              raise SystemExit("Native SIGABRT backtrace unavailable")
+          PY
+      - name: Upload inspected text backtrace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: krun-native-backtrace
+          path: diagnostic-output/backtrace.txt
+          if-no-files-found: warn
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
