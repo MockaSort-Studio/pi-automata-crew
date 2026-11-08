@@ -1,0 +1,409 @@
+{
+  "suite": "collaboration/pi-github-tools",
+  "revision": "8416f68e04af6827ac9f0127fb80136666b1f2fa",
+  "sourceSha256": "b0c68e2a7f94694e27002d85096cc249ac39b41946aee86e253fa121a726bbe0",
+  "operations": {
+    "github_dependency_add": {
+      "fields": {
+        "blockingNumber": "integer",
+        "issueNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["blockingNumber", "issueNumber", "repo"]
+    },
+    "github_dependency_list": {
+      "fields": {
+        "issueNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["issueNumber", "repo"]
+    },
+    "github_discussion_comments": {
+      "fields": {
+        "discussionNumber": "integer",
+        "limit": "integer",
+        "owner": "string",
+        "repo": "string"
+      },
+      "required": ["discussionNumber", "owner", "repo"]
+    },
+    "github_discussion_delete": {
+      "fields": {
+        "discussionNumber": "integer",
+        "owner": "string",
+        "repo": "string"
+      },
+      "required": ["discussionNumber", "owner", "repo"]
+    },
+    "github_discussion_post": {
+      "fields": {
+        "body": "string",
+        "discussionNumber": "integer",
+        "owner": "string",
+        "repo": "string"
+      },
+      "required": ["body", "discussionNumber", "owner", "repo"]
+    },
+    "github_discussion_view": {
+      "fields": {
+        "discussionNumber": "integer",
+        "owner": "string",
+        "repo": "string"
+      },
+      "required": ["discussionNumber", "owner", "repo"]
+    },
+    "github_discussions_list": {
+      "fields": {
+        "limit": "integer",
+        "owner": "string",
+        "repo": "string"
+      },
+      "required": ["owner", "repo"]
+    },
+    "github_git_commit": {
+      "fields": {
+        "message": "string",
+        "repo": "string"
+      },
+      "required": ["message", "repo"]
+    },
+    "github_git_diff": {
+      "fields": {
+        "paths": "array",
+        "repo": "string"
+      },
+      "required": ["repo"]
+    },
+    "github_git_push": {
+      "fields": {
+        "branch": "string",
+        "repo": "string"
+      },
+      "required": ["branch", "repo"]
+    },
+    "github_git_stage": {
+      "fields": {
+        "paths": "array",
+        "repo": "string"
+      },
+      "required": ["paths", "repo"]
+    },
+    "github_git_status": {
+      "fields": {
+        "repo": "string"
+      },
+      "required": ["repo"]
+    },
+    "github_issue_add_label": {
+      "fields": {
+        "issueNumber": "integer",
+        "labels": "array",
+        "repo": "string"
+      },
+      "required": ["issueNumber", "labels", "repo"]
+    },
+    "github_issue_comment": {
+      "fields": {
+        "body": "string",
+        "issueNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["body", "issueNumber", "repo"]
+    },
+    "github_issue_create": {
+      "fields": {
+        "bodyFile": "string",
+        "labels": "array",
+        "milestone": "string",
+        "repo": "string",
+        "title": "string"
+      },
+      "required": ["bodyFile", "repo", "title"]
+    },
+    "github_issue_remove_label": {
+      "fields": {
+        "issueNumber": "integer",
+        "label": "string",
+        "repo": "string"
+      },
+      "required": ["issueNumber", "label", "repo"]
+    },
+    "github_issue_update": {
+      "fields": {
+        "body": "string",
+        "issueNumber": "integer",
+        "milestone": "string",
+        "repo": "string",
+        "state": "string",
+        "title": "string"
+      },
+      "required": ["issueNumber", "repo"]
+    },
+    "github_issue_view": {
+      "fields": {
+        "issueNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["issueNumber", "repo"]
+    },
+    "github_issues_list": {
+      "fields": {
+        "labels": "array",
+        "limit": "integer",
+        "milestone": "string",
+        "repo": "string",
+        "state": "string"
+      },
+      "required": ["repo"]
+    },
+    "github_label_create": {
+      "fields": {
+        "color": "string",
+        "description": "string",
+        "name": "string",
+        "repo": "string"
+      },
+      "required": ["color", "name", "repo"]
+    },
+    "github_label_list": {
+      "fields": {
+        "repo": "string"
+      },
+      "required": ["repo"]
+    },
+    "github_label_update": {
+      "fields": {
+        "color": "string",
+        "description": "string",
+        "name": "string",
+        "repo": "string"
+      },
+      "required": ["name", "repo"]
+    },
+    "github_project_field_set": {
+      "fields": {
+        "fieldName": "string",
+        "itemId": "string",
+        "org": "string",
+        "project": "integer",
+        "valueName": "string"
+      },
+      "required": ["fieldName", "itemId", "org", "project", "valueName"]
+    },
+    "github_project_fields": {
+      "fields": {
+        "org": "string",
+        "project": "integer"
+      },
+      "required": ["org", "project"]
+    },
+    "github_project_item_add": {
+      "fields": {
+        "org": "string",
+        "project": "integer",
+        "url": "string"
+      },
+      "required": ["org", "project", "url"]
+    },
+    "github_project_item_find": {
+      "fields": {
+        "issueNumber": "integer",
+        "org": "string",
+        "project": "integer"
+      },
+      "required": ["issueNumber", "org", "project"]
+    },
+    "github_pull_request_add_label": {
+      "fields": {
+        "labels": "array",
+        "pullNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["labels", "pullNumber", "repo"]
+    },
+    "github_pull_request_checks": {
+      "fields": {
+        "pullNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["pullNumber", "repo"]
+    },
+    "github_pull_request_checks_wait": {
+      "fields": {
+        "failFast": "boolean",
+        "intervalSeconds": "integer",
+        "pullNumber": "integer",
+        "repo": "string",
+        "sha": "string"
+      },
+      "required": ["pullNumber", "repo"]
+    },
+    "github_pull_request_comment": {
+      "fields": {
+        "body": "string",
+        "pullNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["body", "pullNumber", "repo"]
+    },
+    "github_pull_request_create": {
+      "fields": {
+        "base": "string",
+        "body": "string",
+        "draft": "boolean",
+        "head": "string",
+        "repo": "string",
+        "title": "string"
+      },
+      "required": ["base", "head", "repo", "title"]
+    },
+    "github_pull_request_files": {
+      "fields": {
+        "pullNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["pullNumber", "repo"]
+    },
+    "github_pull_request_merge": {
+      "fields": {
+        "method": "string|string|string",
+        "pullNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["pullNumber", "repo"]
+    },
+    "github_pull_request_remove_label": {
+      "fields": {
+        "label": "string",
+        "pullNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["label", "pullNumber", "repo"]
+    },
+    "github_pull_request_review": {
+      "fields": {
+        "body": "string",
+        "event": "string|string",
+        "pullNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["event", "pullNumber", "repo"]
+    },
+    "github_pull_request_review_inline_comment": {
+      "fields": {
+        "body": "string",
+        "line": "integer",
+        "path": "string",
+        "pullNumber": "integer",
+        "repo": "string",
+        "reviewId": "string",
+        "side": "string|string"
+      },
+      "required": ["body", "line", "path", "pullNumber", "repo", "reviewId"]
+    },
+    "github_pull_request_review_start": {
+      "fields": {
+        "body": "string",
+        "pullNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["pullNumber", "repo"]
+    },
+    "github_pull_request_review_submit": {
+      "fields": {
+        "body": "string",
+        "event": "string|string",
+        "hasBlockingFindings": "boolean",
+        "reviewId": "string"
+      },
+      "required": ["event", "hasBlockingFindings", "reviewId"]
+    },
+    "github_pull_request_review_threads": {
+      "fields": {
+        "includeResolved": "boolean",
+        "pullNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["pullNumber", "repo"]
+    },
+    "github_pull_request_update": {
+      "fields": {
+        "base": "string",
+        "body": "string",
+        "pullNumber": "integer",
+        "repo": "string",
+        "state": "string",
+        "title": "string"
+      },
+      "required": ["pullNumber", "repo"]
+    },
+    "github_pull_request_view": {
+      "fields": {
+        "pullNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["pullNumber", "repo"]
+    },
+    "github_pull_requests_list": {
+      "fields": {
+        "limit": "integer",
+        "repo": "string",
+        "state": "string"
+      },
+      "required": ["repo"]
+    },
+    "github_repo_discussions_set": {
+      "fields": {
+        "enabled": "boolean",
+        "repo": "string"
+      },
+      "required": ["enabled", "repo"]
+    },
+    "github_subissue_add": {
+      "fields": {
+        "childNumber": "integer",
+        "parentNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["childNumber", "parentNumber", "repo"]
+    },
+    "github_subissues_list": {
+      "fields": {
+        "parentNumber": "integer",
+        "repo": "string"
+      },
+      "required": ["parentNumber", "repo"]
+    },
+    "github_workflow_run_failed_log": {
+      "fields": {
+        "maxChars": "integer",
+        "repo": "string",
+        "runId": "integer"
+      },
+      "required": ["repo", "runId"]
+    },
+    "github_workflow_run_view": {
+      "fields": {
+        "repo": "string",
+        "runId": "integer"
+      },
+      "required": ["repo", "runId"]
+    },
+    "github_workflow_runs_list": {
+      "fields": {
+        "limit": "integer",
+        "repo": "string",
+        "workflow": "string"
+      },
+      "required": ["repo"]
+    },
+    "github_workspace_checkout": {
+      "fields": {
+        "branch": "string",
+        "repo": "string",
+        "revision": "string"
+      },
+      "required": ["branch", "repo", "revision"]
+    }
+  }
+}
