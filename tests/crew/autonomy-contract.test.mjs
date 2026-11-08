@@ -4,7 +4,11 @@ import { assignmentContext, fileChangeDecision } from "../../extensions/crew/cre
 import { crewDisciplineModule } from "../../extensions/crew/crew/lib/automaton-body/lib/modules/crew-discipline.mjs";
 import { createRequestInputTool } from "../../extensions/crew/runner/request-input-tool.mjs";
 
-const autonomy = { kind: "autonomy", allowedFileClasses: ["tests", "docs", "source"], forbiddenFiles: [".github/**", "secrets/*"] };
+const autonomy = {
+  kind: "autonomy",
+  allowedFileClasses: ["tests", "docs", "source"],
+  forbiddenFiles: [".github/**", "secrets/*"],
+};
 const member = { inputs: [{ kind: "issue", number: 151 }, autonomy], acceptanceCriteria: ["Named files are a hint."] };
 
 // Scripted worker: it reads only the assembled context, applies the contract decision to each file it
@@ -62,7 +66,14 @@ test("the autonomy statement is scope only and is surfaced without granting auth
 
 test("the contract states the autonomy rule and the always-ask list", () => {
   const { instructions } = crewDisciplineModule();
-  for (const text of ["contradict the issue", "scope hint", "equivalent implementation approaches", "new authority or credentials", "security or scope decision", "evidence you cannot obtain"]) {
+  for (const text of [
+    "contradict the issue",
+    "scope hint",
+    "equivalent implementation approaches",
+    "new authority or credentials",
+    "security or scope decision",
+    "evidence you cannot obtain",
+  ]) {
     assert.ok(instructions.includes(text), text);
   }
 });
