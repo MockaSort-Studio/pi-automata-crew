@@ -66,7 +66,10 @@ removes the ID. No review lookup is used to authorize mutations. The record exis
 instance: after a restart, pending reviews fail closed and must be started again. A pending review created
 outside this session, even with the same token, cannot be used. A review started by this member is trusted
 by construction; this does not establish an independent GitHub guarantee about review parent immutability.
-Review mutations remain explicit grants, not default tools.
+Review mutations remain explicit grants, not default tools. This provenance boundary relies on Pi emitting an error
+`tool_result` for a start blocked or failed by another extension hook after this suite's `tool_call` hook has passed;
+that error clears the pending start without recording a review. It also relies on Pi reporting execution failures as
+error results. The real multi-hook integration test exercises these dispatch semantics.
 
 ## What this does not bound
 

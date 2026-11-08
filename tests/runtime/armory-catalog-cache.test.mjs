@@ -1,4 +1,6 @@
 import { strict as assert } from "node:assert";
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
 import {
   chmodSync,
@@ -127,19 +129,44 @@ test("operations stay on canonical home when an alias is swapped", () => {
   const aliases = home();
   const alias = join(aliases, "home");
   symlinkSync(original, alias);
+  chmodSync(aliases, 0o777);
   assert.equal(writeCachedCatalog(doc, { home: original }), true);
   assert.equal(writeCachedCatalog({ ...doc, value: "attacker" }, { home: attacker }), true);
   let swapped = false;
-  assert.equal(writeCachedCatalog(doc, { home: alias, random: () => {
-    if (!swapped) {
-      swapped = true;
-      renameSync(alias, `${alias}.old`);
-      symlinkSync(attacker, alias);
-    }
-    return Buffer.alloc(16, 1);
-  } }), true);
-  assert.equal(JSON.parse(readFileSync(join(catalogCacheRoot(attacker), "latest.json"), "utf8")).doc.value, "attacker");
+  assert.equal(
+    writeCachedCatalog(doc, {
+      home: alias,
+      random: () => {
+        if (!swapped) {
+          swapped = true;
+          renameSync(alias, `${alias}.old`);
+          symlinkSync(attacker, alias);
+        }
+        return Buffer.alloc(16, 1);
+      },
+    }),
+    true,
+  );
+  assert.equal(
+    JSON.parse(readFileSync(join(catalogCacheRoot(attacker), "latest.json"), "utf8")).doc.value,
+    "attacker",
+  );
   assert.equal(read(original).doc.value, "valid");
+  unlinkSync(alias);
+  symlinkSync(original, alias);
+  const open = fs.openSync;
+  fs.openSync = (...args) => {
+    unlinkSync(alias);
+    symlinkSync(attacker, alias);
+    return open(...args);
+  };
+  syncBuiltinESMExports();
+  try {
+    assert.equal(read(alias).doc.value, "valid");
+  } finally {
+    fs.openSync = open;
+    syncBuiltinESMExports();
+  }
 });
 
 test("exclusive temporary creation rejects a forced collision", () => {
