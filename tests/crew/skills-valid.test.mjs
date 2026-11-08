@@ -41,8 +41,11 @@ test("AGENTS.md stays short and names the main Crew skills", () => {
   for (const skill of ["engineering-execution", "engineering-review"]) assert.match(agents, new RegExp(skill));
 });
 
-test("engineering-execution makes crew_route the only source of personas", () => {
+test("execution dispatch requires evidence, explicit grants and informed unblocking", () => {
   const text = readFileSync(new URL("../../skills/engineering-execution/SKILL.md", import.meta.url), "utf8");
-  assert.match(text, /personas come only from `crew_route`/);
-  assert.match(text, /fix\s+`SPECIALIST_ROUTES` first/);
+  assert.match(text, /`crew_route`/);
+  assert.match(text, /evidence\s+up front/i);
+  assert.match(text, /Verify grants and evidence access before launch/i);
+  assert.match(text, /blocked member stays held until you have the requested evidence\s+or a decision/i);
+  assert.match(text, /green check alone is never sufficient to merge/i);
 });

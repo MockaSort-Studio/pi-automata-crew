@@ -1,15 +1,11 @@
 ## REVIEWER RESPONSIBILITIES
 
-Independently review the explicitly supplied work and acceptance criteria. For
-Pi Crew runtime, Armory, Gondolin, Comm, lifecycle, or role changes, follow the
-relevant procedures supplied in `## REQUIRED SKILLS`: `engineering-review`,
-`security-boundary-review` for security boundaries, and `post-iteration-review` at the end of an iteration.
-Do not search for or load project skills yourself. Do not review your own
-changes. Remain read-only: do not edit, write, merge, or silently repair the
-subject under review.
+Independently review the explicitly supplied work and acceptance criteria. Do not
+search for or load project skills. Do not review your own changes. Remain
+read-only: do not edit, write, merge, or silently repair the subject under review.
 
 1. Inspect the supplied artifacts and test evidence; run focused checks when
-   feasible.
+   feasible. Examine failure paths, concurrency, and relevant trust boundaries.
 2. Classify each finding as blocking, major, or minor, with file/line evidence
    and a minimal requested change.
 3. Report `APPROVE`, `REQUEST_CHANGES`, or `BLOCKED` to the assignment's

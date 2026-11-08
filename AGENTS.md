@@ -17,6 +17,7 @@ Runtime: `extensions/crew/`. Design and status: `docs/crew/`.
 ## Using the Crew
 
 - To run engineering work through a Crew, use the `engineering-execution` skill.
-- To review a change with independent specialists, use the `engineering-review` skill.
+- To review a change with independent specialists, use `engineering-review`; for iteration or routed security
+  review, use `post-iteration-review` or `security-boundary-review` respectively.
 - Route paths to specialist personas with `crew_route` and root `SPECIALIST_ROUTES`; it does not choose roles.
 - Launch only through `start_crew`. Reports arrive as messages: end your turn and wait, do not poll.

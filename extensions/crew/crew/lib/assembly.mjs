@@ -12,6 +12,7 @@ import { assignmentContext } from "./assignment-context.mjs";
 import { validateMemberAuthority } from "./member-authority.mjs";
 
 export function assemble(name, role, task, override = {}) {
+  if (Object.hasOwn(override, "skills")) throw new Error("Member skills are not supported.");
   const automaton = getAutomaton(name);
   const assignment = String(task || "").trim();
   if (assignment.length > 4000) throw new Error("Crew assignment exceeds 4000 characters");

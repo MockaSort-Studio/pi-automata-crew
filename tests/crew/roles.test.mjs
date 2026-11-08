@@ -81,7 +81,7 @@ test("Bollo can perform a read-only security review with no implicit suite grant
     systemOperations: ["read", "grep", "find", "ls", "bash"],
   });
   assert.match(result.instructions, /Bollo treats every permission/);
-  assert.match(result.instructions, /security-boundary-review/);
+  assert.match(result.instructions, /Test deny-by-default, absent grants, stale identities/);
   assert.ok(!result.tools.some((tool) => tool.startsWith("github_")));
   assert.ok(!result.tools.includes("edit"));
   assert.ok(!result.tools.includes("write"));
