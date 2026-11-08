@@ -117,6 +117,11 @@ export function authorizeRepositoryOperation(operation, input, policy) {
   }
   if (target === "reviewInline" && (!Number.isInteger(input.pullNumber) || input.pullNumber <= 0))
     throw new Error("pullNumber must be a positive integer");
+  // bodyFile is checked lexically on purpose. Where it is read is already isolated: the host-side suite reads
+  // through the in-memory workspace VFS (a symlink to a host path is unreadable, see
+  // gondolin-private-workspace.test.mjs), and the retained guest-suite path reads inside the member's own VM
+  // with the member's own privileges, where the member can already read the same file with bash. A symlink
+  // therefore never reaches anything the member could not already read.
   if (operation === "github_issue_create" && (!safeWorkspacePath(input.bodyFile) || input.bodyFile.includes("\\")))
     throw new Error("bodyFile must be a workspace-relative file path");
   if (
