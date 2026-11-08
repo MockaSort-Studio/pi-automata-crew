@@ -249,6 +249,55 @@ test("message, cancel and dispose are routed to the right crew; unknown ones are
   assert.match((await h.call("nonsense", {})).error.message, /Unknown method/);
 });
 
+test("hold and handoff are Main's recorded decisions: no turn, no report, dependents stay held", async () => {
+  let prompts = 0;
+  const created = [];
+  const h = host({
+    deps: {
+      createMemberAgent: async ({ member: m }) => {
+        created.push(m.handle);
+        return {
+          run: {
+            prompt: async () => (prompts++, { status: "needs_input", question: "?", finalText: "", evidence: {} }),
+            abort: async () => {},
+          },
+          dispose: async () => h.disposed.push(m.handle),
+        };
+      },
+    },
+  });
+  await h.call("launch", launch({ members: [member(A), member(B, { dependsOn: [A] })] }));
+  await settle();
+  const held = await h.call("hold", {
+    runId: "run1",
+    handle: A,
+    blocker: "waiting on secret-token-xyz rotation",
+    owner: "human",
+    resumeWhen: "token rotated",
+  });
+  assert.equal(held.ok, true);
+  assert.equal(held.result.hold.owner, "human");
+  assert.doesNotMatch(JSON.stringify(h.sent), /secret-token-xyz/);
+  await settle();
+  assert.equal(prompts, 1, "the hold started no turn");
+  assert.equal(events(h.sent, "result").length, 1, "and is not a report");
+  const [decision] = events(h.sent, "decision");
+  assert.deepEqual([decision.runId, decision.handle, decision.decision.type], ["run1", A, "hold"]);
+  let [first, second] = (await h.call("status", { runId: "run1" })).result.members;
+  assert.deepEqual([first.state, first.hold.resumeWhen, first.lastReport.current], ["on_hold", "token rotated", false]);
+  assert.equal(second.state, "held");
+
+  const handed = await h.call("handoff", { runId: "run1", handle: A, unmet: ["green CI"] });
+  assert.deepEqual([handed.ok, handed.result.handoff.outcome], [true, "partial"]);
+  assert.deepEqual(h.disposed, [A], "its VM was released");
+  [first, second] = (await h.call("status", { runId: "run1" })).result.members;
+  assert.deepEqual([first.state, first.ledger, first.handoff.unmet], ["handed_off", "blocked", ["green CI"]]);
+  assert.equal(second.state, "held");
+  assert.deepEqual(created, [A], "the dependent never started");
+  assert.match((await h.call("hold", { runId: "run1", handle: A })).error.message, /handed_off/);
+  assert.match((await h.call("handoff", { runId: "nope", handle: A, unmet: ["x"] })).error.message, /Unknown crew/);
+});
+
 test("a launch resolving after close is rejected and its runtime is disposed", async () => {
   let release;
   let disposed = 0;

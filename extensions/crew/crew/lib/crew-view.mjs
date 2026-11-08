@@ -6,16 +6,28 @@ import { renderCrewStatusFooter } from "./monitor-footer.mjs";
 // and the launch plan go in; the existing snapshot, footer and dashboard renderers are fed from them.
 const LIFECYCLE = {
   queued: "queued",
-  held: "queued",
+  // Not started because a prerequisite is blocked, failed or handed off: it cannot progress on its own.
+  held: "BLOCKED",
   running: "running",
   ci: "running",
   needs_input: "attention",
   failed: "attention",
+  // Main acknowledged it; someone else owns the blocker.
+  on_hold: "BLOCKED",
   completed: "PASS",
+  // Ended without acceptance: its dependents stay blocked, so it is never shown as passed.
+  handed_off: "BLOCKED",
   cancelled: "FAIL",
 };
-const LEDGER = { completed: "complete", cancelled: "failed", needs_input: "blocked", failed: "blocked" };
-const ENDED = new Set(["completed", "cancelled"]);
+const LEDGER = {
+  completed: "complete",
+  cancelled: "failed",
+  needs_input: "blocked",
+  failed: "blocked",
+  on_hold: "blocked",
+  handed_off: "blocked",
+};
+const ENDED = new Set(["completed", "handed_off", "cancelled"]);
 const short = (runId) => String(runId).slice(0, 8);
 
 const metricsOf = (live = {}) => ({
@@ -52,9 +64,15 @@ export function crewView({ runId, members }) {
     ? "Working"
     : members.some((m) => m.state === "needs_input" || m.state === "failed")
       ? "Needs you"
-      : isActive(members)
-        ? "Queued"
-        : "Done";
+      : members.some((m) => m.state === "on_hold")
+        ? "On hold"
+        : members.some((m) => m.state === "queued")
+          ? "Queued"
+          : members.some((m) => m.state === "handed_off")
+            ? "Handed off"
+            : members.some((m) => m.state === "held")
+              ? "Blocked"
+              : "Done";
   return { runId, snapshot, line: { view: { runId: short(runId), phase }, footer: renderCrewStatusFooter(snapshot) } };
 }
 

@@ -21,6 +21,8 @@ test("Main can look at, answer, cancel and clean up crews", async () => {
   const { tools, requests, call, runs } = setup();
   assert.deepEqual([...tools.keys()].sort(), [
     "crew_cancel",
+    "crew_handoff",
+    "crew_hold",
     "crew_message",
     "crew_status",
     "runtime_cleanup",
@@ -36,6 +38,29 @@ test("Main can look at, answer, cancel and clean up crews", async () => {
   assert.deepEqual(requests.at(-1), ["cancel", { runId: "run1", handle: undefined }], "no member means the whole crew");
   assert.deepEqual(await call("runtime_cleanup", {}), { disposed: ["run1", "run2"] });
   assert.deepEqual([...runs], [], "cleanup forgets the crews it disposed");
+});
+
+test("Main can hold a member without a turn and hand off unaccepted work, each routed as its own request", async () => {
+  const { call, requests } = setup();
+  const refs = { pullRequest: "https://github.com/o/r/pull/9", head: "a".repeat(40) };
+  await call("crew_hold", {
+    runId: "run1",
+    member: "developer-a-00",
+    blocker: "PR #9",
+    owner: "human",
+    resumeWhen: "merged",
+    refs,
+  });
+  assert.deepEqual(requests.at(-1), [
+    "hold",
+    { runId: "run1", handle: "developer-a-00", blocker: "PR #9", owner: "human", resumeWhen: "merged", refs },
+  ]);
+  await call("crew_handoff", { runId: "run1", member: "developer-a-00", unmet: ["green CI"] });
+  assert.deepEqual(requests.at(-1), [
+    "handoff",
+    { runId: "run1", handle: "developer-a-00", unmet: ["green CI"], supersededBy: undefined, note: undefined },
+  ]);
+  assert.equal(requests.filter(([method]) => method === "message").length, 0, "neither one resumes the member");
 });
 
 test("the old dispatch call is a harmless no-op, because start_crew dispatches", async () => {

@@ -8,7 +8,10 @@ const result = (status, extra = {}) => ({ status, finalText: "the report", usage
 test("a report states what happened and keeps the shape the card renders", () => {
   const message = crewReportMessage({ runId: "run1", handle: "developer-a-00", result: result("completed") });
   assert.equal(message.customType, "crew-message");
-  assert.match(message.content, /^Crew member developer-a-00 reported: completed\.\nUntrusted payload:\n/);
+  assert.match(
+    message.content,
+    /^Crew member developer-a-00 reported: completed\. The model finished; this is not review or acceptance\.\nUntrusted payload:\n/,
+  );
   assert.deepEqual(message.details, { runId: "run1", handle: "developer-a-00", status: "completed" });
   assert.match(renderCrewMessageMarkdown(message), /\*\*finalText\*\*: the report/);
 });
@@ -29,6 +32,25 @@ test("a question and a failure tell Main what it can do next, with the exact too
   assert.doesNotMatch(
     crewReportMessage({ runId: "r", handle: "h", result: result("cancelled") }).content,
     /crew_message/,
+  );
+});
+
+test("CI evidence is stated with its exact head and time, and absent or unreadable checks are never called green", () => {
+  const ci = (state) =>
+    crewReportMessage({
+      runId: "r",
+      handle: "h",
+      result: result("completed", {
+        ci: { state, pullNumber: 7, headSha: "a".repeat(40), checkedAt: "2026-01-01T00:00:00Z" },
+      }),
+    }).content;
+  assert.match(ci("success"), /CI on pull request #7 at head aaaaaaaaaaaa: green, checked 2026-01-01T00:00:00Z\./);
+  assert.match(ci("none"), /: no checks reported, which is not green/);
+  assert.match(ci("unavailable"), /: checks could not be read, which is not green/);
+  assert.doesNotMatch(ci("none"), /: green/);
+  assert.match(
+    crewReportMessage({ runId: "r", handle: "h", result: result("needs_input", { question: "?" }) }).content,
+    /crew_hold[\s\S]*crew_handoff/,
   );
 });
 

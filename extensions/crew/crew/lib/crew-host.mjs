@@ -51,7 +51,7 @@ function onEvent(event) {
   if (event.event === "idle")
     holder.notifier.observe({
       namespace: event.runId,
-      nodes: event.members.map((m) => ({ handle: m.handle, status: m.ledger })),
+      nodes: event.members.map((m) => ({ handle: m.handle, status: m.ledger, state: m.state })),
     });
 }
 
