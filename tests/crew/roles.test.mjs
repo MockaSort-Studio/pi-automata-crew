@@ -28,22 +28,16 @@ test("GitHub base catalog declares bounded workflow inspection operations", () =
     assert.ok(GITHUB_BASE_TOOLS.includes(operation));
 });
 
-test("checks wait is recognized without granting it to unrelated personas or roles", () => {
+test("checks wait is recognized and explicit requests can narrow it away", () => {
   const operation = "github_pull_request_checks_wait";
   assert.ok(GITHUB_BASE_TOOLS.includes(operation));
-  const roles = JSON.parse(
-    readFileSync(new URL("../../extensions/crew/crew/prompts/roles.json", import.meta.url), "utf8"),
+  const automaton = { ...AUTOMATA.snowball, tools: [...AUTOMATA.snowball.tools, operation] };
+  assert.deepEqual(
+    validateMemberAuthority(automaton, "advisor", [
+      { suite: "collaboration/pi-github-tools", operations: ["github_issues_list"] },
+    ]).suiteGrants,
+    [{ suite: "collaboration/pi-github-tools", tools: ["github_issues_list"] }],
   );
-  for (const [role, policy] of Object.entries(roles)) {
-    assert.ok(!policy.tools.includes(operation), role);
-    assert.throws(
-      () =>
-        validateMemberAuthority(AUTOMATA.snowball, role, [
-          { suite: "collaboration/pi-github-tools", operations: [operation] },
-        ]),
-      /outside/,
-    );
-  }
 });
 
 test("base Crew policy gives a member its operating contract and no implicit GitHub operations", () => {

@@ -4,22 +4,16 @@ import { test } from "node:test";
 import { assemble } from "../../extensions/crew/crew/lib/assembly.mjs";
 import { validateMemberAuthority } from "../../extensions/crew/crew/lib/member-authority.mjs";
 import { AUTOMATA } from "../../extensions/crew/crew/lib/roster.mjs";
+import { authorizeRepositoryOperation } from "../../extensions/crew/env-runtime/lib/repository-authorization.mjs";
 
 const github = "collaboration/pi-github-tools";
 const expected = {
-  "old-major": [
-    "github_issues_list",
-    "github_subissues_list",
-    "github_dependency_list",
-    "github_project_fields",
-    "github_project_item_find",
-  ],
+  "old-major": ["github_issues_list", "github_subissues_list", "github_dependency_list"],
   mergio: [
     "github_workflow_runs_list",
     "github_workflow_run_view",
     "github_workflow_run_failed_log",
     "github_pull_request_checks",
-    "github_pull_request_checks_wait",
   ],
   bollo: [
     "github_workflow_runs_list",
@@ -69,6 +63,23 @@ test("personas declare exactly their read-only recognized domain tools", () => {
       assert.ok(readOnly.has(tool), `${name}: ${tool} is not read-only`);
       assert.doesNotThrow(() => validateMemberAuthority(AUTOMATA[name], "advisor", grants([tool])));
     }
+  }
+});
+
+test("unaudited project and checks-wait operations are withheld from persona grants", () => {
+  for (const [name, automaton] of Object.entries(AUTOMATA)) {
+    for (const tool of ["github_project_fields", "github_project_item_find", "github_pull_request_checks_wait"])
+      assert.ok(!automaton.tools.includes(tool), `${name}: ${tool}`);
+  }
+});
+
+test("persona PR reads reject cross-repository calls and missing authorization", () => {
+  const policy = { repo: "owner/repo", revision: "a".repeat(40), base: "main", branch: "crew/test" };
+  for (const operation of ["github_pull_request_view", "github_pull_request_files", "github_pull_request_checks"]) {
+    const input = { repo: policy.repo, pullNumber: 1 };
+    assert.doesNotThrow(() => authorizeRepositoryOperation(operation, input, policy));
+    assert.throws(() => authorizeRepositoryOperation(operation, { ...input, repo: "other/repo" }, policy), /outside/);
+    assert.throws(() => authorizeRepositoryOperation(operation, input), /authorization is required/);
   }
 });
 

@@ -9,13 +9,7 @@
         "signature": "— [Hall-Master | 🦉 Old Major] · [a dry observation]"
       },
       "domains": ["crew", "planning", "orchestration", "delegation"],
-      "tools": [
-        "github_issues_list",
-        "github_subissues_list",
-        "github_dependency_list",
-        "github_project_fields",
-        "github_project_item_find"
-      ]
+      "tools": ["github_issues_list", "github_subissues_list", "github_dependency_list"]
     },
     "snowball": {
       "displayName": "Snowball 🐷",
@@ -64,8 +58,7 @@
         "github_workflow_runs_list",
         "github_workflow_run_view",
         "github_workflow_run_failed_log",
-        "github_pull_request_checks",
-        "github_pull_request_checks_wait"
+        "github_pull_request_checks"
       ]
     },
     "frontenzo": {
