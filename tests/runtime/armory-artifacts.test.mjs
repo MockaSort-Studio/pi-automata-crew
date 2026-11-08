@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -13,7 +13,9 @@ import {
   validateArtifactCatalog,
 } from "../../extensions/crew/env-runtime/lib/armory-artifacts.mjs";
 
-const freshHome = () => mkdtempSync(join(tmpdir(), "armory-artifacts-"));
+const homes = [];
+const freshHome = () => { const dir = mkdtempSync(join(tmpdir(), "armory-artifacts-")); homes.push(dir); return dir; };
+test.after(() => { for (const dir of homes) rmSync(dir, { recursive: true, force: true }); });
 const revision = "0123456789abcdef0123456789abcdef01234567";
 const path = (seed) => `/nix/store/${seed.repeat(32).slice(0, 32)}-x`;
 const narHash = `sha256-${"A".repeat(43)}=`;
@@ -34,7 +36,7 @@ const document = () => ({
 });
 const respond =
   (body, ok = true, status = 200) =>
-  async () => ({ ok, status, json: async () => body });
+  async () => ({ ok, status, text: async () => JSON.stringify(body) });
 
 test("a valid catalog resolves without Nix and exposes embedded manifests and artifacts", async () => {
   const reference = referenceFromArtifacts(validateArtifactCatalog(document()));
@@ -130,9 +132,7 @@ test("invalid received payloads never fall back to cache", async () => {
       home,
       fetchImpl: async () => ({
         ok: true,
-        json: async () => {
-          throw new SyntaxError("malformed");
-        },
+        text: async () => "{malformed",
       }),
     }),
     SyntaxError,
@@ -142,6 +142,25 @@ test("invalid received payloads never fall back to cache", async () => {
   await assert.rejects(resolveArmoryCatalog({ home, fetchImpl: respond(invalid) }), TypeError);
   invalid.cache.publicKey = "wrong";
   await assert.rejects(resolveArmoryCatalog({ home, fetchImpl: respond(invalid) }), /different binary cache/);
+});
+
+test("body transport failures fall back but malformed bytes do not", async () => {
+  const home = freshHome();
+  await resolveArmoryCatalog({ home, fetchImpl: respond(document()) });
+  const hit = await resolveArmoryCatalog({ home, fetchImpl: async () => ({ ok: true, text: async () => { throw new Error("reset"); } }) });
+  assert.equal(hit.fromCache, true);
+  await assert.rejects(resolveArmoryCatalog({ home, fetchImpl: async () => ({ ok: true, text: async () => "{" }) }), SyntaxError);
+});
+
+test("one total budget bounds stalled headers and bodies", async () => {
+  const home = freshHome();
+  await resolveArmoryCatalog({ home, fetchImpl: respond(document()) });
+  for (const fetchImpl of [() => new Promise(() => {}), async () => ({ ok: true, text: () => new Promise(() => {}) })]) {
+    const start = Date.now();
+    const hit = await resolveArmoryCatalog({ home, fetchImpl, budgetMs: 30 });
+    assert.equal(hit.fromCache, true);
+    assert.ok(Date.now() - start < 500);
+  }
 });
 
 test("pinned responses must match and explicit noncanonical URLs never fall back", async () => {

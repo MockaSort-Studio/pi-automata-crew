@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -10,7 +10,9 @@ import {
   writeCachedCatalog,
 } from "../../extensions/crew/env-runtime/lib/armory-catalog-cache.mjs";
 
-const home = () => mkdtempSync(join(tmpdir(), "armory-cache-"));
+const homes = [];
+const home = () => { const dir = mkdtempSync(join(tmpdir(), "armory-cache-")); homes.push(dir); return dir; };
+test.after(() => { for (const dir of homes) rmSync(dir, { recursive: true, force: true }); });
 const doc = { revision: "a".repeat(40), value: "valid" };
 const validate = (value) => {
   if (value?.value !== "valid") throw new Error("invalid");
@@ -54,6 +56,8 @@ test("wrong ownership is ignored", () => {
   assert.equal(writeCachedCatalog(doc, { home: dir }), true);
   assert.equal(read(dir, { uid: () => -1 }), undefined);
   assert.equal(writeCachedCatalog(doc, { home: dir, uid: () => -1 }), false);
+  assert.equal(read(dir, { uid: null }), undefined);
+  assert.equal(writeCachedCatalog(doc, { home: dir, uid: null }), false);
 });
 
 test("predictable hostile symlink is not followed", () => {
@@ -64,6 +68,39 @@ test("predictable hostile symlink is not followed", () => {
   symlinkSync(victim, join(catalogCacheRoot(dir), `latest.json.${process.pid}.tmp`));
   assert.equal(writeCachedCatalog(doc, { home: dir }), true);
   assert.equal(readFileSync(victim, "utf8"), "safe");
+});
+
+test("rejects writable and symlinked ancestors and a swapped cache file", () => {
+  const dir = home();
+  assert.equal(writeCachedCatalog(doc, { home: dir }), true);
+  const ancestor = join(dir, ".cache");
+  chmodSync(ancestor, 0o777);
+  assert.equal(read(dir), undefined);
+  assert.equal(writeCachedCatalog(doc, { home: dir }), false);
+  chmodSync(ancestor, 0o700);
+  const root = catalogCacheRoot(dir);
+  const file = join(root, "latest.json");
+  const target = join(dir, "target");
+  writeFileSync(target, JSON.stringify({ fetchedAt: "now", doc }));
+  unlinkSync(file);
+  symlinkSync(target, file);
+  assert.equal(read(dir), undefined);
+  rmSync(ancestor, { recursive: true });
+  const external = home();
+  mkdirSync(join(external, "pi-crew", "armory-catalog"), { recursive: true });
+  writeFileSync(join(external, "pi-crew", "armory-catalog", "latest.json"), JSON.stringify({ fetchedAt: "now", doc }));
+  symlinkSync(external, ancestor);
+  assert.equal(read(dir), undefined);
+  assert.equal(writeCachedCatalog(doc, { home: dir }), false);
+});
+
+test("exclusive temporary creation rejects a forced collision", () => {
+  const dir = home();
+  assert.equal(writeCachedCatalog(doc, { home: dir }), true);
+  const collision = join(catalogCacheRoot(dir), `latest.json.${"ab".repeat(16)}.tmp`);
+  writeFileSync(collision, "hostile");
+  assert.equal(writeCachedCatalog(doc, { home: dir, random: () => Buffer.alloc(16, 0xab) }), false);
+  assert.equal(readFileSync(collision, "utf8"), "hostile");
 });
 
 test("concurrent writers leave a complete valid catalog", async () => {

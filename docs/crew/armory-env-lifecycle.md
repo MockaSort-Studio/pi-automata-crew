@@ -106,16 +106,19 @@ no credentials.
 ## Catalog cache
 
 The last validated release catalog is stored under `~/.cache/pi-crew/armory-catalog/` as `latest.json` and
-per-revision files. The directory is created with mode 0700; before reads and writes it must be a real directory,
-owned by the current user and not group- or world-writable. Files are written with mode 0600 using exclusive random
-temporary names and atomic rename. Unsafe or unreadable cache directories and invalid cache files are ignored.
+per-revision files. Starting at the canonical home, every directory through the cache must be real, owned by the
+current user and not group- or world-writable; missing cache directories are created with mode 0700. Cache files are
+opened without following symlinks and checked for ownership and permissions. Writes use mode 0600, exclusive random
+temporary names and atomic rename. Platforms without user IDs or no-follow support disable caching. Unsafe or
+unreadable cache directories and invalid cache files are ignored.
 
 The cache is local input, not an authenticated release. Shape validation does not authenticate the source bundle hash
 that the catalog supplies; checking a downloaded bundle against that hash cannot establish its origin. An attacker
-who can write the user's home already controls the process. The directory policy protects against a shared or
-mis-permissioned cache location, not a compromised account.
+operating as the same account can change these paths and is outside this boundary. Node does not provide an openat
+chain here, so directory checks are not a guarantee against same-account pathname swaps. The policy protects against
+other accounts exploiting shared or mis-permissioned cache locations, not a compromised account.
 
-The latest catalog is retried on transport failure and may fall back to the cached latest; launch and doctor report
+The latest catalog is retried on transport failure within a total 12-second fetch budget and may fall back to the cached latest; launch and doctor report
 its revision and timestamp as potentially stale. Successfully received malformed or invalid payloads are rejected,
 not replaced with cached data. Canonical pinned release URLs use only their matching revision cache and a downloaded
 revision must match the requested one. Other explicit URLs never fall back to latest or populate the cache. Cache writes
