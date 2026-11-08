@@ -33,7 +33,7 @@ export function createDispatcher({
   const running = new Map();
   // One per turn: cancelling aborts a wait for CI as well as a model call.
   const stops = new Map();
-  // Changes to the files that define the checks: asked about, then acknowledged once Main has replied.
+  // Changes to the files that define the checks, scoped to the pull request and verified head.
   const askedGate = new Map();
   const acknowledgedGate = new Map();
   let disposed = false;
@@ -93,13 +93,18 @@ export function createDispatcher({
       }
       if (!check) return result;
       if (check.state === "success" || check.state === "none") {
-        const acknowledged = acknowledgedGate.get(handle) ?? new Set();
-        const gate = (check.gateFiles ?? []).filter((file) => !acknowledged.has(file));
+        const head = result.evidence?.pushed?.commit;
+        let acknowledged = acknowledgedGate.get(handle);
+        if (!acknowledged || acknowledged.head !== head || acknowledged.pullNumber !== check.pullNumber) {
+          acknowledged = { head, pullNumber: check.pullNumber, files: new Set() };
+          acknowledgedGate.set(handle, acknowledged);
+        }
+        const gate = (check.gateFiles ?? []).filter((file) => !acknowledged.files.has(file));
         if (!gate.length) return { ...result, ci: ciSummary(check, round) };
-        askedGate.set(handle, gate);
+        askedGate.set(handle, { files: gate, head, pullNumber: check.pullNumber });
         return needsInput(
           result,
-          `CI is ${check.state === "none" ? "absent" : "green"} on pull request #${check.pullNumber}, but the change touches files that define the checks: ${gate.join(", ")}. Confirm that is intended (reply to accept it), or ask the member to fix the content instead.`,
+          `CI is ${check.state === "none" ? "absent" : "green"} on pull request #${check.pullNumber}, but the change touches files that define the checks: ${gate.join(", ")}. To acknowledge, reply and name each of the listed files by its exact path, or ask the member to fix the content instead.`,
           { ...ciSummary(check, round), gateFiles: gate },
         );
       }
@@ -207,11 +212,14 @@ export function createDispatcher({
       if (!["needs_input", "failed", "completed"].includes(current))
         throw new Error(`${handle} is ${current}; it can be messaged once it has reported`);
       if (running.has(handle)) throw new Error(`${handle} is already working`);
-      // Main replying to a question about changed check files accepts those files for this member.
-      if (askedGate.has(handle)) {
-        const accepted = acknowledgedGate.get(handle) ?? new Set();
-        for (const file of askedGate.get(handle)) accepted.add(file);
-        acknowledgedGate.set(handle, accepted);
+      // Only exact paths in Main's reply accept files from the question that was actually asked.
+      const asked = askedGate.get(handle);
+      if (asked) {
+        const accepted = acknowledgedGate.get(handle);
+        for (const file of asked.files) {
+          const escaped = file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          if (new RegExp(`(?<![\\w./-])${escaped}(?![\\w./-])`).test(text)) accepted.files.add(file);
+        }
         askedGate.delete(handle);
       }
       // A follow-up reopens a completed member: whatever it ends as must be what the ledger says.

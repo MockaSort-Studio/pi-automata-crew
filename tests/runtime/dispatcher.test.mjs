@@ -563,7 +563,7 @@ test("once Main has replied, the same files are accepted; a new one is asked abo
   d.start();
   await settle();
   assert.equal(d.status()[0].state, "needs_input");
-  d.message(A, "yes, the ignore entry is intended");
+  d.message(A, "yes, .prettierignore is intended");
   await settle();
   assert.equal(d.status()[0].state, "completed", "accepted: it completes");
   assert.deepEqual(results.at(-1).ci.state, "success");
