@@ -1,5 +1,17 @@
 import { randomBytes } from "node:crypto";
-import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -16,7 +28,11 @@ function safeDirectory(home = homedir(), uid, create = false) {
     if (component) {
       path = join(path, component);
       if (create) {
-        try { mkdirSync(path, { mode: 0o700 }); } catch (error) { if (error.code !== "EEXIST") throw error; }
+        try {
+          mkdirSync(path, { mode: 0o700 });
+        } catch (error) {
+          if (error.code !== "EEXIST") throw error;
+        }
       }
     }
     const stat = lstatSync(path);
@@ -34,7 +50,9 @@ export function readCachedCatalog(name, { home, validate, uid = process.getuid }
       const stat = fstatSync(fd);
       if (!stat.isFile() || stat.uid !== uid() || (stat.mode & 0o022) !== 0) return undefined;
       body = readFileSync(fd, "utf8");
-    } finally { closeSync(fd); }
+    } finally {
+      closeSync(fd);
+    }
     const { fetchedAt, doc } = JSON.parse(body);
     const valid = validate(doc);
     if (name !== "latest" && valid.revision !== name) return undefined;
@@ -45,7 +63,10 @@ export function readCachedCatalog(name, { home, validate, uid = process.getuid }
 }
 
 // Caching is best effort and never prevents a launch.
-export function writeCachedCatalog(doc, { home, now = () => new Date(), uid = process.getuid, latest = true, random = randomBytes } = {}) {
+export function writeCachedCatalog(
+  doc,
+  { home, now = () => new Date(), uid = process.getuid, latest = true, random = randomBytes } = {},
+) {
   let temporary;
   let created = false;
   try {

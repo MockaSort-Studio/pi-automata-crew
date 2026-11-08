@@ -1,6 +1,16 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -11,8 +21,14 @@ import {
 } from "../../extensions/crew/env-runtime/lib/armory-catalog-cache.mjs";
 
 const homes = [];
-const home = () => { const dir = mkdtempSync(join(tmpdir(), "armory-cache-")); homes.push(dir); return dir; };
-test.after(() => { for (const dir of homes) rmSync(dir, { recursive: true, force: true }); });
+const home = () => {
+  const dir = mkdtempSync(join(tmpdir(), "armory-cache-"));
+  homes.push(dir);
+  return dir;
+};
+test.after(() => {
+  for (const dir of homes) rmSync(dir, { recursive: true, force: true });
+});
 const doc = { revision: "a".repeat(40), value: "valid" };
 const validate = (value) => {
   if (value?.value !== "valid") throw new Error("invalid");

@@ -14,8 +14,14 @@ import {
 } from "../../extensions/crew/env-runtime/lib/armory-artifacts.mjs";
 
 const homes = [];
-const freshHome = () => { const dir = mkdtempSync(join(tmpdir(), "armory-artifacts-")); homes.push(dir); return dir; };
-test.after(() => { for (const dir of homes) rmSync(dir, { recursive: true, force: true }); });
+const freshHome = () => {
+  const dir = mkdtempSync(join(tmpdir(), "armory-artifacts-"));
+  homes.push(dir);
+  return dir;
+};
+test.after(() => {
+  for (const dir of homes) rmSync(dir, { recursive: true, force: true });
+});
 const revision = "0123456789abcdef0123456789abcdef01234567";
 const path = (seed) => `/nix/store/${seed.repeat(32).slice(0, 32)}-x`;
 const narHash = `sha256-${"A".repeat(43)}=`;
@@ -147,15 +153,29 @@ test("invalid received payloads never fall back to cache", async () => {
 test("body transport failures fall back but malformed bytes do not", async () => {
   const home = freshHome();
   await resolveArmoryCatalog({ home, fetchImpl: respond(document()) });
-  const hit = await resolveArmoryCatalog({ home, fetchImpl: async () => ({ ok: true, text: async () => { throw new Error("reset"); } }) });
+  const hit = await resolveArmoryCatalog({
+    home,
+    fetchImpl: async () => ({
+      ok: true,
+      text: async () => {
+        throw new Error("reset");
+      },
+    }),
+  });
   assert.equal(hit.fromCache, true);
-  await assert.rejects(resolveArmoryCatalog({ home, fetchImpl: async () => ({ ok: true, text: async () => "{" }) }), SyntaxError);
+  await assert.rejects(
+    resolveArmoryCatalog({ home, fetchImpl: async () => ({ ok: true, text: async () => "{" }) }),
+    SyntaxError,
+  );
 });
 
 test("one total budget bounds stalled headers and bodies", async () => {
   const home = freshHome();
   await resolveArmoryCatalog({ home, fetchImpl: respond(document()) });
-  for (const fetchImpl of [() => new Promise(() => {}), async () => ({ ok: true, text: () => new Promise(() => {}) })]) {
+  for (const fetchImpl of [
+    () => new Promise(() => {}),
+    async () => ({ ok: true, text: () => new Promise(() => {}) }),
+  ]) {
     const start = Date.now();
     const hit = await resolveArmoryCatalog({ home, fetchImpl, budgetMs: 30 });
     assert.equal(hit.fromCache, true);
