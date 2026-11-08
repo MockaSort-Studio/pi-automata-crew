@@ -158,7 +158,14 @@ test("mixed roles and explicit narrow grants remain isolated at the active host 
       {
         members: [
           { name: "snowball", role: "developer" },
-          { name: "bollo", role: "reviewer" },
+          {
+            name: "bollo",
+            role: "reviewer",
+            tools: [
+              { suite: "system", operations: ["read", "bash"] },
+              { suite: GITHUB, operations: ["github_pull_request_review_submit"] },
+            ],
+          },
           {
             name: "mergio",
             role: "developer",

@@ -71,7 +71,15 @@ test("defaults grant the role and persona union in assembly and launch", async (
       const persona = getAutomaton("snowball");
       const union = new Set(
         [...roles[role].tools, ...persona.tools].filter(
-          (tool) => !["github_issues_list", "github_pull_request_checks_wait"].includes(tool),
+          (tool) =>
+            ![
+              "github_issues_list",
+              "github_pull_request_checks_wait",
+              "github_pull_request_comment",
+              "github_pull_request_review_start",
+              "github_pull_request_review_inline_comment",
+              "github_pull_request_review_submit",
+            ].includes(tool),
         ),
       );
       const actor = assemble("snowball", role, "");
@@ -94,6 +102,19 @@ test("defaults grant the role and persona union in assembly and launch", async (
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
+});
+
+test("reviewer mutations stay explicit opt-ins rather than new defaults", () => {
+  const mutations = words(
+    "github_pull_request_comment github_pull_request_review_start github_pull_request_review_inline_comment github_pull_request_review_submit",
+  );
+  const persona = { tools: [] };
+  const defaults = validateMemberAuthority(persona, "reviewer").suiteGrants.flatMap((grant) => grant.tools);
+  assert.ok(mutations.every((operation) => !defaults.includes(operation)));
+  assert.deepEqual(
+    validateMemberAuthority(persona, "reviewer", [{ suite: github, operations: mutations }]).suiteGrants,
+    [{ suite: github, tools: mutations }],
+  );
 });
 
 test("explicit grants narrow authority and unknown policy operations are rejected", () => {

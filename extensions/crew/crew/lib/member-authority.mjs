@@ -80,7 +80,14 @@ export function validateMemberAuthority(automaton, role, requested) {
         operations.add(tool);
     } else throw new Error(`Unknown policy capability "${tool}".`);
   }
-  const defaultOperations = [...operations];
+  // Existing reviewer mutations remain explicit opt-ins until effective targets are confined.
+  const reviewerExplicitOnly = new Set([
+    "github_pull_request_comment",
+    "github_pull_request_review_start",
+    "github_pull_request_review_inline_comment",
+    "github_pull_request_review_submit",
+  ]);
+  const defaultOperations = [...operations].filter((tool) => role !== "reviewer" || !reviewerExplicitOnly.has(tool));
   const defaults = [
     ...(system.size ? [{ suite: "system", operations: [...system] }] : []),
     ...(defaultOperations.length ? [{ suite: github, operations: defaultOperations }] : []),
