@@ -1,9 +1,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { validateRequiredCapabilities } from "./required-capabilities.mjs";
+import { NATIVE_TOOLS, validateRequiredCapabilities } from "./required-capabilities.mjs";
 
 const GITHUB_SUITE = "collaboration/pi-github-tools";
-const NATIVE_TOOLS = new Set(["read", "write", "edit", "bash", "grep", "find", "ls"]);
 const DEFAULT_TASK = "Carry out the assignment described in your instructions.";
 
 // Translates what Crew assembly produced (roles, personas, tool grants, ordering: unchanged) into the launch

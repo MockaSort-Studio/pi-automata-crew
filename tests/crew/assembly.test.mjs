@@ -105,5 +105,17 @@ test("evidence and PR assertions distinguish missing grants from unsupported ope
   );
 });
 
+test("deferred operations, ceilings, reviewer opt-in, and malformed assertions are distinct", () => {
+  const suite = "collaboration/pi-github-tools";
+  for (const operation of ["github_project_field_set", "github_project_fields", "github_project_item_add", "github_project_item_find"])
+    assert.throws(() => assemble("snowball", "developer", "", { requiredCapabilities: [{ suite, operations: [operation] }] }), new RegExp(`${operation}.*unsupported`));
+  for (const operation of ["github_pull_request_merge", "github_pull_request_review", "github_pull_request_comment"])
+    assert.throws(() => assemble("snowball", "integrator", "", { requiredCapabilities: [{ suite, operations: [operation] }] }), new RegExp(`${operation}.*role.ceiling`));
+  assert.throws(() => assemble("snowball", "reviewer", "", { requiredCapabilities: [{ suite: "system", operations: ["edit"] }] }), /edit.*role.ceiling/);
+  assert.throws(() => assemble("snowball", "reviewer", "", { requiredCapabilities: [{ suite, operations: ["github_pull_request_comment"] }] }), /github_pull_request_comment.*missing grant/);
+  for (const operations of [[], [1]])
+    assert.throws(() => assemble("snowball", "developer", "", { requiredCapabilities: [{ suite, operations }] }), /non-empty operations/);
+});
+
 test("assembly rejects oversized work", () =>
   assert.throws(() => assemble("mergio", "architect", "x".repeat(4001)), /exceeds 4000/));

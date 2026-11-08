@@ -7,7 +7,7 @@ import { createDispatcher } from "./dispatcher.mjs";
 import { loadSuiteModule } from "./github-suite.mjs";
 import { createMemberAgent } from "./member-agent.mjs";
 import { resolveModel } from "./model.mjs";
-import { validateRequiredCapabilities } from "../crew/lib/required-capabilities.mjs";
+import { NATIVE_TOOLS, validateRequiredCapabilities } from "../crew/lib/required-capabilities.mjs";
 
 const GITHUB_SUITE = "collaboration/pi-github-tools";
 // role-persona-NN; a persona name may itself contain hyphens (old-major, indiana-docs).
@@ -78,7 +78,12 @@ export function createHostCore({ send, deps = {} }) {
     if (!Array.isArray(members) || !members.length) throw new Error("A crew needs at least one member");
     for (const member of members)
       if (!HANDLE.test(member.handle ?? "")) throw new Error(`Invalid member handle: ${member.handle}`);
-    for (const member of members)
+    for (const member of members) {
+      if (!Array.isArray(member.tools) || member.tools.some((tool) => typeof tool !== "string" || !NATIVE_TOOLS.has(tool)))
+        throw new Error(`${member.handle}: tools must be an array of recognized native tool names`);
+      if (member.suiteGrants !== undefined && !Array.isArray(member.suiteGrants))
+        throw new Error(`${member.handle}: suiteGrants must be an array`);
+      const seenSuites = new Set();
       for (const grant of member.suiteGrants ?? [])
         if (
           typeof grant?.suite !== "string" ||
@@ -87,6 +92,10 @@ export function createHostCore({ send, deps = {} }) {
           grant.operations.some((operation) => typeof operation !== "string")
         )
           throw new Error(`${member.handle}: a suite grant needs a suite and a list of operations`);
+        else if (seenSuites.has(grant.suite))
+          throw new Error(`${member.handle}: duplicate suite grant: ${grant.suite}`);
+        else seenSuites.add(grant.suite);
+    }
     for (const member of members)
       validateRequiredCapabilities({
         member: member.handle,

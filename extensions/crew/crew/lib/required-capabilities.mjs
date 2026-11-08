@@ -1,6 +1,7 @@
 import { GITHUB_BASE_TOOL_SET } from "./github-base-tools.mjs";
+import { repositoryTargets } from "../../env-runtime/lib/repository-targets.mjs";
 
-const native = new Set(["read", "grep", "find", "ls", "bash", "edit", "write"]);
+export const NATIVE_TOOLS = new Set(["read", "grep", "find", "ls", "bash", "edit", "write"]);
 const github = "collaboration/pi-github-tools";
 
 // Assertions about authorization only: a grant does not guarantee installed tools or dependencies.
@@ -20,7 +21,7 @@ export function validateRequiredCapabilities({ member, requiredCapabilities, too
     const { suite, operations } = requirement;
     for (const operation of operations) {
       const prefix = `${member}: ${suite} ${operation}`;
-      if (!(suite === "system" ? native.has(operation) : suite === github && GITHUB_BASE_TOOL_SET.has(operation)))
+      if (!(suite === "system" ? NATIVE_TOOLS.has(operation) : suite === github && GITHUB_BASE_TOOL_SET.has(operation) && repositoryTargets[operation] !== "deferred"))
         throw new Error(`${prefix}: unsupported suite or operation`);
       if (allowed && !allowed(suite, operation)) throw new Error(`${prefix}: role-ceiling denial`);
       const granted =
