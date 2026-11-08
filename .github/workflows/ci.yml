@@ -54,9 +54,15 @@ jobs:
             ~/.pi/agent/cache/gondolin
           key: gondolin-${{ runner.os }}-${{ runner.arch }}-${{ steps.gondolin.outputs.version }}
       - name: Diagnose live agent VMs
+        id: agent_krun
         run: |
           trap 'echo "Process state after focused run:"; ps -eo pid,ppid,stat,comm' EXIT
           HALL_VM_DIAGNOSTICS=1 timeout --kill-after=15s 5m node --test-reporter=tap tests/runtime/agent-run-live.test.mjs
+      - name: Compare live agent VMs with QEMU
+        if: failure() && steps.agent_krun.outcome == 'failure'
+        run: |
+          trap 'echo "Process state after QEMU run:"; ps -eo pid,ppid,stat,comm' EXIT
+          HALL_VMM=qemu HALL_VM_DIAGNOSTICS=1 timeout --kill-after=15s 5m node --test-reporter=tap tests/runtime/agent-run-live.test.mjs
       # Crew workers run this suite from inside a worker; set their identity variables so every CI
       # run proves the suite does not depend on, or break under, an inherited worker environment.
       - run: npm test
