@@ -28,7 +28,7 @@ test("it checks the current pull request with the supplied signal", async () => 
           headRefOid: "f".repeat(40),
           statusCheckRollup: [{ __typename: "StatusContext", state: "SUCCESS" }],
         };
-      return [];
+      return [{ filename: "src/a", blob_url: `https://github.com/o/r/blob/${"f".repeat(40)}/src/a` }];
     },
   };
   const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: "f".repeat(40) } };

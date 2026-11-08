@@ -75,20 +75,43 @@ test("missing or malformed snapshot head fails closed even with empty files", as
   }
 });
 
-test("empty and deleted-only files retain snapshot head; inconsistent gate files fail closed", async () => {
-  for (const response of [[], [{ filename: "gone", status: "removed" }]]) {
-    const result = await run(async (name) => (name === "github_pull_request_view" ? view(a, success) : response));
-    assert.equal(result.headSha, a);
+test("settled checks require an identifiable matching file list before gate inspection", async () => {
+  for (const rollup of [success, []]) {
+    for (const response of [
+      [],
+      [{ filename: "gone", status: "removed" }],
+      files(b),
+      [{ filename: "src/a" }],
+      [...files(a), ...files(b)],
+      files(b, ".prettierignore"),
+      [{ filename: ".prettierignore", status: "removed" }],
+      [...files(a, ".prettierignore"), ...files(b)],
+    ]) {
+      await assert.rejects(
+        run(async (name) => (name === "github_pull_request_view" ? view(a, rollup) : response), { noChecksGraceMs: 0 }),
+        /head/i,
+      );
+    }
   }
-  for (const response of [
-    files(b, ".prettierignore"),
-    [{ filename: ".prettierignore", status: "removed" }],
-    [...files(a, ".prettierignore"), ...files(b)],
-  ]) {
-    await assert.rejects(
-      run(async (name) => (name === "github_pull_request_view" ? view(a, success) : response)),
-      /head/i,
-    );
+  const ordinary = await run(async (name) => (name === "github_pull_request_view" ? view(a, success) : files(a)));
+  assert.deepEqual(ordinary.gateFiles, []);
+  const gate = await run(async (name) =>
+    name === "github_pull_request_view" ? view(a, success) : files(a, ".prettierignore"),
+  );
+  assert.deepEqual(gate.gateFiles, [".prettierignore"]);
+});
+
+test("malformed PR state is invalid, while closed states return without file lookup", async () => {
+  for (const state of [undefined, null, "", "INVALID"]) {
+    await assert.rejects(run(async () => ({ state })), /state/i);
+  }
+  for (const state of ["CLOSED", "MERGED"]) {
+    const result = await run(async (name) => {
+      assert.equal(name, "github_pull_request_view");
+      return { state };
+    });
+    assert.equal(result.state, "closed");
+    assert.equal(result.prState, state);
   }
 });
 
@@ -97,7 +120,7 @@ test("head changes restart the no-check grace period", async () => {
   let changedAt;
   const result = await run(
     async (name) => {
-      if (name === "github_pull_request_files") return [];
+      if (name === "github_pull_request_files") return files(b);
       calls++;
       if (calls === 2) await new Promise((resolve) => setTimeout(resolve, 15));
       if (calls === 2) changedAt = Date.now();

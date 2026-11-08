@@ -107,7 +107,9 @@ export async function verifyPullRequest({
   let graceStarted = started;
   for (;;) {
     const view = await call("github_pull_request_view");
-    if (view.state !== "OPEN") return { state: "closed", prState: view.state, pullNumber };
+    if (view?.state === "CLOSED" || view?.state === "MERGED")
+      return { state: "closed", prState: view.state, pullNumber };
+    if (view?.state !== "OPEN") throw new Error("Cannot establish a valid pull request state");
     if (!/^[a-f\d]{40}$/i.test(view.headRefOid ?? "")) throw new Error("Cannot establish the pull request head");
     const headSha = view.headRefOid.toLowerCase();
     if (headSha !== graceHead) {
@@ -158,9 +160,10 @@ export async function verifyPullRequest({
     }
     const files = await call("github_pull_request_files");
     if (!Array.isArray(files)) throw new Error("Cannot establish changed pull request files");
+    // An empty or unidentifiable file list cannot prove that no gate files changed on this snapshot's head.
+    if (headOf(files) !== headSha)
+      throw new Error("Cannot establish that changed pull request files match the verified head");
     const gateFiles = gateFilesOf(files);
-    if (gateFiles.length && headOf(files) !== headSha)
-      throw new Error("Cannot establish the pull request head for changed gate files");
     return { ...result, gateFiles };
   }
 }
