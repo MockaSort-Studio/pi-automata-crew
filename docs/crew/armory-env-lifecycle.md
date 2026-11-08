@@ -102,3 +102,21 @@ no credentials.
 5. Invoke one operation through proxy -> guest runner -> guest `gh`.
 6. Prove a second worker has a separate VM/session projection and shares only
    immutable Nix store paths.
+
+## Catalog cache
+
+The last validated release catalog is stored under `~/.cache/pi-crew/armory-catalog/` as `latest.json` and
+per-revision files. The directory is created with mode 0700; before reads and writes it must be a real directory,
+owned by the current user and not group- or world-writable. Files are written with mode 0600 using exclusive random
+temporary names and atomic rename. Unsafe or unreadable cache directories and invalid cache files are ignored.
+
+The cache is local input, not an authenticated release. Shape validation does not authenticate the source bundle hash
+that the catalog supplies; checking a downloaded bundle against that hash cannot establish its origin. An attacker
+who can write the user's home already controls the process. The directory policy protects against a shared or
+mis-permissioned cache location, not a compromised account.
+
+The latest catalog is retried on transport failure and may fall back to the cached latest; launch and doctor report
+its revision and timestamp as potentially stale. Successfully received malformed or invalid payloads are rejected,
+not replaced with cached data. Canonical pinned release URLs use only their matching revision cache and a downloaded
+revision must match the requested one. Other explicit URLs never fall back to latest or populate the cache. Cache writes
+are best effort and cannot fail a launch.

@@ -28,6 +28,7 @@ function host({ results = {}, deps = {} } = {}) {
         if (model !== "mock/mock-model") throw new Error(`Model "${model}" was not found in Pi's model catalog.`);
       },
       buildSeed: () => Buffer.from("seed"),
+      resolveArmoryCatalog: async () => ({ revision: "abc" }),
       loadGithubModule: async () => ({ activateSuite() {} }),
       createMemberAgent: async ({ member: m, crew, onEvent }) => {
         created.push({ handle: m.handle, crew });
@@ -330,4 +331,17 @@ test("a persona whose name contains hyphens can launch, while a malformed handle
     const reply = await h.call("launch", launch({ runId: `r-${bad}`, members: [member(bad)] }));
     assert.match(reply.error.message, /Invalid member handle/, bad);
   }
+});
+
+test("host launch reports cached catalog revision and timestamp", async () => {
+  const github = [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }];
+  const h = host({
+    deps: {
+      resolveArmoryCatalog: async () => ({ revision: "abc", fromCache: true, cachedAt: "2026-01-01T00:00:00Z" }),
+    },
+  });
+  const response = await h.call("launch", launch({ members: [member(A, { suiteGrants: github })] }));
+  assert.equal(response.ok, true);
+  assert.match(response.result.warnings.join(" "), /cached.*abc.*2026-01-01/);
+  await h.core.close();
 });

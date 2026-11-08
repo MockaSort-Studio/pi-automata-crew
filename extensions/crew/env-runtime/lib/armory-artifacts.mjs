@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readCachedCatalog, writeCachedCatalog } from "./armory-catalog-cache.mjs";
 
 // The one binary cache this client trusts; a catalog naming any other is refused.
 export const armoryCache = JSON.parse(readFileSync(new URL("../armory-cache.json", import.meta.url), "utf8"));
@@ -78,8 +79,51 @@ export function referenceFromArtifacts(doc) {
 
 // The release is the single source of Armory suites. A launch resolves the latest
 // release; a worker re-resolves the exact release its launch pinned.
-export async function resolveArmoryCatalog({ release, fetchImpl, cache } = {}) {
-  return referenceFromArtifacts(await fetchArtifactCatalog({ url: release, fetchImpl, cache }));
+export async function resolveArmoryCatalog({ release, fetchImpl = fetch, cache, home, attempts = 2 } = {}) {
+  const match = typeof release === "string" && /\/armory-([0-9a-f]{40})\/artifacts\.json$/.exec(release);
+  const pinned = match && release === pinnedReleaseUrl(match[1]) ? match[1] : undefined;
+  const cached = (name) => {
+    const hit = readCachedCatalog(name, { home, validate: (doc) => validateArtifactCatalog(doc, cache) });
+    try {
+      return hit && { ...referenceFromArtifacts(hit.doc), fromCache: true, cachedAt: hit.fetchedAt };
+    } catch {
+      return undefined;
+    }
+  };
+  if (pinned) {
+    const hit = cached(pinned);
+    if (hit) return hit;
+  }
+  let failure;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    let response;
+    try {
+      response = await fetchImpl(release ?? LATEST_RELEASE_URL, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) throw new Error(`Armory release unavailable (HTTP ${response.status})`);
+    } catch (error) {
+      failure = error;
+      continue;
+    }
+    const doc = validateArtifactCatalog(await response.json(), cache);
+    if (pinned && doc.revision !== pinned) throw new Error("Armory catalog revision does not match pinned release");
+    const reference = referenceFromArtifacts(doc);
+    if (release === undefined || pinned) writeCachedCatalog(doc, { home, latest: release === undefined });
+    return reference;
+  }
+  const hit = release === undefined ? cached("latest") : undefined;
+  if (hit) return hit;
+  throw new Error(`${failure?.message ?? "Armory release unavailable"} (no cached Armory catalog to fall back to)`, {
+    cause: failure,
+  });
+}
+
+export function cachedCatalogWarning(catalog) {
+  return catalog?.fromCache
+    ? `Using cached Armory catalog ${catalog.revision} (cached at ${catalog.cachedAt}; possibly stale).`
+    : undefined;
 }
 
 export function readCatalogSuite(reference, manifestPath) {

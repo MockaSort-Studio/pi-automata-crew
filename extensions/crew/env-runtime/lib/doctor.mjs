@@ -32,7 +32,7 @@ const defaults = {
       await vm.close();
     }
   },
-  armoryRelease: async () => (await resolveArmoryCatalog()).release,
+  armoryCatalog: resolveArmoryCatalog,
 };
 
 // Can this machine run a Crew? Every check says what it found and, when it fails, what to do. Nothing is
@@ -79,10 +79,16 @@ export async function runDoctor({ boot = true, deps = {} } = {}) {
       await d.bootVm(vmm);
       return `${((Date.now() - started) / 1000).toFixed(1)}s`;
     });
-  await check(
-    "Armory source is reachable",
-    async () => `release ${/armory-[0-9a-f]+/.exec(String(await d.armoryRelease()))?.[0] ?? "found"}`,
-  );
+  let cachedCatalog;
+  await check("Armory source is reachable", async () => {
+    const catalog = await d.armoryCatalog();
+    if (catalog.fromCache) {
+      cachedCatalog = true;
+      return `cached revision ${catalog.revision}, cached at ${catalog.cachedAt} (offline; possibly stale)`;
+    }
+    return `release armory-${catalog.revision}`;
+  });
+  if (cachedCatalog) checks[checks.length - 1].name = "Armory catalog is cached (offline)";
   await check("GitHub credential", () => {
     if (!d.env.HALL_GITHUB_TOKEN)
       throw fail(
