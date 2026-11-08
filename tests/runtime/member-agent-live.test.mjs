@@ -51,7 +51,11 @@ async function setup(t, respond) {
     server.close();
     rmSync(dir, { recursive: true, force: true });
   });
-  const build = async (member, extra = {}, prepareSources = async () => ({ available: [], failures: ["fixture: source unavailable"] })) => {
+  const build = async (
+    member,
+    extra = {},
+    prepareSources = async () => ({ available: [], failures: ["fixture: source unavailable"] }),
+  ) => {
     const agent = await createMemberAgent({
       prepareSources,
       member: {
@@ -77,7 +81,9 @@ const offeredTools = (server) =>
 test("source mount failures do not prevent a member from starting", { timeout: 120_000 }, async (t) => {
   if (skipLiveGondolin(t)) return;
   const { server, build } = await setup(t, () => ({ text: "ok" }));
-  const agent = await build({}, {}, async () => { throw new Error("provider failure"); });
+  const agent = await build({}, {}, async () => {
+    throw new Error("provider failure");
+  });
   assert.equal((await agent.run.prompt("hello")).status, "completed");
   assert.match(server.requests[0], /Verified dependency source mount unavailable/);
 });

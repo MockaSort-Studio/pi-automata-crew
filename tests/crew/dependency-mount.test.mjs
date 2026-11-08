@@ -38,12 +38,18 @@ test("dependency snapshot is readable but refuses mutation", async () => {
 
 test("separate providers never alias each other or verified bytes", async () => {
   const bytes = Buffer.from("source");
-  const input = { snapshots: [{ manifest: { name: "demo", version: "1", files: {} }, files: { "index.js": bytes } }], failures: [] };
+  const input = {
+    snapshots: [{ manifest: { name: "demo", version: "1", files: {} }, files: { "index.js": bytes } }],
+    failures: [],
+  };
   const first = await buildDependencyMount(input);
   const second = await buildDependencyMount(input);
   assert.notEqual(first.provider, second.provider);
   const mounts = [];
-  const createVm = async (options) => { mounts.push(options.vfs.mounts); return { close: async () => {} }; };
+  const createVm = async (options) => {
+    mounts.push(options.vfs.mounts);
+    return { close: async () => {} };
+  };
   const a = createEnvironment({ localCwd: "/unused", dependencySources: first.provider, createVm, idleMs: 0 });
   const b = createEnvironment({ localCwd: "/unused", dependencySources: second.provider, createVm, idleMs: 0 });
   await a.withVm(() => {});

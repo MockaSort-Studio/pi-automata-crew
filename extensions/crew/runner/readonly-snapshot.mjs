@@ -9,8 +9,13 @@ function readonlyHandle(handle) {
   return new Proxy(handle, {
     get(target, property) {
       if (writes.has(property)) {
-        if (String(property).endsWith("Sync")) return () => { throw denied(); };
-        return async () => { throw denied(); };
+        if (String(property).endsWith("Sync"))
+          return () => {
+            throw denied();
+          };
+        return async () => {
+          throw denied();
+        };
       }
       const value = Reflect.get(target, property, target);
       return typeof value === "function" ? value.bind(target) : value;

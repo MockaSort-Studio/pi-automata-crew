@@ -23,7 +23,11 @@ export async function buildDependencyMount({ snapshots, failures }) {
     "/manifest.json",
     JSON.stringify({ packages: snapshots.map((item) => item.manifest), failures }, null, 2),
   );
-  return { provider: new ReadonlySnapshotProvider(memory), available: snapshots.map((item) => item.manifest.name), failures };
+  return {
+    provider: new ReadonlySnapshotProvider(memory),
+    available: snapshots.map((item) => item.manifest.name),
+    failures,
+  };
 }
 
 export async function prepareDependencyMount() {

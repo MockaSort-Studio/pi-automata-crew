@@ -68,10 +68,15 @@ export function createSourceCache(pins, prepare) {
     if (!preparing) {
       const missing = pins.filter((pin) => !verified.has(pin.name));
       if (!missing.length) return { snapshots: [...verified.values()], failures: [] };
-      preparing = Promise.resolve().then(() => prepare(missing)).then((result) => {
-        for (const snapshot of result.snapshots) verified.set(snapshot.manifest.name, snapshot);
-        return result.failures;
-      }).finally(() => { preparing = undefined; });
+      preparing = Promise.resolve()
+        .then(() => prepare(missing))
+        .then((result) => {
+          for (const snapshot of result.snapshots) verified.set(snapshot.manifest.name, snapshot);
+          return result.failures;
+        })
+        .finally(() => {
+          preparing = undefined;
+        });
     }
     const failures = await preparing;
     return { snapshots: [...verified.values()], failures };

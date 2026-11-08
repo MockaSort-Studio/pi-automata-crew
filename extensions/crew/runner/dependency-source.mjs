@@ -56,7 +56,10 @@ export function extractVerifiedPackage(bytes, pin) {
       !path.startsWith("package/") ||
       path.includes("\\") ||
       /[\x00-\x1f\x7f]/.test(path) ||
-      path.replace(/\/$/, "").split("/").some((part) => !part || part === ".." || part === "." || part.startsWith(".")) ||
+      path
+        .replace(/\/$/, "")
+        .split("/")
+        .some((part) => !part || part === ".." || part === "." || part.startsWith(".")) ||
       ![0, 48, 53].includes(type) ||
       (type === 53 && size) ||
       (type !== 53 && path.endsWith("/"))

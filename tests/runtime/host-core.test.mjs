@@ -106,7 +106,14 @@ test("an unavailable repository revision and a missing credential fail the launc
 });
 
 test("launch reports source prerequisites without exposing source bytes", async () => {
-  const h = host({ deps: { prepareDependencySources: async () => ({ snapshots: [{ secret: "never-report" }], failures: ["prettier unavailable"] }) } });
+  const h = host({
+    deps: {
+      prepareDependencySources: async () => ({
+        snapshots: [{ secret: "never-report" }],
+        failures: ["prettier unavailable"],
+      }),
+    },
+  });
   const result = await h.call("launch", launch({ members: [member(A, { tools: ["bash"] })] }));
   assert.equal(result.ok, true);
   assert.match(result.result.warnings.join(" "), /prettier unavailable/);
