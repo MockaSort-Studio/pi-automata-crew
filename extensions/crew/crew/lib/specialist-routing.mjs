@@ -64,7 +64,8 @@ export function routeSpecialists(paths, routes, maxSpecialists = 3) {
   for (const value of paths) {
     const path = pathOf(value);
     const route = routes.filter((candidate) => candidate.matcher.test(path)).at(-1);
-    if (route) matches.push({ path, rule: { line: route.line, pattern: route.pattern }, specialists: route.specialists });
+    if (route)
+      matches.push({ path, rule: { line: route.line, pattern: route.pattern }, specialists: route.specialists });
     else unmatchedPaths.push(path);
   }
   return bounded({
