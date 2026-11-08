@@ -1,6 +1,14 @@
+import { createHash } from "node:crypto";
 import { createDependencyLedger } from "../crew/lib/dependency-ledger.mjs";
 
 const PREREQUISITE_CHARS = 4000;
+
+function gateCode(head, files) {
+  return createHash("sha256")
+    .update(`${head}\n${[...files].sort().join("\n")}`)
+    .digest("hex")
+    .slice(0, 8);
+}
 
 // Hands each member its assignment when its prerequisites are done, and reports what each run did.
 // Ordering is the existing pure dependency ledger. Nothing is terminal until Main says so: a member that asks
@@ -33,7 +41,7 @@ export function createDispatcher({
   const running = new Map();
   // One per turn: cancelling aborts a wait for CI as well as a model call.
   const stops = new Map();
-  // Changes to the files that define the checks: asked about, then acknowledged once Main has replied.
+  // Changes to the files that define the checks, scoped to the pull request and verified head.
   const askedGate = new Map();
   const acknowledgedGate = new Map();
   let disposed = false;
@@ -93,13 +101,20 @@ export function createDispatcher({
       }
       if (!check) return result;
       if (check.state === "success" || check.state === "none") {
-        const acknowledged = acknowledgedGate.get(handle) ?? new Set();
-        const gate = (check.gateFiles ?? []).filter((file) => !acknowledged.has(file));
+        const head = check.headSha;
+        if ((check.gateFiles ?? []).length && !head)
+          return needsInput(result, "Cannot establish the verified pull request head for the changed check files.");
+        let acknowledged = acknowledgedGate.get(handle);
+        if (!acknowledged || acknowledged.head !== head || acknowledged.pullNumber !== check.pullNumber) {
+          acknowledged = { head, pullNumber: check.pullNumber, files: new Set() };
+          acknowledgedGate.set(handle, acknowledged);
+        }
+        const gate = (check.gateFiles ?? []).filter((file) => !acknowledged.files.has(file));
         if (!gate.length) return { ...result, ci: ciSummary(check, round) };
-        askedGate.set(handle, gate);
+        askedGate.set(handle, { files: gate, head, pullNumber: check.pullNumber });
         return needsInput(
           result,
-          `CI is ${check.state === "none" ? "absent" : "green"} on pull request #${check.pullNumber}, but the change touches files that define the checks: ${gate.join(", ")}. Confirm that is intended (reply to accept it), or ask the member to fix the content instead.`,
+          `CI is ${check.state === "none" ? "absent" : "green"} on pull request #${check.pullNumber}, but the change touches files that define the checks: ${gate.join(", ")}. Reply \`accept ${gateCode(head, gate)}\` to accept these changes to the checks, or ask the member to fix the content instead.`,
           { ...ciSummary(check, round), gateFiles: gate },
         );
       }
@@ -207,11 +222,14 @@ export function createDispatcher({
       if (!["needs_input", "failed", "completed"].includes(current))
         throw new Error(`${handle} is ${current}; it can be messaged once it has reported`);
       if (running.has(handle)) throw new Error(`${handle} is already working`);
-      // Main replying to a question about changed check files accepts those files for this member.
-      if (askedGate.has(handle)) {
-        const accepted = acknowledgedGate.get(handle) ?? new Set();
-        for (const file of askedGate.get(handle)) accepted.add(file);
-        acknowledgedGate.set(handle, accepted);
+      // Only the exact confirmation for the question that was actually asked accepts its files.
+      const asked = askedGate.get(handle);
+      if (asked) {
+        const accepted = acknowledgedGate.get(handle);
+        const reply = /^accept ([0-9a-f]{8})$/i.exec(text.trim());
+        if (reply && reply[1] === gateCode(asked.head, asked.files)) {
+          for (const file of asked.files) accepted.files.add(file);
+        }
         askedGate.delete(handle);
       }
       // A follow-up reopens a completed member: whatever it ends as must be what the ledger says.
