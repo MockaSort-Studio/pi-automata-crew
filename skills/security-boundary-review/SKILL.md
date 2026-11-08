@@ -1,25 +1,19 @@
 ---
 name: security-boundary-review
-description: Independently review Pi Crew security boundaries (grants, credentials, network egress, Gondolin isolation, lifecycle ownership, supply chain). Use for independent security-review assignments.
+description: Dispatch independent review of security boundaries when changed paths route to the security specialist. Use for relevant grants, isolation, credentials or lifecycle changes.
 ---
 
 # Security boundary review
 
-Use this skill only to independently review work you did not author.
+For Main or the user: call `crew_route` on the changed paths. Dispatch Bollo when the routes select Bollo;
+security review is not universally mandatory. Include the security reviewer in the same review crew as
+other independent reviewers for the related batch, never an author of the reviewed work.
 
-1. Identify assets, principals, authority grants, trust boundaries, and the
-   attacker action each change makes possible.
-2. Verify deny-by-default behavior with a behavioral test. Cover absent grants,
-   invalid/stale identities, and one allowed path; source inspection alone is
-   not evidence.
-3. Verify secrets never enter worker config, logs, archives, prompts, or
-   unscoped guest environments. Verify a credential cannot broaden a host or
-   operation grant.
-4. Verify isolation cleanup preserves bounded evidence and does not leave a
-   process, VM, worktree, or reusable credential behind.
-5. Report exploitability, affected boundary, evidence, and the smallest safe
-   repair. Do not edit or approve your own work.
+Supply the revision, diff, acceptance criteria, relevant grants and test evidence up front. Explicitly
+validate each reviewer's tool grants and access to that evidence before launch; never rely on omitted
+tools defaulting to a role. Ask for evidence on assets, principals, trust boundaries, deny-by-default,
+least privilege, credentials, isolation and cleanup, as relevant to the change.
 
-Return `APPROVE`, `REQUEST_CHANGES`, or `BLOCKED`, with residual risk and all
-commands/tests run. A passing test that would also pass after removing the
-security boundary is not sufficient evidence.
+Wait without polling. Hold a blocked member until evidence or a decision answers its question. Require
+findings with impact, location, evidence and residual risk; fix blockers and review the fixes. Never merge
+on a green check alone: inspect the diff, independent verdicts and acceptance evidence.

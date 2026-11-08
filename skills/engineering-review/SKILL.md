@@ -1,43 +1,26 @@
 ---
 name: engineering-review
-description: Independently review a change against its acceptance criteria, including runtime and security boundaries when relevant. Use when asked to review a change or completed iteration.
+description: Dispatch independent specialist review of a change against its acceptance criteria and relevant boundaries. Use when the user asks to review a change or completed iteration.
 ---
 
 # Engineering review
 
-Review only work you did not author. Treat acceptance criteria as falsifiable claims.
+This is a dispatch scaffold for Main or the user. Reviewers must not review their own work.
 
-## Dispatching reviewers (Main)
-
-1. Get the diff and changed paths with `git diff --name-only <base>...HEAD` and the diff stat.
-2. Call `crew_route` with the changed paths. It selects personas from `SPECIALIST_ROUTES`;
-   never select the author. Reviewers get read-only tools (`read grep find ls bash`). Supply
-   the relevant procedure explicitly; workers do not discover project skills.
-3. Launch reviewers in parallel with `start_crew` (it dispatches immediately), then wait for
-   messages without polling. Summarize one verdict per reviewer with blocking findings.
-   Reviewers never edit; fixes go back through the engineering execution process.
-
-## Reviewing (you are the reviewer)
-
-Work without git: use `github_pull_request_files` and `github_pull_request_view` to read the diff when granted,
-otherwise inspect the files named in the assignment. Run focused commands with `node` in the workspace.
-State which checks could not be run because of missing tools.
-
-1. Inspect the diff, changed files, focused tests, and nearest contract tests. Identify observable
-   behavior and try to falsify each claim with a focused test or command. Prefer behavioral tests;
-   verify each test would regress if the protected behavior were removed.
-2. Examine failure paths, concurrency, maintainability, and security as appropriate. Verify grants
-   are least-privilege and explicit, including operations, network hosts, credentials, and bash.
-
-## Independent runtime review lens
-
-For Pi Crew runtime, Armory, Gondolin, Comm, lifecycle, or role changes, inspect:
-
-- worker launch failure and cleanup/roster terminalization;
-- Comm/Lifecycle authorization and owner-death behavior;
-- guest mount, network, credential, and host-fallback boundaries;
-- bounded logs and absence of secret values in artifacts.
-
-## Verdict
-
-Report evidence-backed findings with file/line, impact, severity and minimal requested change. State checks run and residual risk. Return `APPROVE` only without blocking or major findings, `REQUEST_CHANGES` for those findings, or `BLOCKED` when required code, evidence, access or execution is unavailable. Do not edit, merge, or repair the reviewed work.
+1. Gather the base revision, changed paths and diff, acceptance criteria, test results and PR reference.
+   Call `crew_route` on changed paths and select independent reviewers for the returned domains. Security
+   review is triggered when changed paths route to Bollo, not required for every change. Do not select an
+   author as reviewer.
+2. Launch one review crew with several independent reviewers for each related batch, not a separate crew
+   per reviewer. Give each reviewer a bounded domain, explicit criteria, relevant files and evidence up
+   front, a recipient, and appropriate review authority. Include the PR and revision so they can inspect
+   the same change.
+3. Before `start_crew`, validate explicit tool grants and evidence access for every reviewer: reading the
+   workspace or PR, inspecting checks and review threads, running focused tests, and submitting a review
+   if authorized. Never assume omitted tools default to a role. If access is unavailable, obtain it or
+   record a blocked review rather than launching an unequipped reviewer.
+4. Wait for reports without polling. Hold a blocked member without resuming it until you have evidence or
+   a decision that answers its question. Collect one verdict per reviewer, with file/line evidence,
+   severity, checks and residual risk. Send fixes back to developers and review the resulting changes.
+5. Never merge on a green check alone. Inspect the diff, acceptance evidence, independent verdicts and
+   unresolved findings; a missing review or evidence is not approval.

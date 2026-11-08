@@ -1,27 +1,19 @@
 ---
 name: post-iteration-review
-description: Consistent end-of-iteration review of a Pi Crew change for over-engineering, dead code or tests, weak spots, and vulnerabilities. Use after every development iteration, before it is called done.
+description: Dispatch an independent end-of-iteration review of complexity, dead code, weak spots and relevant vulnerabilities. Use before calling an iteration done.
 ---
 
 # Post-iteration review
 
-Run on the iteration's diff (`git diff <base>...HEAD`) by someone who did not write it.
-Always report all four sections, even when empty, so reviews stay comparable.
+For Main or the user: gather the iteration diff, requirements and test evidence, then route its changed
+paths with `crew_route`. Dispatch independent specialists together in one review crew for the related
+batch. Include Bollo for security review when the paths route to Bollo, not as a universal requirement.
 
-1. **Over-engineering.** Abstractions, options, layers, or files with a single caller or no
-   requirement behind them; code solving a case no test or requirement names; files over
-   ~200 lines. Ask: what is the smallest change that meets the stated requirement?
-2. **Dead code and tests.** Exports with no consumer (`rg` each new/changed export), unused
-   parameters, stale docs/comments, skipped or duplicated tests, and tests that assert only
-   source text or mocks instead of behavior. For each test, name the change that would make it fail;
-   if none, it is dead.
-3. **Weak spots.** Unhandled failure paths, races, unbounded output or retries, state that
-   survives a crash or owner death, error messages that hide the cause, behavior documented
-   but not enforced.
-4. **Vulnerabilities.** Identify assets, principals, grants, trust boundaries and attacker actions.
-   Test deny-by-default, absent grants, stale identities and an allowed path. Check least-privilege
-   operations and network, credential scope and secret leakage, isolation and cleanup, and supply
-   chain risks. Record exploitability and evidence; a test must fail if the boundary is removed.
+Supply each reviewer the revision, files, evidence, criteria and recipient up front. Explicitly validate
+that the granted tools and operations can access that evidence and run the requested checks; never rely on
+omitted tools defaulting to a role. Ask reviewers to assess complexity, dead code and tests, weak failure
+paths, and relevant vulnerabilities, with evidence and actionable findings.
 
-Each finding: file/line, why it matters, minimal fix, severity (blocking/major/minor).
-Finish with `APPROVE`, `REQUEST_CHANGES` or `BLOCKED` and the commands run. Do not edit the work.
+Wait for reports without polling. Keep a blocked member held until you have evidence or a decision that
+answers its question. Resolve blocking findings and verify the changed work independently. A green check
+alone is not sufficient to merge; consider the diff, verdicts and acceptance evidence.
