@@ -2,6 +2,23 @@ import { createDependencyLedger } from "../crew/lib/dependency-ledger.mjs";
 
 const PREREQUISITE_CHARS = 4000;
 
+function acceptsGate(text, files) {
+  const match = /^accept\s+/i.exec(text.trim());
+  if (!match) return false;
+  const reply = text.trim();
+  const names = [...files].sort((a, b) => b.length - a.length);
+  function parse(position, remaining) {
+    while (position < reply.length && /[\s,]/.test(reply[position])) position += 1;
+    if (position === reply.length) return remaining.length === 0;
+    return remaining.some(
+      (name, index) =>
+        reply.startsWith(name, position) &&
+        parse(position + name.length, [...remaining.slice(0, index), ...remaining.slice(index + 1)]),
+    );
+  }
+  return parse(match[0].length, names);
+}
+
 // Hands each member its assignment when its prerequisites are done, and reports what each run did.
 // Ordering is the existing pure dependency ledger. Nothing is terminal until Main says so: a member that asks
 // a question or fails is held (its dependents wait) and resumes when Main messages it; only a cancel ends it.
@@ -218,15 +235,7 @@ export function createDispatcher({
       const asked = askedGate.get(handle);
       if (asked) {
         const accepted = acknowledgedGate.get(handle);
-        const match = /^accept\s+(.+)$/is.exec(text.trim());
-        let remainder = match?.[1];
-        for (const file of [...asked.files].sort((a, b) => b.length - a.length)) {
-          if (remainder === undefined) break;
-          const index = remainder.indexOf(file);
-          if (index === -1) remainder = undefined;
-          else remainder = remainder.slice(0, index) + remainder.slice(index + file.length);
-        }
-        if (remainder !== undefined && /^[\s,]*$/.test(remainder)) {
+        if (acceptsGate(text, asked.files)) {
           for (const file of asked.files) accepted.files.add(file);
         }
         askedGate.delete(handle);

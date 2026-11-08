@@ -65,6 +65,30 @@ test("accepts exact paths containing spaces, commas, and overlapping prefixes", 
   assert.equal(w.d.status()[0].state, "completed");
 });
 
+test("paths cannot be synthesized by joining text around another matched path", async () => {
+  const w = world();
+  const files = [".github/workflows/a", ".github/workflows/b"];
+  w.setFiles(files);
+  w.d.start();
+  await settle();
+  await w.reply("accept .github/workflows/.github/workflows/ab");
+  assert.deepEqual(w.results.at(-1).ci.gateFiles, files);
+  await w.reply(`accept ${files[0]} ${files[0]}`);
+  assert.deepEqual(w.results.at(-1).ci.gateFiles, files);
+  await w.reply(`accept ${files.join(", ")}`);
+  assert.equal(w.d.status()[0].state, "completed");
+});
+
+test("backtracks when a longer prefix cannot complete the reply", async () => {
+  const w = world();
+  const files = ["a", "a,b", "b,c"];
+  w.setFiles(files);
+  w.d.start();
+  await settle();
+  await w.reply("accept a,b,c a,b");
+  assert.equal(w.d.status()[0].state, "completed");
+});
+
 test("a missing verified head fails closed", async () => {
   const w = world();
   w.setHead(undefined);
