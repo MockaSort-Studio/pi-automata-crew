@@ -41,9 +41,13 @@ test("restored role grants are confined for every released operation", () => {
       input.repo = target === "ownerRepo" ? "Repo" : policy.repo;
       if (target === "ownerRepo") input.owner = "Owner";
       assert.ok(
-        validateMemberAuthority({ tools: [] }, role).suiteGrants.flatMap((grant) => grant.tools).includes(operation),
+        validateMemberAuthority({ tools: [] }, role)
+          .suiteGrants.flatMap((grant) => grant.tools)
+          .includes(operation),
       );
-      assert.doesNotThrow(() => validateMemberAuthority({ tools: [] }, role, [{ suite: github, operations: [operation] }]));
+      assert.doesNotThrow(() =>
+        validateMemberAuthority({ tools: [] }, role, [{ suite: github, operations: [operation] }]),
+      );
       assert.doesNotThrow(() => authorizeRepositoryOperation(operation, input, policy));
       assert.throws(() => authorizeRepositoryOperation(operation, { ...input, repo: "Other" }, policy));
       assert.throws(() => authorizeRepositoryOperation(operation, input), /authorization/);
@@ -56,8 +60,8 @@ test("inventory deferred operations cannot be granted", () => {
     if (target !== "deferred") continue;
     for (const role of ["lead", "architect", "advisor", "developer", "integrator", "reviewer"]) {
       assert.ok(
-        !validateMemberAuthority({ tools: [operation] }, role).suiteGrants
-          .flatMap((grant) => grant.tools)
+        !validateMemberAuthority({ tools: [operation] }, role)
+          .suiteGrants.flatMap((grant) => grant.tools)
           .includes(operation),
       );
       assert.throws(() =>

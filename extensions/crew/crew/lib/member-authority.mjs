@@ -33,7 +33,9 @@ const personaReads = new Set([
   "github_workflow_run_failed_log",
 ]);
 const deferredOperations = new Set(
-  Object.entries(repositoryTargets).filter(([, target]) => target === "deferred").map(([operation]) => operation),
+  Object.entries(repositoryTargets)
+    .filter(([, target]) => target === "deferred")
+    .map(([operation]) => operation),
 );
 const implementationRoleCeiling = new Set([
   "github_pull_request_comment",
