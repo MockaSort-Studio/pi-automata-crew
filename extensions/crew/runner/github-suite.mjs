@@ -79,6 +79,8 @@ export function githubSuiteExtension({
 }) {
   return (pi) => {
     const reviews = new Map();
+    const pendingReviews = new Map();
+    const usedStartCalls = new Set();
     module.activateSuite(pi, injection({ workspace, token, transport }));
     pi.on("tool_call", async (event) => {
       if (!event.toolName.startsWith("github_")) return;
@@ -124,29 +126,40 @@ export function githubSuiteExtension({
       } catch (error) {
         return { block: true, reason: `The workspace could not be prepared: ${error.message}` };
       }
+      if (event.toolName === "github_pull_request_review_start") {
+        if (
+          typeof event.toolCallId !== "string" ||
+          !event.toolCallId ||
+          usedStartCalls.has(event.toolCallId) ||
+          !Number.isInteger(event.input.pullNumber) ||
+          event.input.pullNumber <= 0
+        )
+          return { block: true, reason: "Review start requires a unique call ID and valid pull number" };
+        usedStartCalls.add(event.toolCallId);
+        pendingReviews.set(event.toolCallId, { repo: event.input.repo, pullNumber: event.input.pullNumber });
+      }
     });
     pi.on("tool_result", (event) => {
       if (event.toolName === "github_pull_request_review_submit" && !event.isError)
         reviews.delete(event.input?.reviewId);
-      if (event.toolName === "github_pull_request_review_start" && !event.isError) {
+      if (event.toolName === "github_pull_request_review_start") {
+        const pending = pendingReviews.get(event.toolCallId);
+        pendingReviews.delete(event.toolCallId);
+        if (!pending || event.isError) return;
         let result = event.details;
         if (!result) {
           try {
             result = JSON.parse(event.content?.find((part) => part.type === "text")?.text);
           } catch {}
         }
-        const input = event.input;
         if (
-          policy &&
-          input?.repo === policy.repo &&
-          Number.isInteger(input.pullNumber) &&
-          input.pullNumber > 0 &&
-          result?.repo === input.repo &&
-          result.pullNumber === input.pullNumber &&
-          typeof result.reviewId === "string" &&
-          result.reviewId.length > 0
+          (result?.repo === undefined || result.repo === pending.repo) &&
+          (result?.pullNumber === undefined || result.pullNumber === pending.pullNumber) &&
+          typeof result?.reviewId === "string" &&
+          result.reviewId.length > 0 &&
+          result.reviewId.length <= 256
         )
-          reviews.set(result.reviewId, { repo: result.repo, pullNumber: result.pullNumber });
+          reviews.set(result.reviewId, pending);
       }
       if (event.toolName === "github_pull_request_create" && !event.isError)
         return {

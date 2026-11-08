@@ -230,7 +230,7 @@ test("PR ownership applies only to writes and fails closed", async () => {
     transport,
   })({ registerTool() {}, on: (name, handler) => handlers.set(name, handler) });
   const guard = handlers.get("tool_call");
-  const call = (toolName, input) => guard({ toolName, input });
+  const call = (toolName, input) => guard({ toolName, input, toolCallId: `test-${toolName}` });
   for (const name of [
     "github_pull_requests_list",
     "github_pull_request_view",
