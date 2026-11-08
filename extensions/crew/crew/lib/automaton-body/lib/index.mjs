@@ -6,4 +6,5 @@ export {
   validateRoleTools,
   crewDisciplineModule,
   soulModule,
+  domainModule,
 } from "./modules/index.mjs";

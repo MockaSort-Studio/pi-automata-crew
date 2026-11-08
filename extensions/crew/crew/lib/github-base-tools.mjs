@@ -29,6 +29,7 @@ export const GITHUB_BASE_TOOLS = Object.freeze([
   "github_pull_request_view",
   "github_pull_request_files",
   "github_pull_request_checks",
+  "github_pull_request_checks_wait",
   "github_pull_request_review_threads",
   "github_pull_request_comment",
   "github_pull_request_update",
