@@ -4,7 +4,6 @@ import { buildDependencyMount } from "../../extensions/crew/runner/dependency-mo
 import { createEnvironment } from "../../extensions/crew/runner/environment.mjs";
 import { constants } from "node:os";
 
-
 test("denied snapshot mutations carry the same EROFS errno as Gondolin ReadonlyProvider", async () => {
   const { provider } = await buildDependencyMount({
     snapshots: [{ manifest: { name: "demo", version: "1", files: {} }, files: { "index.js": Buffer.from("source") } }],
