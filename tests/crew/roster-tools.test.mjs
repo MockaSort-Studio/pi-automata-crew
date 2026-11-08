@@ -8,25 +8,13 @@ import { authorizeRepositoryOperation } from "../../extensions/crew/env-runtime/
 
 const github = "collaboration/pi-github-tools";
 const expected = {
-  "old-major": ["github_issues_list", "github_subissues_list", "github_dependency_list"],
-  mergio: [
-    "github_workflow_runs_list",
-    "github_workflow_run_view",
-    "github_workflow_run_failed_log",
-    "github_pull_request_checks",
-  ],
-  bollo: [
-    "github_workflow_runs_list",
-    "github_workflow_run_view",
-    "github_workflow_run_failed_log",
-    "github_pull_request_view",
-    "github_pull_request_files",
-    "github_issues_list",
-  ],
-  tomashco: ["github_issues_list", "github_discussions_list", "github_discussion_view", "github_discussion_comments"],
-  "indiana-docs": ["github_issues_list", "github_discussions_list", "github_discussion_view"],
-  snowball: ["github_issues_list"],
-  hamlet: ["github_workflow_runs_list", "github_workflow_run_view"],
+  "old-major": [],
+  mergio: ["github_pull_request_checks"],
+  bollo: ["github_pull_request_view", "github_pull_request_files"],
+  tomashco: [],
+  "indiana-docs": [],
+  snowball: [],
+  hamlet: [],
   pyrate: [],
   frontenzo: [],
   aeeeiii: [],
@@ -66,10 +54,25 @@ test("personas declare exactly their read-only recognized domain tools", () => {
   }
 });
 
-test("unaudited project and checks-wait operations are withheld from persona grants", () => {
+test("deferred operations are withheld from persona grants", () => {
+  // Restore workflow reads only after #132 is integrated and verified; issue/discussion and
+  // Project reads require reviewed effective-target guards. Checks-wait also requires a guard.
+  const deferred = [
+    "github_project_fields",
+    "github_project_item_find",
+    "github_pull_request_checks_wait",
+    "github_issues_list",
+    "github_subissues_list",
+    "github_dependency_list",
+    "github_discussions_list",
+    "github_discussion_view",
+    "github_discussion_comments",
+    "github_workflow_runs_list",
+    "github_workflow_run_view",
+    "github_workflow_run_failed_log",
+  ];
   for (const [name, automaton] of Object.entries(AUTOMATA)) {
-    for (const tool of ["github_project_fields", "github_project_item_find", "github_pull_request_checks_wait"])
-      assert.ok(!automaton.tools.includes(tool), `${name}: ${tool}`);
+    for (const tool of deferred) assert.ok(!automaton.tools.includes(tool), `${name}: ${tool}`);
   }
 });
 

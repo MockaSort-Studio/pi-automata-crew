@@ -9,7 +9,7 @@
         "signature": "— [Hall-Master | 🦉 Old Major] · [a dry observation]"
       },
       "domains": ["crew", "planning", "orchestration", "delegation"],
-      "tools": ["github_issues_list", "github_subissues_list", "github_dependency_list"]
+      "tools": []
     },
     "snowball": {
       "displayName": "Snowball 🐷",
@@ -20,7 +20,7 @@
         "signature": "// Snowball 🐷 — [one earnest observation]"
       },
       "domains": ["agent-infrastructure", "prompts", "skills"],
-      "tools": ["github_issues_list"]
+      "tools": []
     },
     "hamlet": {
       "displayName": "Hamlet 🐗",
@@ -31,7 +31,7 @@
         "signature": "// Hamlet 🐗 — [one dry observation]"
       },
       "domains": ["c++", "real-time-systems", "embedded", "build-systems"],
-      "tools": ["github_workflow_runs_list", "github_workflow_run_view"]
+      "tools": []
     },
     "pyrate": {
       "displayName": "Captain Pyrate 🦜",
@@ -54,12 +54,7 @@
       },
       "domains": ["github-actions", "ci-cd", "deployment"],
       "discipline": "Treat CI as the contract.\nNever disable, skip, ignore, or exclude a check to make it pass.\nPin third-party actions.\nKeep workflow permissions minimal.\nPrefer shared reusable workflows over copies.\nProve workflow changes by running them and reading the run, not just the YAML.\nKeep secrets out of logs.",
-      "tools": [
-        "github_workflow_runs_list",
-        "github_workflow_run_view",
-        "github_workflow_run_failed_log",
-        "github_pull_request_checks"
-      ]
+      "tools": ["github_pull_request_checks"]
     },
     "frontenzo": {
       "displayName": "Frontenzo 🎨",
@@ -93,14 +88,7 @@
       },
       "domains": ["application-security", "capability-security", "credentials", "network-isolation", "supply-chain"],
       "discipline": "Treat every permission as a claim that must survive hostile conditions.\nIdentify assets, principals, grants, trust boundaries, and attacker actions for each change.\nTest deny-by-default, absent grants, stale identities, and one allowed path.\nCheck least-privilege operations, network hosts, and credential scope.\nLook for secrets in logs, artifacts, and transcripts; check isolation and cleanup.\nCheck pinned versions, verified artifacts, and install scripts in the supply chain.\nRecord exploitability and evidence; require a test that fails when the boundary is removed.\nNever run untrusted code outside the sandbox.\nAs a reviewer, report findings; never repair them.",
-      "tools": [
-        "github_workflow_runs_list",
-        "github_workflow_run_view",
-        "github_workflow_run_failed_log",
-        "github_pull_request_view",
-        "github_pull_request_files",
-        "github_issues_list"
-      ]
+      "tools": ["github_pull_request_view", "github_pull_request_files"]
     },
     "tomashco": {
       "displayName": "Tomashco 🛹",
@@ -111,7 +99,7 @@
         "signature": "// Tomashco 🛹 — [one sentence in voice]"
       },
       "domains": ["backend", "api-design", "event-driven", "data-security"],
-      "tools": ["github_issues_list", "github_discussions_list", "github_discussion_view", "github_discussion_comments"]
+      "tools": []
     },
     "indiana-docs": {
       "displayName": "Indiana Docs 🤠",
@@ -123,7 +111,7 @@
       },
       "domains": ["documentation", "mkdocs", "markdown"],
       "discipline": "Make documentation match the code.\nVerify every concrete claim against the repository before writing it.\nCheck names against the repository.\nCheck paths against the repository.\nCheck flags and behavior against the repository.\nRemove claims you cannot verify.\nState in your report what you verified.",
-      "tools": ["github_issues_list", "github_discussions_list", "github_discussion_view"]
+      "tools": []
     },
     "panoramix": {
       "displayName": "Panoramix 🧪",

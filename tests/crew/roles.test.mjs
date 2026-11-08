@@ -31,12 +31,12 @@ test("GitHub base catalog declares bounded workflow inspection operations", () =
 test("checks wait is recognized and explicit requests can narrow it away", () => {
   const operation = "github_pull_request_checks_wait";
   assert.ok(GITHUB_BASE_TOOLS.includes(operation));
-  const automaton = { ...AUTOMATA.snowball, tools: [...AUTOMATA.snowball.tools, operation] };
+  const automaton = { ...AUTOMATA.snowball, tools: ["github_pull_request_checks", operation] };
   assert.deepEqual(
     validateMemberAuthority(automaton, "advisor", [
-      { suite: "collaboration/pi-github-tools", operations: ["github_issues_list"] },
+      { suite: "collaboration/pi-github-tools", operations: ["github_pull_request_checks"] },
     ]).suiteGrants,
-    [{ suite: "collaboration/pi-github-tools", tools: ["github_issues_list"] }],
+    [{ suite: "collaboration/pi-github-tools", tools: ["github_pull_request_checks"] }],
   );
 });
 
