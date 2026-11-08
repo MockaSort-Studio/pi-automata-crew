@@ -53,6 +53,7 @@ async function setup(t, respond) {
   });
   const build = async (member, extra = {}) => {
     const agent = await createMemberAgent({
+      prepareSources: async () => ({ available: [], failures: ["fixture: source unavailable"] }),
       member: {
         handle: "developer-snowball-00",
         instructions: "You are Snowball, a careful developer.",
@@ -87,6 +88,8 @@ test(
       /You are Snowball, a careful developer\./,
       "the role's instructions reach the system prompt",
     );
+    assert.match(server.requests[0], /fixture: source unavailable/);
+    assert.match(server.requests[0], /hosted CI/);
     assert.equal(agent.salvage, undefined, "no write capability, nothing to salvage");
   },
 );

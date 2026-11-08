@@ -19,18 +19,28 @@ export function extractVerifiedPackage(bytes, pin) {
   if (!Buffer.isBuffer(bytes) || bytes.length > MAX_ARCHIVE || !match)
     throw new Error(`Invalid dependency integrity: ${pin.name}`);
   const expected = Buffer.from(match[1], "base64");
-  if (expected.length !== 64 || expected.toString("base64") !== match[1] || !timingSafeEqual(expected, createHash("sha512").update(bytes).digest()))
+  if (
+    expected.length !== 64 ||
+    expected.toString("base64") !== match[1] ||
+    !timingSafeEqual(expected, createHash("sha512").update(bytes).digest())
+  )
     throw new Error(`Dependency integrity mismatch: ${pin.name}`);
   let tar;
-  try { tar = gunzipSync(bytes, { maxOutputLength: MAX_UNPACKED }); }
-  catch { throw new Error(`Invalid dependency archive: ${pin.name}`); }
+  try {
+    tar = gunzipSync(bytes, { maxOutputLength: MAX_UNPACKED });
+  } catch {
+    throw new Error(`Invalid dependency archive: ${pin.name}`);
+  }
   const files = Object.create(null);
-  let ended = false, count = 0;
-  for (let offset = 0; offset + BLOCK <= tar.length;) {
+  let ended = false,
+    count = 0;
+  for (let offset = 0; offset + BLOCK <= tar.length; ) {
     const header = tar.subarray(offset, offset + BLOCK);
     if (header.every((v) => v === 0)) {
-      if (offset + 2 * BLOCK > tar.length || !tar.subarray(offset).every((v) => v === 0)) throw new Error("Invalid dependency archive terminator");
-      ended = true; break;
+      if (offset + 2 * BLOCK > tar.length || !tar.subarray(offset).every((v) => v === 0))
+        throw new Error("Invalid dependency archive terminator");
+      ended = true;
+      break;
     }
     const checksum = octal(header.subarray(148, 156));
     let actual = 0;
@@ -41,7 +51,13 @@ export function extractVerifiedPackage(bytes, pin) {
     const path = prefix ? `${prefix}/${name}` : name;
     const type = header[156];
     const size = octal(header.subarray(124, 136));
-    if (!path.startsWith("package/") || path.includes("\\") || path.split("/").some((part) => part === ".." || part === "." || part.startsWith(".")) || ![0, 48, 53].includes(type) || (type === 53 && size))
+    if (
+      !path.startsWith("package/") ||
+      path.includes("\\") ||
+      path.split("/").some((part) => part === ".." || part === "." || part.startsWith(".")) ||
+      ![0, 48, 53].includes(type) ||
+      (type === 53 && size)
+    )
       throw new Error("Unsafe dependency archive entry");
     const relative = path.slice(8).replace(/\/$/, "");
     offset += BLOCK;
@@ -53,5 +69,13 @@ export function extractVerifiedPackage(bytes, pin) {
     offset += Math.ceil(size / BLOCK) * BLOCK;
   }
   if (!ended) throw new Error("Invalid dependency archive terminator");
-  return { files, manifest: { name: pin.name, version: pin.version, integrity: pin.integrity, files: Object.fromEntries(Object.entries(files).map(([path, content]) => [path, sha256(content)])) } };
+  return {
+    files,
+    manifest: {
+      name: pin.name,
+      version: pin.version,
+      integrity: pin.integrity,
+      files: Object.fromEntries(Object.entries(files).map(([path, content]) => [path, sha256(content)])),
+    },
+  };
 }

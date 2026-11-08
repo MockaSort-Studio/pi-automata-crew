@@ -1,5 +1,6 @@
 export function verificationFacts(sources, bashGranted) {
-  if (!bashGranted) return "Verification prerequisites: bash is not granted. Project dependency-backed tests require hosted CI; do not report them as passed.";
+  if (!bashGranted)
+    return "Verification prerequisites: bash is not granted. Project dependency-backed tests require hosted CI; do not report them as passed.";
   const root = "/opt/crew/dependency-sources";
   const available = sources?.available ?? [];
   return [

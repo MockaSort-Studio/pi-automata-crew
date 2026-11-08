@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { gzipSync } from "node:zlib";
+import { gzipSync, gunzipSync } from "node:zlib";
 import { readFileSync } from "node:fs";
 import { EventEmitter } from "node:events";
 import { DEPENDENCY_PINS } from "../../extensions/crew/runner/dependency-pins.mjs";
@@ -10,12 +10,25 @@ import { prepareSources, downloadArtifact } from "../../extensions/crew/runner/d
 import { verificationFacts } from "../../extensions/crew/runner/verification-facts.mjs";
 
 function archive(name, body, type = "0") {
-  const data = Buffer.from(body), header = Buffer.alloc(512);
-  header.write(name, 0); header.write("0000644\0", 100); header.write("0000000\0", 108); header.write("0000000\0", 116);
-  header.write(data.length.toString(8).padStart(11, "0") + "\0", 124); header.write("00000000000\0", 136);
-  header.fill(32, 148, 156); header.write(type, 156); header.write("ustar\0", 257);
-  header.write([...header].reduce((a, b) => a + b, 0).toString(8).padStart(6, "0") + "\0 ", 148);
-  return gzipSync(Buffer.concat([header, data, Buffer.alloc((512 - data.length % 512) % 512), Buffer.alloc(1024)]));
+  const data = Buffer.from(body),
+    header = Buffer.alloc(512);
+  header.write(name, 0);
+  header.write("0000644\0", 100);
+  header.write("0000000\0", 108);
+  header.write("0000000\0", 116);
+  header.write(data.length.toString(8).padStart(11, "0") + "\0", 124);
+  header.write("00000000000\0", 136);
+  header.fill(32, 148, 156);
+  header.write(type, 156);
+  header.write("ustar\0", 257);
+  header.write(
+    [...header]
+      .reduce((a, b) => a + b, 0)
+      .toString(8)
+      .padStart(6, "0") + "\0 ",
+    148,
+  );
+  return gzipSync(Buffer.concat([header, data, Buffer.alloc((512 - (data.length % 512)) % 512), Buffer.alloc(1024)]));
 }
 test("reviewed pins match the project lock", () => {
   const lock = JSON.parse(readFileSync(new URL("../../package-lock.json", import.meta.url)));
@@ -28,7 +41,10 @@ test("reviewed pins match the project lock", () => {
 test("absolute download deadline stops a continuously trickling response", async () => {
   const fakeGet = (_options, callback) => {
     const request = new EventEmitter();
-    request.destroy = (error) => { clearInterval(trickle); request.emit("error", error); };
+    request.destroy = (error) => {
+      clearInterval(trickle);
+      request.emit("error", error);
+    };
     const response = new EventEmitter();
     response.statusCode = 200;
     const trickle = setInterval(() => response.emit("data", Buffer.from("x")), 2);
@@ -46,7 +62,9 @@ test("facts distinguish missing formatter and project CI", () => {
   assert.match(verificationFacts(undefined, false), /bash.*not granted/i);
 });
 test("unavailable sources are reported rather than substituted", async () => {
-  const result = await prepareSources([{ name: "demo", version: "1.0.0", integrity: "sha512-invalid" }], async () => { throw new Error("offline"); });
+  const result = await prepareSources([{ name: "demo", version: "1.0.0", integrity: "sha512-invalid" }], async () => {
+    throw new Error("offline");
+  });
   assert.equal(result.snapshots.length, 0);
   assert.match(result.failures[0], /demo.*unavailable/);
 });
@@ -64,12 +82,43 @@ test("verifies full artifact before extraction and manifests actual file bytes",
   const result = extractVerifiedPackage(bytes, { name: "demo", version: "1.2.3", integrity: sri(bytes) });
   assert.equal(result.files["index.js"].toString(), "hello");
   assert.equal(result.manifest.files["index.js"], createHash("sha256").update("hello").digest("hex"));
-  assert.throws(() => extractVerifiedPackage(bytes, { name: "demo", version: "1.2.3", integrity: sri(Buffer.from("wrong")) }), /integrity/);
-  assert.throws(() => extractVerifiedPackage(bytes, { name: "demo", version: "1.2.3", integrity: "sha512-bad" }), /integrity/);
+  assert.throws(
+    () => extractVerifiedPackage(bytes, { name: "demo", version: "1.2.3", integrity: sri(Buffer.from("wrong")) }),
+    /integrity/,
+  );
+  assert.throws(
+    () => extractVerifiedPackage(bytes, { name: "demo", version: "1.2.3", integrity: "sha512-bad" }),
+    /integrity/,
+  );
   for (const name of ["package/../secret", "/etc/passwd", "package/.npmrc"]) {
     const bad = archive(name, "secret");
-    assert.throws(() => extractVerifiedPackage(bad, { name: "demo", version: "1.2.3", integrity: sri(bad) }), /archive/);
+    assert.throws(
+      () => extractVerifiedPackage(bad, { name: "demo", version: "1.2.3", integrity: sri(bad) }),
+      /archive/,
+    );
   }
-  const link = archive("package/link", "", "2");
-  assert.throws(() => extractVerifiedPackage(link, { name: "demo", version: "1.2.3", integrity: sri(link) }), /archive/);
+  for (const type of ["1", "2", "3", "4", "6", "x"]) {
+    const unsafe = archive("package/link", "", type);
+    assert.throws(
+      () => extractVerifiedPackage(unsafe, { name: "demo", version: "1.2.3", integrity: sri(unsafe) }),
+      /archive/,
+    );
+  }
+  const first = gunzipSync(archive("package/index.js", "hello"));
+  const duplicate = gzipSync(Buffer.concat([first.subarray(0, 1024), first]));
+  assert.throws(
+    () => extractVerifiedPackage(duplicate, { name: "demo", version: "1.2.3", integrity: sri(duplicate) }),
+    /Duplicate/,
+  );
+  first[0] ^= 1;
+  const corrupt = gzipSync(first);
+  assert.throws(
+    () => extractVerifiedPackage(corrupt, { name: "demo", version: "1.2.3", integrity: sri(corrupt) }),
+    /checksum/,
+  );
+  const truncated = gzipSync(first.subarray(0, 512));
+  assert.throws(
+    () => extractVerifiedPackage(truncated, { name: "demo", version: "1.2.3", integrity: sri(truncated) }),
+    /archive/,
+  );
 });
