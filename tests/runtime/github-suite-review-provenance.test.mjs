@@ -68,6 +68,7 @@ test("concurrent starts are bound to their own PR and one-time call IDs", async 
   assert.ok((await h.call(inline, inlineInput("second"))).block);
   assert.equal(await h.call(submit, submitInput("first")), undefined);
   assert.equal(await h.call(submit, submitInput("second")), undefined);
+  assert.ok((await h.call(start, target, "a"))?.block);
   h.result("a", target, details(target, "replayed"));
   assert.ok((await h.call(submit, submitInput("replayed"))).block);
 });
@@ -111,15 +112,28 @@ test("start results must be allowed, successful, correlated and carry a bounded 
   assert.equal(await h.call(submit, submitInput("text")), undefined);
 });
 
-test("abandoned pending starts are evicted and late results fail closed", async () => {
+test("a late result records only its own start and leaves other pending starts intact", async () => {
   const h = setup();
+  const second = { ...target, pullNumber: 8 };
   assert.equal(await h.call(start, target, "old"), undefined);
   for (let i = 0; i < 64; i++) assert.equal(await h.call(start, target, `new-${i}`), undefined);
-  h.result("old", target, details(target, "evicted"));
-  assert.ok((await h.call(inline, inlineInput("evicted"))).block);
-  assert.ok((await h.call(submit, submitInput("evicted"))).block);
-  h.result("new-0", target, details(target, "valid"));
-  assert.equal(await h.call(submit, submitInput("valid")), undefined);
+  assert.ok((await h.call(start, second, "old"))?.block);
+  assert.equal(await h.call(start, second, "other"), undefined);
+  h.result("old", target, details(target, "late"));
+  assert.equal(await h.call(inline, inlineInput("late")), undefined);
+  assert.ok((await h.call(inline, inlineInput("late", { pullNumber: 8 }))).block);
+  h.result("other", second, details(second, "valid"));
+  assert.equal(await h.call(inline, inlineInput("valid", { pullNumber: 8 })), undefined);
+  assert.ok((await h.call(inline, inlineInput("valid"))).block);
+});
+
+test("start call IDs are bounded for the session even when calls remain pending", async () => {
+  const h = setup();
+  for (let i = 0; i < 1024; i++) assert.equal(await h.call(start, target, `start-${i}`), undefined);
+  assert.match((await h.call(start, target, "overflow")).reason, /review start limit reached/i);
+  h.result("start-0", target, details(target, "first"));
+  assert.equal(await h.call(submit, submitInput("first")), undefined);
+  assert.match((await h.call(start, target, "still-full")).reason, /review start limit reached/i);
 });
 
 test("recorded review capacity fails closed for starts and concurrent results", async () => {

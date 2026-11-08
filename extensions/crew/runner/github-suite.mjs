@@ -11,7 +11,7 @@ import {
 import { workspaceFs } from "./workspace-fs.mjs";
 
 const run = promisify(execFile);
-const MAX_PENDING_REVIEWS = 64;
+const MAX_REVIEW_STARTS = 1024;
 const MAX_RECORDED_REVIEWS = 256;
 
 // How the suite's `gh` runs on the host. The Crew's own token is the only credential: it is set explicitly,
@@ -82,6 +82,7 @@ export function githubSuiteExtension({
   return (pi) => {
     const reviews = new Map();
     const pendingReviews = new Map();
+    const issuedReviewStarts = new Set();
     module.activateSuite(pi, injection({ workspace, token, transport }));
     pi.on("tool_call", async (event) => {
       if (!event.toolName.startsWith("github_")) return;
@@ -131,14 +132,16 @@ export function githubSuiteExtension({
         if (
           typeof event.toolCallId !== "string" ||
           !event.toolCallId ||
-          pendingReviews.has(event.toolCallId) ||
+          issuedReviewStarts.has(event.toolCallId) ||
           !Number.isInteger(event.input.pullNumber) ||
           event.input.pullNumber <= 0
         )
           return { block: true, reason: "Review start requires a unique call ID and valid pull number" };
+        if (issuedReviewStarts.size >= MAX_REVIEW_STARTS)
+          return { block: true, reason: "Review start limit reached for this session" };
         if (reviews.size >= MAX_RECORDED_REVIEWS)
           return { block: true, reason: "Recorded review limit reached for this session" };
-        if (pendingReviews.size >= MAX_PENDING_REVIEWS) pendingReviews.delete(pendingReviews.keys().next().value);
+        issuedReviewStarts.add(event.toolCallId);
         pendingReviews.set(event.toolCallId, { repo: event.input.repo, pullNumber: event.input.pullNumber });
       }
     });
