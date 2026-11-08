@@ -177,6 +177,7 @@ export function createDispatcher({
       } else result = failure("startup_error", error?.message);
     }
     if (state.get(handle) === "cancelled") return;
+    if (stop.signal.aborted) result = { ...result, status: "cancelled" };
     stops.delete(handle);
     result = JSON.parse(scrub(JSON.stringify(result)));
     results.set(handle, result);

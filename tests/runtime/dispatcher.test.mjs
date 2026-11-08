@@ -214,6 +214,40 @@ test("cancelling aborts the running member, salvages it, and holds what depends 
   );
 });
 
+test("cancellation during salvage wins and retains salvage evidence", async () => {
+  let release;
+  let entered;
+  const started = new Promise((resolve) => (entered = resolve));
+  const reports = [];
+  const created = [];
+  const dispatcher = createDispatcher({
+    members: members.slice(0, 2),
+    createAgent: async (member) => {
+      created.push(member.handle);
+      return {
+        run: { prompt: async () => result("completed"), abort: async () => {} },
+        salvage: async () => {
+          entered();
+          return new Promise((resolve) => (release = resolve));
+        },
+      };
+    },
+    onResult: (handle, outcome) => reports.push([handle, outcome]),
+  });
+  dispatcher.start();
+  await started;
+  const cancelling = dispatcher.cancel(A);
+  release({ branch: "crew/salvaged" });
+  await cancelling;
+  await settle();
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0][1].status, "cancelled");
+  assert.deepEqual(reports[0][1].salvage, { branch: "crew/salvaged" });
+  assert.equal(dispatcher.status()[0].ledger, "failed");
+  assert.equal(dispatcher.status()[1].state, "held");
+  assert.deepEqual(created, [A]);
+});
+
 test("an abort rejection reports cancelled and salvages exactly once", async () => {
   let rejectPrompt;
   const salvaged = [];
