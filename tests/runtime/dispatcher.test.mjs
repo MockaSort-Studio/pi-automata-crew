@@ -214,6 +214,46 @@ test("cancelling aborts the running member, salvages it, and holds what depends 
   );
 });
 
+test("cancel bounds an unresponsive CI run and ignores its late completion", { timeout: 8000 }, async () => {
+  let release;
+  let disposed = false;
+  const r = reported();
+  const dispatcher = createDispatcher({
+    members: [members[0]],
+    createAgent: async () => ({
+      run: { prompt: async () => result("completed"), abort: async () => {} },
+      verify: () => new Promise((resolve) => (release = resolve)),
+      dispose: async () => (disposed = true),
+    }),
+    ...r,
+  });
+  dispatcher.start();
+  await settle();
+  assert.equal(dispatcher.status()[0].state, "ci");
+  await dispatcher.cancel(A);
+  assert.equal(dispatcher.status()[0].state, "cancelled");
+  assert.equal(dispatcher.status()[0].ledger, "failed");
+  await settle();
+  assert.equal(disposed, true);
+  release({ state: "success" });
+  await settle();
+  assert.equal(dispatcher.status()[0].state, "cancelled");
+  assert.deepEqual(r.results, [[A, "cancelled"]]);
+});
+
+test("dispose bounds an unresponsive run", { timeout: 8000 }, async () => {
+  const dispatcher = createDispatcher({
+    members: [members[0]],
+    createAgent: async () => ({
+      run: { prompt: () => new Promise(() => {}), abort: async () => {} },
+      dispose: async () => {},
+    }),
+  });
+  dispatcher.start();
+  await settle();
+  await dispatcher.dispose();
+});
+
 test("salvage runs after every outcome and is attached to the result without changing it", async () => {
   const seen = [];
   const w = world(
