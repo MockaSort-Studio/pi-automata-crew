@@ -97,6 +97,40 @@ jobs:
           ' >"$private/boot.out" 2>&1
           trace_status=$?
           set -e
+          # The cache and home are private, fresh, and contain only this unauthenticated probe's assets.
+          python3 - "$private" <<'PY' > diagnostic-output/image-format.txt
+          import json, os, pathlib, re, sys
+          root = pathlib.Path(sys.argv[1])
+          count = 0
+          for base in (root / 'cache', root / 'home'):
+              for directory, _, names in os.walk(base, followlinks=False):
+                  for name in sorted(names):
+                      if not re.search(r'kernel|vmlinux|vmlinuz|initrd|initramfs|manifest', name, re.I):
+                          continue
+                      path = pathlib.Path(directory) / name
+                      relative = str(path.relative_to(root))
+                      if path.is_symlink() or not re.fullmatch(r'[A-Za-z0-9_./+-]{1,240}', relative):
+                          continue
+                      count += 1
+                      size = path.stat().st_size
+                      with path.open('rb') as stream:
+                          header = stream.read(16).hex()
+                          stream.seek(0x202)
+                          boot_magic = stream.read(4).hex()
+                      print(f'Image asset: {relative}; bytes={size}; first16={header}')
+                      if re.search(r'kernel|vmlinux|vmlinuz', name, re.I):
+                          print(f'Kernel header: ELF={header.startswith("7f454c46")}; x86_boot_0x202={boot_magic}')
+                      if 'manifest' in name.lower() and size <= 1_000_000:
+                          try:
+                              manifest = json.loads(path.read_text())
+                              if isinstance(manifest, dict):
+                                  keys = sorted(key for key in manifest if re.fullmatch(r'[A-Za-z0-9_.-]{1,80}', key))
+                                  print('Manifest keys:', ','.join(keys))
+                          except (ValueError, UnicodeError):
+                              print('Manifest is not readable JSON')
+          print(f'Matching image assets: {count}')
+          PY
+          cat diagnostic-output/image-format.txt
           python3 - "$private/trace" "$trace_status" "$private/boot.out" <<'PY'
           import pathlib, re, sys
           path = pathlib.Path(sys.argv[1])
