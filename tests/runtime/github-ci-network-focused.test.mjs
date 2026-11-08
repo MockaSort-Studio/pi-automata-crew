@@ -28,6 +28,12 @@ test("CI metadata policy binds exact repo, methods, endpoints, grants and bounde
   assert.equal(check(base + "/runs", {}, []), false);
 });
 
+test("missing or malformed network policy fails closed", () => {
+  const request = new Request(base + "/runs");
+  for (const policy of [undefined, {}, { repo: "Owner/Repo" }, { repo: "Owner/Repo", operations: null }])
+    assert.equal(githubCiRequestAllowed(request, policy), false);
+});
+
 test("only exact placeholder authorization is accepted before substitution", () => {
   const headers = (value, extra = {}) => new Headers({ authorization: value, ...extra });
   assert.equal(githubCiHeadersAllowed(headers("Bearer PLACEHOLDER"), "PLACEHOLDER"), true);

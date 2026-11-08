@@ -11,7 +11,9 @@ export function githubCiHeadersAllowed(headers, placeholder) {
 }
 
 // Only metadata endpoints corresponding to the member's explicit Armory grants.
-export function githubCiRequestAllowed(request, { repo, operations }) {
+export function githubCiRequestAllowed(request, policy) {
+  if (!policy || typeof policy.repo !== "string" || !Array.isArray(policy.operations)) return false;
+  const { repo, operations } = policy;
   let url;
   try {
     url = new URL(request.url);
