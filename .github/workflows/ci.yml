@@ -63,6 +63,7 @@ jobs:
       # run proves the suite does not depend on, or break under, an inherited worker environment.
       - name: Required tests (all except explicit experimental krun cases)
         run: |
+          export PATH="$PWD/node_modules/.bin:$PATH"
           env -u PI_SDK_ACTOR_ID -u PI_CREW_WORKER_CONFIG -u PI_CREW_COMM_TOKEN -u PI_CREW_ROOT -u PI_SESSION_ID \
             node --test --test-skip-pattern='^krun: ' tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/pi/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs
           bash tests/pi/test-extension-load.sh
@@ -111,6 +112,7 @@ jobs:
           EOF
       - name: Run explicit krun coverage
         run: |
+          export PATH="$PWD/node_modules/.bin:$PATH"
           set -o pipefail
           timeout --kill-after=10s 360s node --test --test-reporter=tap --test-name-pattern='^krun: ' \
             tests/runtime/gondolin-worker-smoke.test.mjs tests/runtime/gondolin-idle-release.test.mjs tests/runtime/vm-lifecycle.test.mjs 2>&1 | tee krun-experimental.tap

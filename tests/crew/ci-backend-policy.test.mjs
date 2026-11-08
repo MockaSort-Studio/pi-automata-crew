@@ -32,6 +32,7 @@ test("required CI retains generic, QEMU and extension-load coverage; only explic
   assert.notEqual(required["continue-on-error"], true);
   assert.equal(required.env.HALL_VMM, "qemu");
   const command = required.steps.find((step) => step.name?.startsWith("Required tests")).run;
+  assert.ok(command.includes('export PATH="$PWD/node_modules/.bin:$PATH"'));
   assert.match(command, /--test-skip-pattern='\^krun: '/);
   for (const path of [
     "tests/crew/*.test.mjs",
@@ -55,6 +56,7 @@ test("experimental krun coverage still executes, records failures and cannot fai
   assert.match(preflight.run, /execFileSync\(runner/);
   assert.match(preflight.run, /assert.equal\(chooseVmm/);
   const command = experimental.steps.find((step) => step.name === "Run explicit krun coverage").run;
+  assert.ok(command.includes('export PATH="$PWD/node_modules/.bin:$PATH"'));
   assert.match(command, /set -o pipefail/);
   assert.match(command, /--test-name-pattern='\^krun: '/);
   for (const file of ["gondolin-worker-smoke", "gondolin-idle-release", "vm-lifecycle"]) {
