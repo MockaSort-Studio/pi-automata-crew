@@ -53,6 +53,7 @@ export async function verifyPullRequest({ ops, policy, evidence, signal }) {
   );
   if (check.state === "failure")
     return { ...check, pullNumber, followUp: ciFollowUp({ pullNumber, sha, failures: check.failures }) };
+  if (check.state === "closed") return { ...check, pullNumber };
   // Green (or no checks): was it made green by changing the checks themselves?
   const files = await ops.call("github_pull_request_files", { repo: policy.repo, pullNumber }, { signal });
   const gateFiles = gateFilesOf(Array.isArray(files) ? files : []);

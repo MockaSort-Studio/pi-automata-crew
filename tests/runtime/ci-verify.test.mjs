@@ -112,6 +112,21 @@ test("a green result reports whether the pull request changed the files that def
   assert.equal((await verifyPullRequest({ ops: red, policy, evidence })).state, "failure");
 });
 
+test("closed pull requests are reported even with gate files and missing or stale evidence", async () => {
+  for (const commit of [undefined, "b".repeat(40)]) {
+    const ops = {
+      call: async (name) =>
+        name === "github_pull_request_checks_wait"
+          ? { state: "closed", prState: "MERGED" }
+          : [{ filename: ".prettierignore", blob_url: `https://github.com/o/r/blob/${"a".repeat(40)}/file` }],
+    };
+    const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit } };
+    const check = await verifyPullRequest({ ops, policy, evidence });
+    assert.equal(check.state, "closed");
+    assert.equal(check.prState, "MERGED");
+  }
+});
+
 test("the follow-up tells the member not to weaken the checks", () => {
   assert.match(ciFollowUp({ pullNumber: 1 }), /do not disable, skip, ignore or exclude checks/);
 });

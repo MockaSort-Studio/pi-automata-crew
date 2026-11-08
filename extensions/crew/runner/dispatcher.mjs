@@ -106,7 +106,7 @@ export function createDispatcher({
         askedGate.set(handle, { files: gate, head, pullNumber: check.pullNumber });
         return needsInput(
           result,
-          `CI is ${check.state === "none" ? "absent" : "green"} on pull request #${check.pullNumber}, but the change touches files that define the checks: ${gate.join(", ")}. To acknowledge, reply with only accept followed by every listed file's exact path, separated by spaces or commas (for example: accept ${gate.join(", ")}). Any other reply is a follow-up.`,
+          `CI is ${check.state === "none" ? "absent" : "green"} on pull request #${check.pullNumber}, but the change touches files that define the checks: ${gate.join(", ")}. To acknowledge, reply \`accept\` followed by every file name exactly as listed, separated by spaces or commas (for example: accept ${gate.join(", ")}). Any other reply is a follow-up.`,
           { ...ciSummary(check, round), gateFiles: gate },
         );
       }
@@ -219,8 +219,14 @@ export function createDispatcher({
       if (asked) {
         const accepted = acknowledgedGate.get(handle);
         const match = /^accept\s+(.+)$/is.exec(text.trim());
-        const files = match?.[1].split(/[\s,]+/) ?? [];
-        if (files.length === asked.files.length && asked.files.every((file) => files.includes(file))) {
+        let remainder = match?.[1];
+        for (const file of [...asked.files].sort((a, b) => b.length - a.length)) {
+          if (remainder === undefined) break;
+          const index = remainder.indexOf(file);
+          if (index === -1) remainder = undefined;
+          else remainder = remainder.slice(0, index) + remainder.slice(index + file.length);
+        }
+        if (remainder !== undefined && /^[\s,]*$/.test(remainder)) {
           for (const file of asked.files) accepted.files.add(file);
         }
         askedGate.delete(handle);

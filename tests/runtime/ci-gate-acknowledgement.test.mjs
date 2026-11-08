@@ -36,7 +36,7 @@ test("gate replies require every exact path and reject ordinary follow-ups", asy
   const w = world();
   w.d.start();
   await settle();
-  assert.match(w.results.at(-1).question, /only accept followed by every listed file/i);
+  assert.match(w.results.at(-1).question, /reply `accept` followed by every file name exactly as listed/i);
   await w.reply("please continue");
   assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
   await w.reply(`accept ${first}.backup`);
@@ -50,6 +50,18 @@ test("gate replies require every exact path and reject ordinary follow-ups", asy
   await w.reply(`accept ${first}, ${second} please`);
   assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
   await w.reply(`AcCePt ${first}, ${second}`);
+  assert.equal(w.d.status()[0].state, "completed");
+});
+
+test("accepts exact paths containing spaces, commas, and overlapping prefixes", async () => {
+  const w = world();
+  const files = [".github/workflows/release checks.yml", ".github/workflows/a,b.yml", "config", "config.extra"];
+  w.setFiles(files);
+  w.d.start();
+  await settle();
+  await w.reply(`accept ${files[0]}, ${files[1]}, ${files[2]}`);
+  assert.deepEqual(w.results.at(-1).ci.gateFiles, files);
+  await w.reply(`accept ${files.join(", ")}`);
   assert.equal(w.d.status()[0].state, "completed");
 });
 
