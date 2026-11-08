@@ -1,17 +1,20 @@
 import { strict as assert } from "node:assert";
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
 import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import {
@@ -22,7 +25,7 @@ import {
 
 const homes = [];
 const home = () => {
-  const dir = mkdtempSync(join(tmpdir(), "armory-cache-"));
+  const dir = mkdtempSync(join(homedir(), ".armory-cache-test-"));
   homes.push(dir);
   return dir;
 };
@@ -108,6 +111,59 @@ test("rejects writable and symlinked ancestors and a swapped cache file", () => 
   symlinkSync(external, ancestor);
   assert.equal(read(dir), undefined);
   assert.equal(writeCachedCatalog(doc, { home: dir }), false);
+});
+
+test("rejects a writable ancestor above the home", () => {
+  const parent = home();
+  const dir = join(parent, "user");
+  mkdirSync(dir, { mode: 0o700 });
+  assert.equal(writeCachedCatalog(doc, { home: dir }), true);
+  chmodSync(parent, 0o777);
+  assert.equal(read(dir), undefined);
+  assert.equal(writeCachedCatalog(doc, { home: dir }), false);
+});
+
+test("operations stay on canonical home when an alias is swapped", () => {
+  const original = home();
+  const attacker = home();
+  const aliases = home();
+  const alias = join(aliases, "home");
+  symlinkSync(original, alias);
+  chmodSync(aliases, 0o777);
+  assert.equal(writeCachedCatalog(doc, { home: original }), true);
+  assert.equal(writeCachedCatalog({ ...doc, value: "attacker" }, { home: attacker }), true);
+  let swapped = false;
+  assert.equal(
+    writeCachedCatalog(doc, {
+      home: alias,
+      random: () => {
+        if (!swapped) {
+          swapped = true;
+          renameSync(alias, `${alias}.old`);
+          symlinkSync(attacker, alias);
+        }
+        return Buffer.alloc(16, 1);
+      },
+    }),
+    true,
+  );
+  assert.equal(JSON.parse(readFileSync(join(catalogCacheRoot(attacker), "latest.json"), "utf8")).doc.value, "attacker");
+  assert.equal(read(original).doc.value, "valid");
+  unlinkSync(alias);
+  symlinkSync(original, alias);
+  const open = fs.openSync;
+  fs.openSync = (...args) => {
+    unlinkSync(alias);
+    symlinkSync(attacker, alias);
+    return open(...args);
+  };
+  syncBuiltinESMExports();
+  try {
+    assert.equal(read(alias).doc.value, "valid");
+  } finally {
+    fs.openSync = open;
+    syncBuiltinESMExports();
+  }
 });
 
 test("exclusive temporary creation rejects a forced collision", () => {

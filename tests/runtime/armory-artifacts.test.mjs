@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   armoryCache,
@@ -15,7 +15,7 @@ import {
 
 const homes = [];
 const freshHome = () => {
-  const dir = mkdtempSync(join(tmpdir(), "armory-artifacts-"));
+  const dir = mkdtempSync(join(homedir(), ".armory-artifacts-test-"));
   homes.push(dir);
   return dir;
 };

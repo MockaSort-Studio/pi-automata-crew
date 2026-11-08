@@ -106,8 +106,9 @@ no credentials.
 ## Catalog cache
 
 The last validated release catalog is stored under `~/.cache/pi-crew/armory-catalog/` as `latest.json` and
-per-revision files. Starting at the canonical home, every directory through the cache must be real, owned by the
-current user and not group- or world-writable; missing cache directories are created with mode 0700. Cache files are
+per-revision files. Operations use the canonical home path, whose ancestors up to the filesystem root must be real,
+owned by root or the current user and not group- or world-writable. From home through the cache every directory must
+be current-user-owned and not group- or world-writable; missing cache directories are created with mode 0700. Cache files are
 opened without following symlinks and checked for ownership and permissions. Writes use mode 0600, exclusive random
 temporary names and atomic rename. Platforms without user IDs or no-follow support disable caching. Unsafe or
 unreadable cache directories and invalid cache files are ignored.
