@@ -61,6 +61,25 @@ async function world(t, respond) {
 const results = (events) => events.filter((e) => e.event === "result").map((e) => [e.handle, e.result.status]);
 const mentions = (body, marker) => body.includes(marker);
 
+test("a second signal exits immediately during an in-flight launch", { timeout: 5000 }, async (t) => {
+  const host = spawn(process.execPath, ["extensions/crew/runner/host-main.mjs"], {
+    env: { ...process.env, CREW_HOST_DEPS: join(fixtures, "host-pending-launch-deps.mjs") },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  t.after(() => host.kill("SIGKILL"));
+  let diagnostics = "";
+  host.stderr.on("data", (data) => (diagnostics += data));
+  const exited = new Promise((resolve) => host.once("exit", resolve));
+  host.stdin.write(
+    `${JSON.stringify({ id: 1, method: "launch", params: { runId: "stuck", members: [member(A)] } })}\n`,
+  );
+  assert.ok(await waitUntil(() => diagnostics.includes("runtime pending"), 3000));
+  host.kill("SIGTERM");
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  host.kill("SIGHUP");
+  assert.equal(await exited, 0);
+});
+
 test("host protocol cancels a member stuck in CI", { timeout: 9000 }, async (t) => {
   const host = spawn(process.execPath, ["extensions/crew/runner/host-main.mjs"], {
     env: { ...process.env, CREW_HOST_DEPS: join(fixtures, "host-stuck-deps.mjs") },

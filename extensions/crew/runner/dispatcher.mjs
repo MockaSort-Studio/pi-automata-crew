@@ -143,8 +143,9 @@ export function createDispatcher({
     const stop = new AbortController();
     stops.set(handle, stop);
     let result;
+    let agent = agents.get(handle);
+    let salvageAttempted = false;
     try {
-      let agent = agents.get(handle);
       if (!agent) {
         agent = await createAgent(member);
         agents.set(handle, agent);
@@ -160,10 +161,20 @@ export function createDispatcher({
       result = await ciGate(handle, agent, result, stop.signal);
       if (state.get(handle) === "cancelled") return;
       if (stop.signal.aborted) result = { ...result, status: "cancelled" };
+      salvageAttempted = true;
       const salvaged = await agent.salvage?.(result.status);
       if (salvaged) result = { ...result, salvage: salvaged };
     } catch (error) {
-      result = failure("startup_error", error?.message);
+      if (stop.signal.aborted) {
+        result = { status: "cancelled", finalText: "" };
+        if (state.get(handle) === "cancelled") return;
+        try {
+          const salvaged = salvageAttempted ? undefined : await agent?.salvage?.("cancelled");
+          if (salvaged) result.salvage = salvaged;
+        } catch {
+          // Cancellation remains terminal even if salvage fails.
+        }
+      } else result = failure("startup_error", error?.message);
     }
     if (state.get(handle) === "cancelled") return;
     stops.delete(handle);

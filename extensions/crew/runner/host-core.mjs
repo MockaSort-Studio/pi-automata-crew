@@ -62,11 +62,16 @@ export function createHostCore({ send, deps = {} }) {
   const d = { ...defaults, ...deps };
   const crews = new Map();
   let githubModule;
+  let closing = false;
+  const assertOpen = () => {
+    if (closing) throw new Error("The crew host is closing");
+  };
 
   const secretsOf = () => [d.env.HALL_GITHUB_TOKEN].filter(Boolean);
   const scrub = (text) => secretsOf().reduce((out, secret) => out.split(secret).join("[redacted]"), String(text));
 
   async function launch({ runId, crewDir, repository, members, maxParallel, idleMs }) {
+    assertOpen();
     if (!runId || crews.has(runId)) throw new Error(`Crew ${runId} already exists`);
     if (!Array.isArray(members) || !members.length) throw new Error("A crew needs at least one member");
     for (const member of members)
@@ -104,26 +109,39 @@ export function createHostCore({ send, deps = {} }) {
       onIdle: (members) => send({ event: "idle", runId, members }),
     });
 
-    crew.modelRuntime = await d.createModelRuntime();
-    for (const member of members) {
-      if (!member.model) continue;
-      try {
-        d.resolveModel(crew.modelRuntime, member.model);
-      } catch (error) {
-        throw new Error(`${member.handle}: ${error.message}`);
+    let registered = false;
+    try {
+      crew.modelRuntime = await d.createModelRuntime();
+      assertOpen();
+      for (const member of members) {
+        if (!member.model) continue;
+        try {
+          d.resolveModel(crew.modelRuntime, member.model);
+        } catch (error) {
+          throw new Error(`${member.handle}: ${error.message}`);
+        }
+      }
+      if (repository) crew.seedArchive = await d.buildSeed(repository, d.cwd);
+      assertOpen();
+      if (members.some((member) => member.suiteGrants?.some((grant) => grant.suite === GITHUB_SUITE))) {
+        const token = d.env.HALL_GITHUB_TOKEN;
+        if (!token) throw new Error("The GitHub suite is granted but no Crew credential is set (HALL_GITHUB_TOKEN)");
+        githubModule ??= await d.loadGithubModule();
+        assertOpen();
+        crew.github = { module: githubModule, token };
+      }
+
+      assertOpen();
+      crews.set(runId, { dispatcher, activity, live });
+      registered = true;
+      dispatcher.start();
+      return { runId, members: dispatcher.status() };
+    } finally {
+      if (!registered) {
+        await dispatcher.dispose();
+        await crew.modelRuntime?.dispose?.();
       }
     }
-    if (repository) crew.seedArchive = await d.buildSeed(repository, d.cwd);
-    if (members.some((member) => member.suiteGrants?.some((grant) => grant.suite === GITHUB_SUITE))) {
-      const token = d.env.HALL_GITHUB_TOKEN;
-      if (!token) throw new Error("The GitHub suite is granted but no Crew credential is set (HALL_GITHUB_TOKEN)");
-      githubModule ??= await d.loadGithubModule();
-      crew.github = { module: githubModule, token };
-    }
-
-    crews.set(runId, { dispatcher, activity, live });
-    dispatcher.start();
-    return { runId, members: dispatcher.status() };
   }
 
   const crewOf = (runId) => {
@@ -167,6 +185,7 @@ export function createHostCore({ send, deps = {} }) {
     },
     // Closes every VM; called when Main goes away or asks the host to stop.
     async close() {
+      closing = true;
       let timer;
       await Promise.race([
         Promise.allSettled([...crews.values()].map(({ dispatcher }) => dispatcher.dispose())),

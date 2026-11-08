@@ -214,6 +214,51 @@ test("cancelling aborts the running member, salvages it, and holds what depends 
   );
 });
 
+test("an abort rejection reports cancelled and salvages exactly once", async () => {
+  let rejectPrompt;
+  const salvaged = [];
+  const r = reported();
+  const dispatcher = createDispatcher({
+    members,
+    createAgent: async () => ({
+      run: {
+        prompt: () => new Promise((resolve, reject) => (rejectPrompt = reject)),
+        abort: async () => rejectPrompt(new Error("aborted")),
+      },
+      salvage: async (status) => salvaged.push(status),
+    }),
+    ...r,
+  });
+  dispatcher.start();
+  await settle();
+  await dispatcher.cancel(A);
+  assert.deepEqual(r.results, [[A, "cancelled"]]);
+  assert.deepEqual(salvaged, ["cancelled"]);
+  assert.deepEqual(
+    dispatcher.status().map((item) => item.state),
+    ["cancelled", "held", "held"],
+  );
+});
+
+test("a prompt rejection without abort remains a startup error", async () => {
+  const results = [];
+  const dispatcher = createDispatcher({
+    members: [members[0]],
+    createAgent: async () => ({
+      run: {
+        prompt: async () => {
+          throw new Error("prompt failed");
+        },
+      },
+    }),
+    onResult: (_handle, result) => results.push(result),
+  });
+  dispatcher.start();
+  await settle();
+  assert.equal(results[0].status, "failed");
+  assert.equal(results[0].failure.category, "startup_error");
+});
+
 test("cancel bounds an unresponsive CI run and ignores its late completion", { timeout: 8000 }, async () => {
   let release;
   let disposed = false;
