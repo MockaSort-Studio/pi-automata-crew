@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readCachedCatalog, writeCachedCatalog } from "./armory-catalog-cache.mjs";
 
 // The one binary cache this client trusts; a catalog naming any other is refused.
 export const armoryCache = JSON.parse(readFileSync(new URL("../armory-cache.json", import.meta.url), "utf8"));
@@ -77,9 +78,35 @@ export function referenceFromArtifacts(doc) {
 }
 
 // The release is the single source of Armory suites. A launch resolves the latest
-// release; a worker re-resolves the exact release its launch pinned.
-export async function resolveArmoryCatalog({ release, fetchImpl, cache } = {}) {
-  return referenceFromArtifacts(await fetchArtifactCatalog({ url: release, fetchImpl, cache }));
+// release; a worker re-resolves the exact release its launch pinned. A pinned release
+// never changes, so it is served from disk when this machine has seen it. When the
+// network fails, the last validated catalog is used instead (`fromCache`, `cachedAt`);
+// a catalog that downloads but is INVALID is never papered over with a cached one.
+const PINNED_RELEASE = /\/releases\/download\/armory-([0-9a-f]{40})\/artifacts\.json$/;
+const INVALID = "Invalid Armory artifact catalog";
+
+export async function resolveArmoryCatalog({ release, fetchImpl, cache, home, attempts = 2 } = {}) {
+  const validate = (doc) => validateArtifactCatalog(doc, cache);
+  const pinned = release ? PINNED_RELEASE.exec(release)?.[1] : undefined;
+  const cached = (name) => {
+    const hit = readCachedCatalog(name, { home, validate });
+    return hit && { ...referenceFromArtifacts(hit.doc), fromCache: true, cachedAt: hit.fetchedAt };
+  };
+  if (pinned && cached(pinned)) return cached(pinned);
+  let failure;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const doc = await fetchArtifactCatalog({ url: release, fetchImpl, cache });
+      writeCachedCatalog(doc, { home });
+      return referenceFromArtifacts(doc);
+    } catch (error) {
+      if (String(error?.message).startsWith(INVALID)) throw error;
+      failure = error;
+    }
+  }
+  const fallback = pinned ? undefined : cached("latest");
+  if (fallback) return fallback;
+  throw new Error(`${failure.message} (no cached Armory catalog to fall back to)`, { cause: failure });
 }
 
 export function readCatalogSuite(reference, manifestPath) {

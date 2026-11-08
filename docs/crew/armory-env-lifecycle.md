@@ -102,3 +102,17 @@ no credentials.
 5. Invoke one operation through proxy -> guest runner -> guest `gh`.
 6. Prove a second worker has a separate VM/session projection and shares only
    immutable Nix store paths.
+
+## Catalog cache
+
+A launch resolves the latest release catalog (`artifacts.json`) from GitHub. The last catalog this machine
+validated is kept under `~/.cache/pi-crew/armory-catalog/`: `latest.json`, and `<revision>.json` for each release.
+
+- A failed download is retried once, then the cached `latest.json` is used (`fromCache`, `cachedAt` on the reference).
+  With nothing cached the error says so; a stale launch is never silent about being stale.
+- A pinned release (a worker re-resolving what its launch pinned) never changes, so it is served from disk with no
+  network once seen, and never falls back to a different release.
+- A cached file is untrusted input: it is re-validated on every read (including the pinned binary cache and key),
+  and the extension source bundles it names are still verified against their pinned hash.
+- A catalog that downloads but fails validation is refused; it is never replaced by a cached copy.
+- Writing the cache is best effort and can never fail a launch.

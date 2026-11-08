@@ -1,5 +1,8 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   armoryCache,
   fetchArtifactCatalog,
@@ -10,6 +13,8 @@ import {
   validateArtifactCatalog,
 } from "../../extensions/crew/env-runtime/lib/armory-artifacts.mjs";
 
+// Resolution caches the catalog under the home directory: tests never touch the real one.
+const freshHome = () => mkdtempSync(join(tmpdir(), "armory-catalog-"));
 const revision = "0123456789abcdef0123456789abcdef01234567";
 const path = (seed) => `/nix/store/${seed.repeat(32).slice(0, 32)}-x`;
 const narHash = `sha256-${"A".repeat(43)}=`;
@@ -84,9 +89,9 @@ test("an unavailable release is an error the resolver can fall back from", async
 });
 
 test("the release is the only entrypoint: an unreachable one is an error, never a second source", async () => {
-  await assert.rejects(resolveArmoryCatalog({ fetchImpl: respond({}, false, 503) }), /HTTP 503/);
+  await assert.rejects(resolveArmoryCatalog({ home: freshHome(), fetchImpl: respond({}, false, 503) }), /HTTP 503/);
   await assert.rejects(
-    resolveArmoryCatalog({ fetchImpl: async () => Promise.reject(new Error("offline")) }),
+    resolveArmoryCatalog({ home: freshHome(), fetchImpl: async () => Promise.reject(new Error("offline")) }),
     /offline/,
   );
 });
@@ -102,6 +107,7 @@ test("a pinned release is fetched from its immutable URL", async () => {
   let requested;
   const resolved = await resolveArmoryCatalog({
     release: pinnedReleaseUrl(revision),
+    home: freshHome(),
     fetchImpl: async (url) => ((requested = url), respond(document())()),
   });
   assert.equal(requested, pinnedReleaseUrl(revision));
