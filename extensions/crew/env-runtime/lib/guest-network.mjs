@@ -4,8 +4,8 @@ const MAX_DENIED_HOSTS = 20;
 
 // HTTP hooks enforce the host policy after DNS resolution. Record each denied
 // host once, bounded, so a broken worker is diagnosable without logging requests.
-export function createGuestNetwork({ allowedHosts = [], secrets = {}, onDenied = () => {} } = {}) {
-  const network = createHttpHooks({ allowedHosts, secrets });
+export function createGuestNetwork({ allowedHosts = [], secrets = {}, onDenied = () => {}, onRequest } = {}) {
+  const network = createHttpHooks({ allowedHosts, secrets, onRequest: onRequest ? (request) => onRequest(request, network.env) : undefined });
   const allowIp = network.httpHooks.isIpAllowed;
   const deniedHosts = new Set();
   network.httpHooks.isIpAllowed = async (info) => {
