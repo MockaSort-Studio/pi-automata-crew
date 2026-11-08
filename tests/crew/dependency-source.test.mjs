@@ -5,6 +5,7 @@ import { gzipSync } from "node:zlib";
 import { readFileSync } from "node:fs";
 import { DEPENDENCY_PINS } from "../../extensions/crew/runner/dependency-pins.mjs";
 import { extractVerifiedPackage } from "../../extensions/crew/runner/dependency-source.mjs";
+import { prepareSources } from "../../extensions/crew/runner/dependency-bootstrap.mjs";
 
 function archive(name, body, type = "0") {
   const data = Buffer.from(body), header = Buffer.alloc(512);
@@ -21,6 +22,11 @@ test("reviewed pins match the project lock", () => {
     assert.equal(pin.version, entry.version);
     assert.equal(pin.integrity, entry.integrity);
   }
+});
+test("unavailable sources are reported rather than substituted", async () => {
+  const result = await prepareSources([{ name: "demo", version: "1.0.0", integrity: "sha512-invalid" }], async () => { throw new Error("offline"); });
+  assert.equal(result.snapshots.length, 0);
+  assert.match(result.failures[0], /demo.*unavailable/);
 });
 const sri = (bytes) => "sha512-" + createHash("sha512").update(bytes).digest("base64");
 test("verifies full artifact before extraction and manifests actual file bytes", () => {
