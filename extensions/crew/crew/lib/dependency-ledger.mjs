@@ -199,6 +199,19 @@ export function createDependencyLedger() {
     return to;
   }
 
+  // Main ends a node that is not running and not over: what it waited for (a prerequisite, an answer) no longer
+  // matters. Unlike fail, it applies to a node that never ran or is blocked, even by a prerequisite.
+  function cancel(rawHandle) {
+    const handle = requireNode(canonicalHandle(rawHandle));
+    const from = status.get(handle);
+    if (!["waiting", "ready", "blocked"].includes(from))
+      throw new Error(`Illegal dependency ledger transition for ${handle}: ${from} -> failed (cancel)`);
+    selfBlocked.delete(handle);
+    status.set(handle, "failed");
+    propagateBlocked(handle);
+    return "failed";
+  }
+
   // has answers existence without throwing, for wiring code that receives
   // handles from untrusted sources (raw Comm envelopes) and must ignore
   // anything that is not a node this ledger tracks.
@@ -220,6 +233,7 @@ export function createDependencyLedger() {
     reopen,
     fail,
     block,
+    cancel,
     status: (rawHandle) => status.get(requireNode(canonicalHandle(rawHandle))),
     dependenciesOf: (rawHandle) => [...dependsOn.get(requireNode(canonicalHandle(rawHandle)))],
     dependentsOf: (rawHandle) => [...dependents.get(requireNode(canonicalHandle(rawHandle)))],

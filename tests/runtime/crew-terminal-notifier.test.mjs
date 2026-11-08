@@ -46,3 +46,20 @@ test("partial and empty runs never notify, and runs are independent", () => {
   notifier.observe(snap("run-b", ["complete", "running"]));
   assert.equal(sent.length, 1);
 });
+
+test("a crew whose blocked members Main already decided on is reported without asking for input or a turn", async () => {
+  const sent = [];
+  const notifier = createCrewTerminalNotifier((message, options) => sent.push({ message, options }));
+  const node = (handle, status, state) => ({ handle, status, state });
+  const decided = [node("a", "blocked", "on_hold"), node("b", "blocked", "held"), node("c", "complete", "completed")];
+  assert.equal(notifier.observe({ namespace: "run-1", nodes: decided }), true);
+  await Promise.resolve();
+  assert.doesNotMatch(sent[0].message.content, /waiting for input/);
+  assert.match(sent[0].message.content, /^Crew run-1 is settled \(1 complete, 2 blocked\)\. No member waits/);
+  assert.deepEqual(sent[0].options, { triggerTurn: false });
+  const handedOff = [node("a", "blocked", "handed_off"), node("b", "blocked", "needs_input")];
+  assert.equal(notifier.observe({ namespace: "run-2", nodes: handedOff }), true);
+  await Promise.resolve();
+  assert.match(sent[1].message.content, /waiting for input/, "one member still asks Main");
+  assert.deepEqual(sent[1].options, { triggerTurn: true, deliverAs: "steer" });
+});

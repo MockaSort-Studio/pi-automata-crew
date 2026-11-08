@@ -31,7 +31,7 @@ test("the footer counts members by what they are doing and totals the output tok
   assert.equal(line.view.runId, "7f56ff8f");
   assert.equal(
     line.footer,
-    "Crew 7f56ff8f · 4 automata · 1 running · 1 queued · 1 needs attention · 1 complete · 1.5k output tokens",
+    "Crew 7f56ff8f · 4 automata · 1 running · 1 needs attention · 1 complete · 1 blocked · 1.5k output tokens",
   );
 });
 
@@ -156,4 +156,21 @@ test("a held member and a handed-off one are blocked, never passed, and only a h
     }).map((row) => row.status),
     ["blocked"],
   );
+});
+
+test("a handed-off member with a dependent held behind it reads as handed off and blocked, never queued", () => {
+  const members = [
+    m("developer-a-00", "handed_off", { ledger: "blocked" }),
+    m("reviewer-b-00", "held", { ledger: "blocked" }),
+  ];
+  const { line, snapshot } = crewView({ runId: RUN, members });
+  assert.equal(line.view.phase, "Handed off");
+  assert.deepEqual(
+    buildAutomataTab(snapshot).map((row) => row.bucket),
+    ["blocked", "blocked"],
+  );
+  assert.doesNotMatch(line.footer, /queued/);
+  const cancelled = [m("developer-a-00", "cancelled"), m("reviewer-b-00", "held", { ledger: "blocked" })];
+  assert.equal(crewView({ runId: RUN, members: cancelled }).line.view.phase, "Blocked");
+  assert.equal(crewView({ runId: RUN, members: [m("a", "completed"), m("b", "queued")] }).line.view.phase, "Queued");
 });

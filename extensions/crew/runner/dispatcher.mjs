@@ -58,6 +58,8 @@ export function createDispatcher({
   let disposed = false;
 
   const setState = (handle, next) => {
+    // Once the member works again, its last CI snapshot describes an earlier turn until it is checked again.
+    if (next === "running" && ciOf.get(handle)?.current) ciOf.set(handle, { ...ciOf.get(handle), current: false });
     if (state.get(handle) === next) return;
     state.set(handle, next);
     onState(handle, next);
@@ -72,7 +74,7 @@ export function createDispatcher({
     scrub,
     maxCiRounds,
     now,
-    onCheck: (handle, ci) => ciOf.set(handle, JSON.parse(scrub(JSON.stringify(ci)))),
+    onCheck: (handle, ci) => ciOf.set(handle, { ...JSON.parse(scrub(JSON.stringify(ci))), current: true }),
   });
   const bounded = (work) => {
     let timer;
@@ -201,11 +203,26 @@ export function createDispatcher({
         handoff: handoffs.get(handle),
       }),
     );
-  // Frees a member's VM. Bounded: an agent that never finishes disposing cannot hold Main.
+  // Disposals that have not succeeded yet, so the crew's final cleanup can await or retry them. Each agent's
+  // disposal is isolated: one that throws or hangs never stops another.
+  const undisposed = new Map();
+  const disposeAgent = (agent) => {
+    const entry = { failed: false };
+    entry.attempt = Promise.resolve()
+      .then(() => agent.dispose?.())
+      .then(
+        () => undisposed.get(agent) === entry && undisposed.delete(agent),
+        () => (entry.failed = true),
+      );
+    undisposed.set(agent, entry);
+    return entry.attempt;
+  };
+  // Frees a member's VM. The agent leaves the crew at once, so a recovery never reuses it; waiting for the
+  // disposal is bounded, so an agent that never finishes disposing cannot hold Main.
   const release = (handle) => {
     const agent = agents.get(handle);
     agents.delete(handle);
-    return bounded(() => agent?.dispose?.());
+    return agent ? bounded(() => disposeAgent(agent)) : Promise.resolve();
   };
   const idle = (handle, verb) => {
     if (!byHandle.has(handle)) throw new Error(`Unknown member: ${handle}`);
@@ -290,14 +307,8 @@ export function createDispatcher({
             pump();
           }
         } else if (!ENDS_CANCEL.has(state.get(target))) {
-          // Cancelled is failed in the ledger too, so nothing reads it as waiting for input. A member held only
-          // by a prerequisite cannot move itself and stays blocked; its dependents are held either way.
-          try {
-            ledger.start(target);
-            ledger.fail(target);
-          } catch {
-            // Blocked by a prerequisite.
-          }
+          // Cancelled is failed in the ledger too, so nothing reads it as waiting for input or for a prerequisite.
+          if (["waiting", "ready", "blocked"].includes(ledger.status(target))) ledger.cancel(target);
           holds.delete(target);
           setState(target, "cancelled");
           void release(target);
@@ -308,7 +319,11 @@ export function createDispatcher({
     async dispose() {
       disposed = true;
       await this.cancel();
-      await bounded(() => Promise.allSettled([...agents.values()].map((agent) => agent.dispose?.())));
+      // Every agent still held, and every earlier disposal that failed (retried) or is still running (awaited).
+      const cleanup = [...agents.values()].map(disposeAgent);
+      for (const [agent, entry] of undisposed) cleanup.push(entry.failed ? disposeAgent(agent) : entry.attempt);
+      agents.clear();
+      await bounded(() => Promise.all(cleanup));
     },
   };
 }

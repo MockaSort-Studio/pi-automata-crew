@@ -64,12 +64,18 @@ Main decides what happens to a member that waits for it (`needs_input`, `failed`
   new session carries the runner-recorded pull request and push evidence of the old one (never model or Main
   text), so the CI gate verifies that pull request's current head before the member can complete; the handoff's
   CI snapshot is history, never a green result.
-- **`crew_cancel`** ends it; its node fails and its VM is released.
+- **`crew_cancel`** ends it; its node fails and its VM is released. Cancelling the crew also fails the nodes of
+  members that never started, even those held behind a prerequisite.
+
+When every member has settled, Main is told once. It gets a turn only if a member still waits for its answer
+(`needs_input` or `failed`) or the crew finished; a crew whose blocked members are on hold, handed off, cancelled
+or held behind one of those is reported without a turn. The dashboard shows those members as blocked.
 
 Holds and handoffs are recorded in the run's `events.jsonl` as `decision` events and are not delivered as
 reports. `crew_status` shows, beside the state, `lastReport` (the latest report's status and time, `current`
-only while the member is still in that state), `ci` (state, `pullNumber`, `headSha`, `checkedAt`; only `success`
-is green, `none` and `unavailable` are not), and the current `hold` or `handoff`.
+only while the member is still in that state), `ci` (state, `pullNumber`, `headSha`, `checkedAt`, and `current`
+until the member works again; only `success` is green, `none` and `unavailable` are not), and the current `hold`
+or `handoff`. Main's text in a hold or handoff is recorded whole or refused, never shortened.
 
 ### The CI gate
 

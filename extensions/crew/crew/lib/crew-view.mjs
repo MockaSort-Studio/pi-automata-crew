@@ -6,7 +6,8 @@ import { renderCrewStatusFooter } from "./monitor-footer.mjs";
 // and the launch plan go in; the existing snapshot, footer and dashboard renderers are fed from them.
 const LIFECYCLE = {
   queued: "queued",
-  held: "queued",
+  // Not started because a prerequisite is blocked, failed or handed off: it cannot progress on its own.
+  held: "BLOCKED",
   running: "running",
   ci: "running",
   needs_input: "attention",
@@ -65,11 +66,13 @@ export function crewView({ runId, members }) {
       ? "Needs you"
       : members.some((m) => m.state === "on_hold")
         ? "On hold"
-        : isActive(members)
+        : members.some((m) => m.state === "queued")
           ? "Queued"
           : members.some((m) => m.state === "handed_off")
             ? "Handed off"
-            : "Done";
+            : members.some((m) => m.state === "held")
+              ? "Blocked"
+              : "Done";
   return { runId, snapshot, line: { view: { runId: short(runId), phase }, footer: renderCrewStatusFooter(snapshot) } };
 }
 

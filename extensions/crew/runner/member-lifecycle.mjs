@@ -18,14 +18,21 @@ export const MESSAGEABLE = new Set(["needs_input", "failed", "completed", "on_ho
 // States a hold or a handoff may follow: the member is idle and waiting for Main, with work that is not accepted.
 export const AWAITING_MAIN = new Set(["needs_input", "failed", "on_hold"]);
 
-const TEXT_CHARS = 500;
+const TEXT_CHARS = 1000;
+const MAX_UNMET = 20;
 const HEAD = /^[0-9a-f]{7,40}$/i;
 
-function requiredText(value, name) {
-  if (typeof value !== "string" || !value.trim()) throw new Error(`${name} is required`);
-  return value.trim().slice(0, TEXT_CHARS);
+// Main's text is kept whole or refused: nothing it records is silently shortened.
+function checkedText(value, name) {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`${name} must be non-empty text`);
+  if (value.trim().length > TEXT_CHARS) throw new Error(`${name} is longer than ${TEXT_CHARS} characters`);
+  return value.trim();
 }
-const optionalText = (value, name) => (value === undefined ? undefined : requiredText(value, name));
+function requiredText(value, name) {
+  if (value === undefined || (typeof value === "string" && !value.trim())) throw new Error(`${name} is required`);
+  return checkedText(value, name);
+}
+const optionalText = (value, name) => (value === undefined ? undefined : checkedText(value, name));
 
 function refsOf(refs) {
   if (refs === undefined) return undefined;
@@ -56,15 +63,17 @@ export function holdRecord({ blocker, owner, resumeWhen, refs }, at) {
 // saved work (pull request, pushed head, last CI snapshot, salvage) is carried from what the runner recorded.
 export function handoffRecord({ unmet, supersededBy, note }, last, ci, at) {
   if (!Array.isArray(unmet) || !unmet.length) throw new Error("unmet must list at least one unmet criterion");
+  if (unmet.length > MAX_UNMET) throw new Error(`unmet lists ${unmet.length} criteria; at most ${MAX_UNMET}`);
   const evidence = compact({
     pullRequest: last?.evidence?.pullRequest,
     pushed: last?.evidence?.pushed,
     salvage: last?.salvage,
-    ci,
+    // The last check before the handoff: history, never a current result.
+    ci: ci && { ...ci, current: false },
   });
   return compact({
     outcome: supersededBy === undefined ? "partial" : "superseded",
-    unmet: unmet.slice(0, 20).map((item, index) => requiredText(item, `unmet[${index}]`)),
+    unmet: unmet.map((item, index) => requiredText(item, `unmet[${index}]`)),
     supersededBy: optionalText(supersededBy, "supersededBy"),
     note: optionalText(note, "note"),
     evidence: Object.keys(evidence).length ? evidence : undefined,
@@ -99,7 +108,8 @@ export function carryEvidence(agent, prior) {
 }
 
 // One member's current status. `lastReport` is the member's latest report, timestamped and marked `current`
-// only while the member is still in the state it reported; `ci` is the latest check of an exact head.
+// only while the member is still in the state it reported; `ci` is the latest check of an exact head, `current`
+// only until the member works again.
 export function memberStatus({ handle, state, ledger, report, ci, hold, handoff }) {
   return compact({
     handle,
