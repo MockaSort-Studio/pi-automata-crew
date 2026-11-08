@@ -49,7 +49,7 @@ const toolResults = (server) =>
   server.requests.flatMap((body) =>
     JSON.parse(body)
       .messages.filter((m) => m.role === "tool")
-      .map((m) => String(m.content)),
+      .map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content))),
   );
 
 test("an agent's built-in tools act in its VM and workspace, never on the host", { timeout: 180_000 }, async (t) => {
@@ -65,8 +65,8 @@ test("an agent's built-in tools act in its VM and workspace, never on the host",
   const { run, server, environment, localCwd } = await agent(t, (n) => script[n - 1]);
   const result = await run();
   assert.equal(result.status, "completed", JSON.stringify(result));
-  assert.equal(result.usage.toolErrors, 0);
   const seen = toolResults(server).join("\n");
+  assert.equal(result.usage.toolErrors, 0, `Tool responses:\n${seen}`);
   assert.match(seen, /Linux/, "bash ran in the Linux guest");
   assert.match(seen, /line 2/, "edit and read agree");
   assert.match(seen, /from-guest/, "grep found the guest-written file");

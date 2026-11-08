@@ -173,7 +173,9 @@ test(
     assert.ok(await waitUntil(() => w.vms().length === 1, 60_000));
     const oldVms = w.vms();
     const pid = w.client.pid;
-    // A request already in flight when the host dies fails with what the host last said, instead of hanging.
+    // Stop the host before sending: otherwise a fast status response can beat SIGKILL,
+    // so the test has no genuinely pending request to reject.
+    process.kill(pid, "SIGSTOP");
     const inFlight = w.client.request("status", { runId: "run1" });
     process.kill(pid, "SIGKILL");
     await assert.rejects(inFlight, /The crew host exited \(SIGKILL\)/);
