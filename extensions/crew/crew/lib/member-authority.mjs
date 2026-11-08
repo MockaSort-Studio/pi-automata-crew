@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { suiteGrants } from "./suite-grants.mjs";
 import { GITHUB_BASE_TOOL_SET } from "./github-base-tools.mjs";
+import { repositoryTargets } from "../../env-runtime/lib/repository-targets.mjs";
 
 const roles = JSON.parse(readFileSync(new URL("../prompts/roles.json", import.meta.url), "utf8"));
 const native = new Set(["read", "grep", "find", "ls", "bash", "edit", "write"]);
@@ -31,29 +32,11 @@ const personaReads = new Set([
   "github_workflow_run_view",
   "github_workflow_run_failed_log",
 ]);
-// Deferred in all grants until the repository boundary covers these targets.
-const deferredOperations = new Set([
-  "github_discussion_comments",
-  "github_discussion_view",
-  "github_discussions_list",
-  "github_discussion_post",
-  "github_issues_list",
-  "github_subissues_list",
-  "github_dependency_list",
-  "github_label_list",
-  "github_issue_create",
-  "github_issue_update",
-  "github_issue_comment",
-  "github_issue_add_label",
-  "github_issue_remove_label",
-  "github_subissue_add",
-  "github_dependency_add",
-  "github_project_fields",
-  "github_project_item_add",
-  "github_project_item_find",
-  "github_project_field_set",
-  "github_pull_request_checks_wait",
-]);
+const deferredOperations = new Set(
+  Object.entries(repositoryTargets)
+    .filter(([, target]) => target === "deferred")
+    .map(([operation]) => operation),
+);
 const implementationRoleCeiling = new Set([
   "github_pull_request_comment",
   "github_pull_request_review",

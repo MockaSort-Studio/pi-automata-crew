@@ -197,6 +197,9 @@ test("mixed roles and explicit narrow grants remain isolated at the active host 
       assert.deepEqual(member.tools, prepared.agents[index].tools);
     }
     assert.ok(operations(developer).includes("github_git_push"));
+    assert.ok(operations(developer).includes("github_issues_list"));
+    assert.ok(operations(developer).includes("github_pull_request_checks_wait"));
+    assert.ok(!operations(narrow).includes("github_pull_request_checks_wait"));
     assert.ok(!operations(developer).includes("github_pull_request_review_submit"));
     assert.ok(operations(reviewer).includes("github_pull_request_review_submit"));
     assert.ok(!operations(reviewer).includes("github_git_push"));

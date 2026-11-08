@@ -8,8 +8,16 @@ import { authorizeRepositoryOperation } from "../../extensions/crew/env-runtime/
 
 const github = "collaboration/pi-github-tools";
 const expected = {
-  "old-major": [],
-  mergio: ["github_pull_request_checks"],
+  "old-major": [
+    "github_issues_list",
+    "github_subissues_list",
+    "github_dependency_list",
+    "github_label_list",
+    "github_discussions_list",
+    "github_discussion_view",
+    "github_discussion_comments",
+  ],
+  mergio: ["github_pull_request_checks", "github_pull_request_checks_wait"],
   bollo: ["github_pull_request_view", "github_pull_request_files"],
   tomashco: [],
   "indiana-docs": [],
@@ -55,18 +63,9 @@ test("personas declare exactly their read-only recognized domain tools", () => {
 });
 
 test("deferred operations are withheld from persona grants", () => {
-  // Restore workflow reads only after #132 is integrated and verified; issue/discussion and
-  // Project reads require reviewed effective-target guards. Checks-wait also requires a guard.
   const deferred = [
     "github_project_fields",
     "github_project_item_find",
-    "github_pull_request_checks_wait",
-    "github_issues_list",
-    "github_subissues_list",
-    "github_dependency_list",
-    "github_discussions_list",
-    "github_discussion_view",
-    "github_discussion_comments",
     "github_workflow_runs_list",
     "github_workflow_run_view",
     "github_workflow_run_failed_log",
@@ -102,10 +101,7 @@ test("bollo domain tools union with reviewer authority and advisor stays read-on
   const roles = JSON.parse(
     readFileSync(new URL("../../extensions/crew/crew/prompts/roles.json", import.meta.url), "utf8"),
   );
-  // Recognized role entries can still be explicitly deferred by authority policy.
-  const reviewer = roles.reviewer.tools.filter(
-    (tool) => tool.startsWith("github_") && tool !== "github_pull_request_checks_wait",
-  );
+  const reviewer = roles.reviewer.tools.filter((tool) => tool.startsWith("github_"));
   const union = [...new Set([...reviewer, ...AUTOMATA.bollo.tools])];
   assert.deepEqual(validateMemberAuthority(AUTOMATA.bollo, "reviewer", grants(union)).suiteGrants, [
     { suite: github, tools: union },
