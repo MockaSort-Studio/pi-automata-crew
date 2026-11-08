@@ -1,71 +1,20 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { assignmentContext, fileChangeDecision } from "../../extensions/crew/crew/lib/assignment-context.mjs";
-import { crewDisciplineModule } from "../../extensions/crew/crew/lib/automaton-body/lib/modules/crew-discipline.mjs";
+import { assemble } from "../../extensions/crew/crew/lib/assembly.mjs";
 import { createRequestInputTool } from "../../extensions/crew/runner/request-input-tool.mjs";
 
-const autonomy = {
+// These tests prove what the real assembly delivers to a worker: the instructions text. They do not and
+// cannot prove that a model obeys it, and nothing in the runtime enforces the autonomy statement.
+const statement = {
   kind: "autonomy",
-  allowedFileClasses: ["tests", "docs", "source"],
+  allowedFileClasses: ["tests", "docs"],
   forbiddenFiles: [".github/**", "secrets/*"],
 };
-const member = { inputs: [{ kind: "issue", number: 151 }, autonomy], acceptanceCriteria: ["Named files are a hint."] };
+const assembleWith = (inputs, role = "developer") =>
+  assemble("snowball", role, "Fix the cached lookup.", { inputs, deliverTo: "main" });
 
-// Scripted worker: it reads only the assembled context, applies the contract decision to each file it
-// must touch, and calls the real request_input tool exactly when the decision is "ask".
-async function runScriptedWorker(member, changes) {
-  const requests = [];
-  const tool = createRequestInputTool({ onRequest: (r) => requests.push(r) });
-  const assembled = assignmentContext(member);
-  const inputs = JSON.parse(assembled.split("\n").find((line) => line.startsWith("{"))).inputs;
-  const edited = [];
-  for (const change of changes) {
-    const decision = fileChangeDecision(inputs, change);
-    if (decision.action === "ask") {
-      await tool.execute("1", { question: decision.reason });
-      break;
-    }
-    edited.push(change.path);
-  }
-  return { requests, edited, assembled };
-}
-
-test("an in-scope contradicting-test update does not invoke request_input", async () => {
-  const { requests, edited } = await runScriptedWorker(member, [
-    { path: "tests/crew/cached-ownership.test.mjs", fileClass: "tests" },
-    { path: "docs/ownership.md", fileClass: "docs" },
-  ]);
-  assert.deepEqual(requests, []);
-  assert.equal(edited.length, 2);
-});
-
-test("a named-files list alone is a scope hint: unnamed supporting files still proceed", () => {
-  assert.equal(fileChangeDecision([], { path: "tests/other.test.mjs", fileClass: "tests" }).action, "proceed");
-});
-
-test("an explicitly forbidden path requires escalation through request_input", async () => {
-  const { requests, edited } = await runScriptedWorker(member, [
-    { path: "tests/a.test.mjs", fileClass: "tests" },
-    { path: ".github/workflows/ci.yml", fileClass: "ci" },
-    { path: "tests/never-reached.test.mjs", fileClass: "tests" },
-  ]);
-  assert.equal(requests.length, 1);
-  assert.match(requests[0].question, /forbidden/);
-  assert.deepEqual(edited, ["tests/a.test.mjs"]);
-});
-
-test("a file class outside the allowed classes requires escalation", () => {
-  assert.equal(fileChangeDecision(member.inputs, { path: "deploy/x.tf", fileClass: "infrastructure" }).action, "ask");
-});
-
-test("the autonomy statement is scope only and is surfaced without granting authority", () => {
-  const assembled = assignmentContext(member);
-  assert.match(assembled, /grants no tool, repository or credential authority/);
-  assert.doesNotMatch(assignmentContext({ inputs: [{ kind: "issue" }] }), /autonomy/);
-});
-
-test("the contract states the autonomy rule and the always-ask list", () => {
-  const { instructions } = crewDisciplineModule();
+test("assembled developer instructions carry the autonomy rule and the always-ask list", () => {
+  const { instructions } = assembleWith([{ kind: "issue", number: 151 }]);
   for (const text of [
     "contradict the issue",
     "scope hint",
@@ -73,9 +22,79 @@ test("the contract states the autonomy rule and the always-ask list", () => {
     "new authority or credentials",
     "security or scope decision",
     "evidence you cannot obtain",
+    "Named files are a scope hint",
   ]) {
     assert.ok(instructions.includes(text), text);
   }
+  assert.doesNotMatch(instructions, /Edit only the files the assignment names/);
+});
+
+test("without a statement the assembled instructions say default scope applies", () => {
+  const { instructions } = assembleWith([{ kind: "issue", number: 151 }]);
+  assert.match(instructions, /## AUTONOMY SCOPE\nNo autonomy statement was given: default scope/);
+  assert.doesNotMatch(instructions, /Forbidden files/);
+});
+
+test("the statement is explained in the assembled instructions, not only passed as JSON", () => {
+  const { instructions } = assembleWith([{ kind: "issue", number: 151 }, statement]);
+  const section = instructions.slice(instructions.indexOf("## AUTONOMY SCOPE"));
+  assert.match(section, /Forbidden files .*: \.github\/\*\*, secrets\/\*/);
+  assert.match(section, /Forbidden always takes precedence/);
+  assert.match(section, /Allowed file classes: tests, docs\. A file outside these classes, or one you cannot classify/);
+  assert.match(section, /stop and call `request_input`/);
+  assert.match(section, /grants no tool, repository or credential authority/);
+  assert.doesNotMatch(section, /No autonomy statement was given/);
+});
+
+test("removing the statement removes the policy: the section differs from the one with a statement", () => {
+  const withStatement = assembleWith([statement]).instructions;
+  const without = assembleWith([{ kind: "issue", number: 151 }]).instructions;
+  assert.ok(withStatement.includes("Forbidden files"));
+  assert.ok(!without.includes("Forbidden files"));
+});
+
+test("the statement does not change the role's tools or authority", () => {
+  for (const role of ["developer", "reviewer"]) {
+    const base = assembleWith([{ kind: "issue", number: 151 }], role);
+    const scoped = assembleWith([statement], role);
+    assert.deepEqual(scoped.tools, base.tools);
+    assert.deepEqual(scoped.extensionPaths, base.extensionPaths);
+  }
+});
+
+test("malformed or ambiguous statements are rejected at assembly, never silently widened", () => {
+  const bad = [
+    { kind: "autonomy" },
+    { kind: "autonomy", allowedFileClasses: [] },
+    { kind: "autonomy", allowedFileClasses: "tests" },
+    { kind: "autonomy", allowedFileClasses: ["tests", 7] },
+    { kind: "autonomy", allowedFileClasses: ["Tests Dir"] },
+    { kind: "autonomy", forbiddenFiles: [] },
+    { kind: "autonomy", forbiddenFiles: ["ok", ""] },
+    { kind: "autonomy", forbiddenFiles: [null] },
+    { kind: "autonomy", forbiddenFiles: ["tests/../.github/ci.yml"] },
+    { kind: "autonomy", forbiddenFiles: [".github\\ci.yml"] },
+    { kind: "autonomy", forbiddenFiles: ["/etc/passwd"] },
+    { kind: "autonomy", forbiddenFiles: ["a//b"] },
+    { kind: "autonomy", forbiddenFiles: ["a/./b"] },
+  ];
+  for (const input of bad) assert.throws(() => assembleWith([input]), /autonomy/, JSON.stringify(input));
+  assert.throws(() => assembleWith([statement, statement]), /ambiguous/);
+});
+
+test("valid statements are normalized and deduplicated; forbidden-only and allowed-only are accepted", () => {
+  const dup = assembleWith([{ kind: "autonomy", forbiddenFiles: ["./.github/**", ".github/**"] }]).instructions;
+  assert.match(dup, /Forbidden files \(repo-relative paths or globs\): \.github\/\*\*\. Forbidden/);
+  assert.match(dup, /No allowed-class list/);
+  const allowed = assembleWith([{ kind: "autonomy", allowedFileClasses: ["tests", "tests"] }]).instructions;
+  assert.match(allowed, /Allowed file classes: tests\. /);
+  assert.doesNotMatch(allowed, /Forbidden files/);
+});
+
+test("the instructions tell the worker how to treat traversal and backslash paths", () => {
+  const { instructions } = assembleWith([statement]);
+  assert.match(instructions, /backslashes are separators, drop `\.` and `\.\.` segments/);
+  assert.match(instructions, /if it matches, or you cannot tell, stop and call `request_input`/);
 });
 
 test("the request_input tool separates authority questions from implementation questions, schema unchanged", () => {
