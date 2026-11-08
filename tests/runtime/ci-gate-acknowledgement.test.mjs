@@ -16,7 +16,7 @@ function world() {
     members: [{ handle, task: "work" }],
     createAgent: async () => ({
       run: { prompt: async () => ({ status: "completed", evidence: { pushed: { commit: head } } }) },
-      verify: async () => ({ state: "success", pullNumber: 7, gateFiles: files }),
+      verify: async () => ({ state: "success", pullNumber: 7, gateFiles: files, headSha: head }),
     }),
     onResult: (h, result) => results.push(result),
   });
@@ -32,26 +32,43 @@ function world() {
   };
 }
 
-test("gate replies must name exact paths, and partial acknowledgement leaves the rest", async () => {
+test("gate replies require every exact path and reject ordinary follow-ups", async () => {
   const w = world();
   w.d.start();
   await settle();
-  assert.match(w.results.at(-1).question, /name.*files/i);
+  assert.match(w.results.at(-1).question, /only accept followed by every listed file/i);
   await w.reply("please continue");
   assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
   await w.reply(`accept ${first}.backup`);
   assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
+  await w.reply(`please fix ${first}; do not accept it`);
+  assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
+  await w.reply(`do not accept ${first}, ${second}`);
+  assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
   await w.reply(`accept ${first}`);
-  assert.deepEqual(w.results.at(-1).ci.gateFiles, [second]);
-  await w.reply(`accept ${second}`);
+  assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
+  await w.reply(`accept ${first}, ${second} please`);
+  assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
+  await w.reply(`AcCePt ${first}, ${second}`);
   assert.equal(w.d.status()[0].state, "completed");
+});
+
+test("a missing verified head fails closed", async () => {
+  const w = world();
+  w.setHead(undefined);
+  w.d.start();
+  await settle();
+  assert.equal(w.d.status()[0].state, "needs_input");
+  assert.match(w.results.at(-1).question, /head/);
+  await w.reply(`accept ${first}, ${second}`);
+  assert.equal(w.d.status()[0].state, "needs_input");
 });
 
 test("naming every file accepts them, but a new file or head asks again", async () => {
   const w = world();
   w.d.start();
   await settle();
-  await w.reply(`accept ${first} and ${second}`);
+  await w.reply(`accept ${first} ${second}`);
   assert.equal(w.d.status()[0].state, "completed");
   w.setFiles([first, second, "package.json"]);
   await w.reply("add a file");

@@ -93,7 +93,9 @@ export function createDispatcher({
       }
       if (!check) return result;
       if (check.state === "success" || check.state === "none") {
-        const head = result.evidence?.pushed?.commit;
+        const head = check.headSha;
+        if ((check.gateFiles ?? []).length && !head)
+          return needsInput(result, "Cannot establish the verified pull request head for the changed check files.");
         let acknowledged = acknowledgedGate.get(handle);
         if (!acknowledged || acknowledged.head !== head || acknowledged.pullNumber !== check.pullNumber) {
           acknowledged = { head, pullNumber: check.pullNumber, files: new Set() };
@@ -104,7 +106,7 @@ export function createDispatcher({
         askedGate.set(handle, { files: gate, head, pullNumber: check.pullNumber });
         return needsInput(
           result,
-          `CI is ${check.state === "none" ? "absent" : "green"} on pull request #${check.pullNumber}, but the change touches files that define the checks: ${gate.join(", ")}. To acknowledge, reply and name each of the listed files by its exact path, or ask the member to fix the content instead.`,
+          `CI is ${check.state === "none" ? "absent" : "green"} on pull request #${check.pullNumber}, but the change touches files that define the checks: ${gate.join(", ")}. To acknowledge, reply with only accept followed by every listed file's exact path, separated by spaces or commas (for example: accept ${gate.join(", ")}). Any other reply is a follow-up.`,
           { ...ciSummary(check, round), gateFiles: gate },
         );
       }
@@ -216,9 +218,10 @@ export function createDispatcher({
       const asked = askedGate.get(handle);
       if (asked) {
         const accepted = acknowledgedGate.get(handle);
-        for (const file of asked.files) {
-          const escaped = file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          if (new RegExp(`(?<![\\w./-])${escaped}(?![\\w./-])`).test(text)) accepted.files.add(file);
+        const match = /^accept\s+(.+)$/is.exec(text.trim());
+        const files = match?.[1].split(/[\s,]+/) ?? [];
+        if (files.length === asked.files.length && asked.files.every((file) => files.includes(file))) {
+          for (const file of asked.files) accepted.files.add(file);
         }
         askedGate.delete(handle);
       }

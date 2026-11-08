@@ -91,9 +91,15 @@ test("a green result reports whether the pull request changed the files that def
     call: async (name) =>
       name === "github_pull_request_checks_wait"
         ? { state: "success", checks: [] }
-        : [{ filename: "docs/ci-probe.md" }, { filename: ".prettierignore" }],
+        : [
+            {
+              filename: "docs/ci-probe.md",
+              blob_url: `https://github.com/o/r/blob/${"f".repeat(40)}/docs/ci-probe.md`,
+            },
+            { filename: ".prettierignore", blob_url: `https://github.com/o/r/blob/${"f".repeat(40)}/.prettierignore` },
+          ],
   };
-  const evidence = { pullRequest: "https://github.com/o/r/pull/9" };
+  const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: "f".repeat(40) } };
   const check = await verifyPullRequest({ ops, policy, evidence });
   assert.deepEqual(check.gateFiles, [".prettierignore"]);
   // A red result goes back to the member first: it does not look at the files at all.

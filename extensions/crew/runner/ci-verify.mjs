@@ -55,5 +55,14 @@ export async function verifyPullRequest({ ops, policy, evidence, signal }) {
     return { ...check, pullNumber, followUp: ciFollowUp({ pullNumber, sha, failures: check.failures }) };
   // Green (or no checks): was it made green by changing the checks themselves?
   const files = await ops.call("github_pull_request_files", { repo: policy.repo, pullNumber }, { signal });
-  return { ...check, pullNumber, gateFiles: gateFilesOf(Array.isArray(files) ? files : []) };
+  const gateFiles = gateFilesOf(Array.isArray(files) ? files : []);
+  if (!gateFiles.length) return { ...check, pullNumber, gateFiles };
+  // GitHub's file entries carry the PR head in their blob URLs, from the same lookup as the paths.
+  const heads = new Set(
+    files.map((file) => /\/blob\/([a-f\d]{40})\//i.exec(file.blob_url ?? "")?.[1]?.toLowerCase()),
+  );
+  const headSha = heads.size === 1 ? [...heads][0] : undefined;
+  if (!headSha || !sha || headSha !== String(sha).toLowerCase())
+    throw new Error("Cannot establish that CI and the changed files refer to the same pull request head");
+  return { ...check, pullNumber, gateFiles, headSha };
 }

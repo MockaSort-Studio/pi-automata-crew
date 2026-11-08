@@ -525,7 +525,13 @@ test("a member with nothing to verify, or that did not complete, is not gated", 
   assert.equal(d2.status()[0].state, "failed", "verify was never called for a run that did not complete");
 });
 
-const greenWith = (gateFiles) => async () => ({ state: "success", pullNumber: 7, checks: [], gateFiles });
+const greenWith = (gateFiles) => async () => ({
+  state: "success",
+  pullNumber: 7,
+  checks: [],
+  gateFiles,
+  headSha: "head",
+});
 
 test("a green CI that was made green by changing the checks is reported to Main, not silently completed", async () => {
   const w = ciWorld({ checks: [greenWith([".prettierignore"])] });
@@ -563,7 +569,7 @@ test("once Main has replied, the same files are accepted; a new one is asked abo
   d.start();
   await settle();
   assert.equal(d.status()[0].state, "needs_input");
-  d.message(A, "yes, .prettierignore is intended");
+  d.message(A, "accept .prettierignore");
   await settle();
   assert.equal(d.status()[0].state, "completed", "accepted: it completes");
   assert.deepEqual(results.at(-1).ci.state, "success");
