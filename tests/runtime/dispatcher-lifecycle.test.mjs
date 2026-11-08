@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
 import { createDispatcher } from "../../extensions/crew/runner/dispatcher.mjs";
+import { carryEvidence } from "../../extensions/crew/runner/member-lifecycle.mjs";
 
 // Main's lifecycle decisions (hold, handoff, recovery, cancel) and the one status projection (#136, #139, #140).
 const A = "developer-alpha-00";
@@ -339,4 +340,25 @@ test("Main's text is recorded whole or refused, never silently shortened", async
   assert.throws(() => c.d.hold(A, { ...hold, blocker: "y".repeat(1001) }), /blocker is longer than 1000/);
   const long = "z".repeat(1000);
   assert.equal((await c.d.handoff(A, { unmet: [long] })).unmet[0], long);
+});
+
+test("carrying evidence wraps the run without freezing its live properties", async () => {
+  let busy = false;
+  const run = {
+    get busy() {
+      return busy;
+    },
+    prompt: async () => ({ status: "completed", evidence: { commits: ["c2"], pushed: undefined } }),
+    abort: () => "aborted",
+  };
+  const agent = carryEvidence({ run, dispose: () => "disposed" }, { commits: ["c1"], pullRequest: "pr" });
+  busy = true;
+  assert.equal(agent.run.busy, true);
+  assert.equal(agent.run.abort(), "aborted");
+  assert.equal(agent.dispose(), "disposed");
+  assert.deepEqual((await agent.run.prompt("x")).evidence, {
+    commits: ["c1", "c2"],
+    pushed: undefined,
+    pullRequest: "pr",
+  });
 });

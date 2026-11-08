@@ -40,6 +40,7 @@ function world(sessions) {
   const createAgent = async ({ handle }) => {
     created.push(handle);
     const outcomes = handle === A ? sessions.shift() : [done(empty())];
+    if (outcomes === "unavailable") throw new Error("VM failed to start");
     return {
       run: { prompt: async (text) => (prompts.push([handle, text]), outcomes.shift()), abort: async () => {} },
       // As member-agent wires it: the PR comes only from the result's evidence.
@@ -112,4 +113,19 @@ test("a changed head after recovery is freshly verified and its changed checks n
   await settle();
   assert.deepEqual([w.of(A).state, w.of(A).ci.headSha], ["completed", H2]);
   assert.equal(w.of(B).state, "completed", "released only after the current head was verified and accepted");
+});
+
+test("a recovery whose new session fails to start keeps the evidence, so the retry is still held to the PR", async () => {
+  const w = world([[opened(), opened()], "unavailable", [done(empty()), done(empty())]]);
+  await handedOff(w);
+  w.d.message(A, "recover");
+  await settle();
+  assert.equal(w.of(A).state, "failed", "the new session could not start");
+  w.d.message(A, "retry the recovery");
+  await settle();
+  assert.deepEqual(w.github.viewed, [7, 7], "the retry verified the existing pull request");
+  assert.deepEqual([w.of(A).state, w.of(A).ci.state, w.of(A).ci.headSha], ["needs_input", "failure", H1]);
+  assert.equal(w.created.includes(B), false, "the dependent stays held");
+  const handoff = await w.d.handoff(A, { unmet: ["green CI"] });
+  assert.deepEqual([handoff.evidence.pullRequest, handoff.evidence.pushed.commit], [PR, H1], "still in the handoff");
 });

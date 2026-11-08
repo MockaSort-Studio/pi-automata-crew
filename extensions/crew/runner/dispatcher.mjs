@@ -4,6 +4,7 @@ import {
   AWAITING_MAIN,
   MESSAGEABLE,
   carryEvidence,
+  mergeEvidence,
   handoffRecord,
   holdRecord,
   memberStatus,
@@ -55,6 +56,9 @@ export function createDispatcher({
   const ciOf = new Map();
   const holds = new Map();
   const handoffs = new Map();
+  // Each member's runner-recorded evidence across all its turns and sessions. A failed or cancelled turn never
+  // erases it, so a later session is still held to the pull request it already opened.
+  const evidenceOf = new Map();
   let disposed = false;
 
   const setState = (handle, next) => {
@@ -115,7 +119,7 @@ export function createDispatcher({
     try {
       if (!agent) {
         // A member recovered after a handoff continues with the runner-recorded evidence of its earlier session.
-        agent = carryEvidence(await createAgent(member), results.get(handle)?.evidence);
+        agent = carryEvidence(await createAgent(member), evidenceOf.get(handle));
         agents.set(handle, agent);
       }
       if (state.get(handle) === "cancelled") return void release(handle);
@@ -144,6 +148,7 @@ export function createDispatcher({
     stops.delete(handle);
     result = JSON.parse(scrub(JSON.stringify(result)));
     results.set(handle, result);
+    if (result.evidence) evidenceOf.set(handle, mergeEvidence(evidenceOf.get(handle), result.evidence));
     reports.set(handle, { status: result.status, at: now() });
     // Every turn starts with the node running: pump() starts it, and a follow-up resumes or reopens it.
     if (result.status === "completed") {
@@ -203,6 +208,8 @@ export function createDispatcher({
         handoff: handoffs.get(handle),
       }),
     );
+  // The latest result, with the member's accumulated evidence rather than only what its last turn recorded.
+  const lastWork = (handle) => ({ ...results.get(handle), evidence: evidenceOf.get(handle) });
   // Disposals that have not succeeded yet, so the crew's final cleanup can await or retry them. Each agent's
   // disposal is isolated: one that throws or hangs never stops another.
   const undisposed = new Map();
@@ -269,7 +276,7 @@ export function createDispatcher({
     async handoff(handle, params = {}) {
       idle(handle, "handed off");
       const handoff = JSON.parse(
-        scrub(JSON.stringify(handoffRecord(params, results.get(handle), ciOf.get(handle), now()))),
+        scrub(JSON.stringify(handoffRecord(params, lastWork(handle), ciOf.get(handle), now()))),
       );
       holds.delete(handle);
       handoffs.set(handle, handoff);
@@ -320,8 +327,9 @@ export function createDispatcher({
       disposed = true;
       await this.cancel();
       // Every agent still held, and every earlier disposal that failed (retried) or is still running (awaited).
-      const cleanup = [...agents.values()].map(disposeAgent);
-      for (const [agent, entry] of undisposed) cleanup.push(entry.failed ? disposeAgent(agent) : entry.attempt);
+      // Earlier disposals first, so an agent disposed below is not awaited twice.
+      const cleanup = [...undisposed].map(([agent, entry]) => (entry.failed ? disposeAgent(agent) : entry.attempt));
+      cleanup.push(...[...agents.values()].map(disposeAgent));
       agents.clear();
       await bounded(() => Promise.all(cleanup));
     },
