@@ -167,7 +167,12 @@ export function createHostCore({ send, deps = {} }) {
     },
     // Closes every VM; called when Main goes away or asks the host to stop.
     async close() {
-      await Promise.allSettled([...crews.values()].map(({ dispatcher }) => dispatcher.dispose()));
+      let timer;
+      await Promise.race([
+        Promise.allSettled([...crews.values()].map(({ dispatcher }) => dispatcher.dispose())),
+        new Promise((resolve) => (timer = setTimeout(resolve, 10000))),
+      ]);
+      clearTimeout(timer);
       crews.clear();
     },
   };

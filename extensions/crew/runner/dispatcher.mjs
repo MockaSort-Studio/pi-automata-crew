@@ -157,6 +157,7 @@ export function createDispatcher({
       if (state.get(handle) === "cancelled") return;
       result = await ciGate(handle, agent, result, stop.signal);
       if (state.get(handle) === "cancelled") return;
+      if (stop.signal.aborted) result = { ...result, status: "cancelled" };
       const salvaged = await agent.salvage?.(result.status);
       if (salvaged) result = { ...result, salvage: salvaged };
     } catch (error) {

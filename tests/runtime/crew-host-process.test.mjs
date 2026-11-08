@@ -61,6 +61,39 @@ async function world(t, respond) {
 const results = (events) => events.filter((e) => e.event === "result").map((e) => [e.handle, e.result.status]);
 const mentions = (body, marker) => body.includes(marker);
 
+test("host protocol cancels a member stuck in CI", { timeout: 9000 }, async (t) => {
+  const host = spawn(process.execPath, ["extensions/crew/runner/host-main.mjs"], {
+    env: { ...process.env, CREW_HOST_DEPS: join(fixtures, "host-stuck-deps.mjs") },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  t.after(() => host.kill("SIGKILL"));
+  let output = "";
+  host.stdout.on("data", (data) => (output += data));
+  host.stdin.write(`${JSON.stringify({ id: 1, method: "launch", params: { runId: "stuck", members: [member(A, { model: undefined })] } })}\n`);
+  assert.ok(await waitUntil(() => output.includes('"state":"ci"'), 3000));
+  host.stdin.write(`${JSON.stringify({ id: 2, method: "cancel", params: { runId: "stuck", handle: A } })}\n`);
+  assert.ok(await waitUntil(() => output.includes('"id":2,"ok":true'), 7000));
+  assert.ok(output.includes('"state":"cancelled"'));
+});
+
+for (const trigger of ["SIGTERM", "stdin"]) {
+  test(`host exits on ${trigger} with stuck CI and disposal`, { timeout: 14000 }, async (t) => {
+    const host = spawn(process.execPath, ["extensions/crew/runner/host-main.mjs"], {
+      env: { ...process.env, CREW_HOST_DEPS: join(fixtures, "host-stuck-deps.mjs") },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    t.after(() => host.kill("SIGKILL"));
+    let output = "";
+    host.stdout.on("data", (data) => (output += data));
+    const exited = new Promise((resolve) => host.once("exit", resolve));
+    host.stdin.write(`${JSON.stringify({ id: 1, method: "launch", params: { runId: "stuck", members: [member(A, { model: undefined })] } })}\n`);
+    assert.ok(await waitUntil(() => output.includes('"state":"ci"'), 3000));
+    if (trigger === "stdin") host.stdin.end();
+    else host.kill(trigger);
+    assert.equal(await exited, 0);
+  });
+}
+
 test(
   "a crew runs in a real host process: ordering, hand-over, a question and its answer",
   { timeout: 240_000 },
