@@ -28,6 +28,7 @@ function host({ results = {}, deps = {} } = {}) {
         if (model !== "mock/mock-model") throw new Error(`Model "${model}" was not found in Pi's model catalog.`);
       },
       buildSeed: () => Buffer.from("seed"),
+      resolveArmoryCatalog: async () => ({ revision: "abc" }),
       loadGithubModule: async () => ({ activateSuite() {} }),
       createMemberAgent: async ({ member: m, crew, onEvent }) => {
         created.push({ handle: m.handle, crew });
@@ -207,6 +208,40 @@ test("a launch resolving after close is rejected and its runtime is disposed", a
   assert.equal((await h.call("launch", launch())).ok, false);
 });
 
+test("closing while the GitHub catalog resolves prevents module loading and registration", async () => {
+  let release;
+  let arrived;
+  let disposed = 0;
+  let loads = 0;
+  const entered = new Promise((resolve) => (arrived = resolve));
+  const h = host({
+    deps: {
+      createModelRuntime: async () => ({ dispose: async () => (disposed += 1) }),
+      resolveArmoryCatalog: () => {
+        arrived();
+        return new Promise((resolve) => (release = resolve));
+      },
+      loadGithubModule: async () => {
+        loads += 1;
+        return { activateSuite() {} };
+      },
+    },
+  });
+  const github = [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }];
+  const pending = h.call("launch", launch({ members: [member(A, { suiteGrants: github })] }));
+  await entered;
+  await h.core.close();
+  release({ revision: "abc" });
+  const response = await pending;
+  assert.equal(response.ok, false);
+  assert.match(response.error.message, /clos/i);
+  assert.equal(loads, 0);
+  assert.equal(disposed, 1);
+  assert.deepEqual(h.created, []);
+  assert.deepEqual(events(h.sent, "state"), [{ event: "state", runId: "run1", handle: A, state: "cancelled" }]);
+  assert.deepEqual((await h.call("list", {})).result, { crews: [] });
+});
+
 test("closing the host disposes every crew's agents", async () => {
   const h = host();
   await h.call("launch", launch({ runId: "r1" }));
@@ -330,4 +365,17 @@ test("a persona whose name contains hyphens can launch, while a malformed handle
     const reply = await h.call("launch", launch({ runId: `r-${bad}`, members: [member(bad)] }));
     assert.match(reply.error.message, /Invalid member handle/, bad);
   }
+});
+
+test("host launch reports cached catalog revision and timestamp", async () => {
+  const github = [{ suite: "collaboration/pi-github-tools", operations: ["github_issue_view"] }];
+  const h = host({
+    deps: {
+      resolveArmoryCatalog: async () => ({ revision: "abc", fromCache: true, cachedAt: "2026-01-01T00:00:00Z" }),
+    },
+  });
+  const response = await h.call("launch", launch({ members: [member(A, { suiteGrants: github })] }));
+  assert.equal(response.ok, true);
+  assert.match(response.result.warnings.join(" "), /cached.*abc.*2026-01-01/);
+  await h.core.close();
 });

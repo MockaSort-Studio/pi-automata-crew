@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { resolveArmoryCatalog } from "../env-runtime/lib/armory-artifacts.mjs";
+import { cachedCatalogWarning, resolveArmoryCatalog } from "../env-runtime/lib/armory-artifacts.mjs";
 import { resolveRepositorySeed } from "../env-runtime/lib/repository-workspace.mjs";
 import { fetchSuiteExtension } from "./armory-source.mjs";
 import { createDispatcher } from "./dispatcher.mjs";
@@ -47,8 +47,8 @@ const defaults = {
   resolveModel,
   // The repository's seed archive for an exact revision, built from the local repository before any VM exists.
   buildSeed: ({ repo, revision }, cwd) => readFileSync(resolveRepositorySeed({ repo, revision }, { cwd })),
-  async loadGithubModule() {
-    const catalog = await resolveArmoryCatalog();
+  resolveArmoryCatalog,
+  async loadGithubModule(catalog) {
     return loadSuiteModule(await fetchSuiteExtension({ catalog, suiteId: GITHUB_SUITE }));
   },
   createMemberAgent,
@@ -62,6 +62,7 @@ export function createHostCore({ send, deps = {} }) {
   const d = { ...defaults, ...deps };
   const crews = new Map();
   let githubModule;
+  let githubCatalogWarning;
   let closing = false;
   const assertOpen = () => {
     if (closing) throw new Error("The crew host is closing");
@@ -126,7 +127,12 @@ export function createHostCore({ send, deps = {} }) {
       if (members.some((member) => member.suiteGrants?.some((grant) => grant.suite === GITHUB_SUITE))) {
         const token = d.env.HALL_GITHUB_TOKEN;
         if (!token) throw new Error("The GitHub suite is granted but no Crew credential is set (HALL_GITHUB_TOKEN)");
-        githubModule ??= await d.loadGithubModule();
+        if (!githubModule) {
+          const catalog = await d.resolveArmoryCatalog();
+          assertOpen();
+          githubModule = await d.loadGithubModule(catalog);
+          githubCatalogWarning = cachedCatalogWarning(catalog);
+        }
         assertOpen();
         crew.github = { module: githubModule, token };
       }
@@ -135,7 +141,11 @@ export function createHostCore({ send, deps = {} }) {
       crews.set(runId, { dispatcher, activity, live });
       registered = true;
       dispatcher.start();
-      return { runId, members: dispatcher.status() };
+      return {
+        runId,
+        members: dispatcher.status(),
+        ...(crew.github && githubCatalogWarning ? { warnings: [githubCatalogWarning] } : {}),
+      };
     } finally {
       if (!registered) {
         await dispatcher.dispose();

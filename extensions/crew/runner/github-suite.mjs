@@ -11,6 +11,8 @@ import {
 import { workspaceFs } from "./workspace-fs.mjs";
 
 const run = promisify(execFile);
+const MAX_REVIEW_STARTS = 1024;
+const MAX_RECORDED_REVIEWS = 256;
 
 // How the suite's `gh` runs on the host. The Crew's own token is the only credential: it is set explicitly,
 // and gh's own config directory is an empty private one, so the user's stored login can never be used and
@@ -94,6 +96,9 @@ export function githubSuiteExtension({
   transport = hostGhTransport({ token }),
 }) {
   return (pi) => {
+    const reviews = new Map();
+    const pendingReviews = new Map();
+    const issuedReviewStarts = new Set();
     module.activateSuite(pi, injection({ workspace, token, transport }));
     pi.on("tool_call", async (event) => {
       if (!event.toolName.startsWith("github_")) return;
@@ -101,6 +106,18 @@ export function githubSuiteExtension({
         authorizeRepositoryOperation(event.toolName, event.input, policy);
       } catch (error) {
         return { block: true, reason: error.message };
+      }
+      if (
+        event.toolName === "github_pull_request_review_inline_comment" ||
+        event.toolName === "github_pull_request_review_submit"
+      ) {
+        const review = reviews.get(event.input.reviewId);
+        if (
+          !review ||
+          (event.toolName === "github_pull_request_review_inline_comment" &&
+            (event.input.repo !== review.repo || event.input.pullNumber !== review.pullNumber))
+        )
+          return { block: true, reason: "Review ID was not started for this target in this session" };
       }
       if (ownPullRequestOperations.has(event.toolName)) {
         try {
@@ -127,8 +144,47 @@ export function githubSuiteExtension({
       } catch (error) {
         return { block: true, reason: `The workspace could not be prepared: ${error.message}` };
       }
+      if (event.toolName === "github_pull_request_review_start") {
+        if (
+          typeof event.toolCallId !== "string" ||
+          !event.toolCallId ||
+          issuedReviewStarts.has(event.toolCallId) ||
+          !Number.isInteger(event.input.pullNumber) ||
+          event.input.pullNumber <= 0
+        )
+          return { block: true, reason: "Review start requires a unique call ID and valid pull number" };
+        if (issuedReviewStarts.size >= MAX_REVIEW_STARTS)
+          return { block: true, reason: "Review start limit reached for this session" };
+        if (reviews.size >= MAX_RECORDED_REVIEWS)
+          return { block: true, reason: "Recorded review limit reached for this session" };
+        issuedReviewStarts.add(event.toolCallId);
+        pendingReviews.set(event.toolCallId, { repo: event.input.repo, pullNumber: event.input.pullNumber });
+      }
     });
     pi.on("tool_result", (event) => {
+      if (event.toolName === "github_pull_request_review_submit" && !event.isError)
+        reviews.delete(event.input?.reviewId);
+      if (event.toolName === "github_pull_request_review_start") {
+        const pending = pendingReviews.get(event.toolCallId);
+        pendingReviews.delete(event.toolCallId);
+        if (!pending || event.isError) return;
+        let result = event.details;
+        if (!result) {
+          try {
+            result = JSON.parse(event.content?.find((part) => part.type === "text")?.text);
+          } catch {}
+        }
+        if (
+          result?.repo === pending.repo &&
+          result?.pullNumber === pending.pullNumber &&
+          typeof result?.reviewId === "string" &&
+          result.reviewId.length > 0 &&
+          result.reviewId.length <= 256 &&
+          !reviews.has(result.reviewId) &&
+          reviews.size < MAX_RECORDED_REVIEWS
+        )
+          reviews.set(result.reviewId, pending);
+      }
       if (event.toolName === "github_pull_request_create" && !event.isError)
         return {
           content: [...event.content, { type: "text", text: "Crew policy created this pull request as a draft." }],

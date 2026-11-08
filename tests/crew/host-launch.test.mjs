@@ -85,7 +85,8 @@ test("launching sends the spec to the host, tracks the run, and reports the memb
     const host = {
       client: () => ({
         request: async (method, params) => (
-          requests.push([method, params]), { members: [{ handle: "developer-a-00", state: "running" }] }
+          requests.push([method, params]),
+          { members: [{ handle: "developer-a-00", state: "running" }], warnings: ["cached catalog abc"] }
         ),
       }),
       track: (...args) => tracked.push(args),
@@ -117,6 +118,7 @@ test("launching sends the spec to the host, tracks the run, and reports the memb
       ],
     ]);
     assert.deepEqual([result.status, result.members[0].state], ["started", "running"]);
+    assert.deepEqual(result.warnings, ["cached catalog abc"]);
     assert.equal(
       roster().status,
       "hosted",
@@ -195,6 +197,9 @@ test("mixed roles and explicit narrow grants remain isolated at the active host 
       assert.deepEqual(member.tools, prepared.agents[index].tools);
     }
     assert.ok(operations(developer).includes("github_git_push"));
+    assert.ok(operations(developer).includes("github_issues_list"));
+    assert.ok(operations(developer).includes("github_pull_request_checks_wait"));
+    assert.ok(!operations(narrow).includes("github_pull_request_checks_wait"));
     assert.ok(!operations(developer).includes("github_pull_request_review_submit"));
     assert.ok(operations(reviewer).includes("github_pull_request_review_submit"));
     assert.ok(!operations(reviewer).includes("github_git_push"));

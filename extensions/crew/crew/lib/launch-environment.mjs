@@ -1,5 +1,5 @@
 import { resolveCrewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
-import { resolveArmoryCatalog } from "../../env-runtime/lib/armory-artifacts.mjs";
+import { cachedCatalogWarning, resolveArmoryCatalog } from "../../env-runtime/lib/armory-artifacts.mjs";
 import {
   acquireNixGuestSuites,
   explainMissingCache,
@@ -68,5 +68,7 @@ export async function resolveLaunchEnvironment(config, dependencies = {}) {
   });
   const suiteIds = [...new Set(agents.flatMap((agent) => agent.environmentProfile.suites.map((suite) => suite.suite)))];
   const credentials = resolution.sandbox ? checkLaunchCredentials({ suiteIds }) : { status: {}, warnings: [] };
+  const warning = cachedCatalogWarning(catalog);
+  if (warning) credentials.warnings.push(warning);
   return { resolution, agents, credentials };
 }

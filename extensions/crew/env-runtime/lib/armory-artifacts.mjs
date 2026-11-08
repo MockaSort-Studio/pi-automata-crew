@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readCachedCatalog, writeCachedCatalog } from "./armory-catalog-cache.mjs";
 
 // The one binary cache this client trusts; a catalog naming any other is refused.
 export const armoryCache = JSON.parse(readFileSync(new URL("../armory-cache.json", import.meta.url), "utf8"));
@@ -51,10 +52,15 @@ export function validateArtifactCatalog(doc, cache = armoryCache) {
   return doc;
 }
 
-export async function fetchArtifactCatalog({ url = LATEST_RELEASE_URL, fetchImpl = fetch, cache } = {}) {
-  const response = await fetchImpl(url, { redirect: "follow", signal: AbortSignal.timeout(15_000) });
+async function readTransport(url, fetchImpl, signal) {
+  const response = await fetchImpl(url, { redirect: "follow", signal });
   if (!response.ok) throw new Error(`Armory release unavailable (HTTP ${response.status})`);
-  return validateArtifactCatalog(await response.json(), cache);
+  return response.text();
+}
+
+export async function fetchArtifactCatalog({ url = LATEST_RELEASE_URL, fetchImpl = fetch, cache } = {}) {
+  const text = await readTransport(url, fetchImpl, AbortSignal.timeout(12_000));
+  return validateArtifactCatalog(JSON.parse(text), cache);
 }
 
 // A catalog reference that needs no Nix to resolve: manifests are embedded and the
@@ -78,8 +84,74 @@ export function referenceFromArtifacts(doc) {
 
 // The release is the single source of Armory suites. A launch resolves the latest
 // release; a worker re-resolves the exact release its launch pinned.
-export async function resolveArmoryCatalog({ release, fetchImpl, cache } = {}) {
-  return referenceFromArtifacts(await fetchArtifactCatalog({ url: release, fetchImpl, cache }));
+export async function resolveArmoryCatalog({
+  release,
+  fetchImpl = fetch,
+  cache,
+  home,
+  attempts = 2,
+  budgetMs = 12_000,
+} = {}) {
+  const match = typeof release === "string" && /\/armory-([0-9a-f]{40})\/artifacts\.json$/.exec(release);
+  const pinned = match && release === pinnedReleaseUrl(match[1]) ? match[1] : undefined;
+  const cached = (name) => {
+    const hit = readCachedCatalog(name, { home, validate: (doc) => validateArtifactCatalog(doc, cache) });
+    try {
+      return hit && { ...referenceFromArtifacts(hit.doc), fromCache: true, cachedAt: hit.fetchedAt };
+    } catch {
+      return undefined;
+    }
+  };
+  if (pinned) {
+    const hit = cached(pinned);
+    if (hit) return hit;
+  }
+  let failure;
+  const controller = new AbortController();
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(
+      () => {
+        controller.abort();
+        reject(new Error("Armory release timed out"));
+      },
+      Math.min(12_000, Math.max(0, budgetMs)),
+    );
+  });
+  try {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      let text;
+      try {
+        text = await Promise.race([
+          readTransport(release ?? LATEST_RELEASE_URL, fetchImpl, controller.signal),
+          timeout,
+        ]);
+      } catch (error) {
+        failure = error;
+        if (controller.signal.aborted) break;
+        continue;
+      }
+      const doc = validateArtifactCatalog(JSON.parse(text), cache);
+      if (pinned && doc.revision !== pinned) throw new Error("Armory catalog revision does not match pinned release");
+      const reference = referenceFromArtifacts(doc);
+      if (release === undefined || pinned) writeCachedCatalog(doc, { home, latest: release === undefined });
+      return reference;
+    }
+  } finally {
+    clearTimeout(timer);
+    controller.abort();
+  }
+  const hit = release === undefined ? cached("latest") : undefined;
+  if (hit) return hit;
+  throw new Error(`${failure?.message ?? "Armory release unavailable"} (no cached Armory catalog to fall back to)`, {
+    cause: failure,
+  });
+}
+
+export function cachedCatalogWarning(catalog) {
+  return catalog?.fromCache
+    ? `Using cached Armory catalog ${catalog.revision} (cached at ${catalog.cachedAt}; possibly stale).`
+    : undefined;
 }
 
 export function readCatalogSuite(reference, manifestPath) {

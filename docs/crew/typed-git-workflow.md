@@ -58,6 +58,20 @@ re-checks every guarded call against that binding, so the typed operations can
 only check out, diff, stage, commit, push and open a PR for the one repository,
 revision, base and branch the worker was authorized for.
 
+## Pending review provenance
+
+The host GitHub suite records the ID and repository/PR returned by this member's successful review start.
+Inline comments require that ID and matching repository/PR; submit requires that ID. A successful submit
+removes the ID. No review lookup is used to authorize mutations. The record exists only in the extension
+instance: after a restart, pending reviews fail closed and must be started again. A pending review created
+outside this session, even with the same token, cannot be used. A review started by this member is trusted
+by construction; this does not establish an independent GitHub guarantee about review parent immutability.
+Review mutations remain explicit grants, not default tools. Pi does not emit a `tool_result` when another extension
+hook blocks a start after this suite's `tool_call` hook passes. That start remains pending but cannot record a review:
+its tool did not execute, and its call ID cannot be reused in this extension instance. Pending and issued starts
+share the 1024-call session limit, so repeated blocks can exhaust it and fail closed. Execution failures do emit error
+results and clear their pending starts. The real multi-hook integration test exercises these dispatch semantics.
+
 ## What this does not bound
 
 The authorization constrains the typed operations, not the guest. A worker

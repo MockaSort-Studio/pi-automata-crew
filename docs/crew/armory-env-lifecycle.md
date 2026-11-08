@@ -102,3 +102,25 @@ no credentials.
 5. Invoke one operation through proxy -> guest runner -> guest `gh`.
 6. Prove a second worker has a separate VM/session projection and shares only
    immutable Nix store paths.
+
+## Catalog cache
+
+The last validated release catalog is stored under `~/.cache/pi-crew/armory-catalog/` as `latest.json` and
+per-revision files. Operations use the canonical home path, whose ancestors up to the filesystem root must be real,
+owned by root or the current user and not group- or world-writable. From home through the cache every directory must
+be current-user-owned and not group- or world-writable; missing cache directories are created with mode 0700. Cache files are
+opened without following symlinks and checked for ownership and permissions. Writes use mode 0600, exclusive random
+temporary names and atomic rename. Platforms without user IDs or no-follow support disable caching. Unsafe or
+unreadable cache directories and invalid cache files are ignored.
+
+The cache is local input, not an authenticated release. Shape validation does not authenticate the source bundle hash
+that the catalog supplies; checking a downloaded bundle against that hash cannot establish its origin. An attacker
+operating as the same account can change these paths and is outside this boundary. Node does not provide an openat
+chain here, so directory checks are not a guarantee against same-account pathname swaps. The policy protects against
+other accounts exploiting shared or mis-permissioned cache locations, not a compromised account.
+
+The latest catalog is retried on transport failure within a total 12-second fetch budget and may fall back to the cached latest; launch and doctor report
+its revision and timestamp as potentially stale. Successfully received malformed or invalid payloads are rejected,
+not replaced with cached data. Canonical pinned release URLs use only their matching revision cache and a downloaded
+revision must match the requested one. Other explicit URLs never fall back to latest or populate the cache. Cache writes
+are best effort and cannot fail a launch.

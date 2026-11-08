@@ -11,7 +11,7 @@ const good = (extra = {}) => ({
   runs: () => true,
   ensureGuestAssets: async () => {},
   bootVm: async () => {},
-  armoryRelease: async () => "https://example.test/releases/armory-abc123def456",
+  armoryCatalog: async () => ({ revision: "abc123def456" }),
   ...extra,
 });
 const byName = (report, name) => report.checks.find((check) => check.name === name);
@@ -61,7 +61,7 @@ test("each failure names what was found and what to do, and the token value is n
     ],
     [
       {
-        armoryRelease: async () => {
+        armoryCatalog: async () => {
           throw new Error("offline");
         },
       },
@@ -100,8 +100,33 @@ test("without a boot check no VM is started", async () => {
 
 test("on this machine the real checks pass: a VM boots and answers", { timeout: 120_000 }, async (t) => {
   if (skipLiveGondolin(t)) return;
-  const report = await runDoctor({ deps: { findHostPi: () => "file:///pi/package.json" } });
+  const deps = {
+    findHostPi: () => "file:///pi/package.json",
+    armoryCatalog: async () => ({ revision: "a".repeat(40) }),
+  };
+  const report = await runDoctor({ deps });
   const failed = report.checks.filter((check) => !check.ok && check.name !== "GitHub credential");
   assert.deepEqual(failed, [], formatDoctor(report));
   assert.match(byName(report, "A VM boots and runs a command").detail, /^\d+\.\ds$/);
+  assert.equal(byName(report, "Armory source is reachable").ok, true);
+  const offline = await runDoctor({
+    boot: false,
+    deps: {
+      ...deps,
+      armoryCatalog: async () => {
+        throw new Error("offline");
+      },
+    },
+  });
+  assert.equal(byName(offline, "Armory source is reachable").ok, false);
+  assert.match(byName(offline, "Armory source is reachable").detail, /offline/);
+});
+
+test("doctor reports an offline cached catalog without claiming source reachability", async () => {
+  const report = await runDoctor({
+    deps: good({ armoryCatalog: async () => ({ revision: "abc", fromCache: true, cachedAt: "2026-01-01T00:00:00Z" }) }),
+  });
+  const text = formatDoctor(report);
+  assert.match(text, /cached.*abc.*2026-01-01/i);
+  assert.doesNotMatch(text, /Armory source is reachable/);
 });
