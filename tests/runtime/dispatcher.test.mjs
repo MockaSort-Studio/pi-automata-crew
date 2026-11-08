@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { createDispatcher } from "../../extensions/crew/runner/dispatcher.mjs";
 
@@ -569,7 +570,8 @@ test("once Main has replied, the same files are accepted; a new one is asked abo
   d.start();
   await settle();
   assert.equal(d.status()[0].state, "needs_input");
-  d.message(A, "accept .prettierignore");
+  const code = createHash("sha256").update("head\n.prettierignore").digest("hex").slice(0, 8);
+  d.message(A, `accept ${code}`);
   await settle();
   assert.equal(d.status()[0].state, "completed", "accepted: it completes");
   assert.deepEqual(results.at(-1).ci.state, "success");

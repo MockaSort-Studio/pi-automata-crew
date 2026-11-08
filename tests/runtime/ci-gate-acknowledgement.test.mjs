@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { createDispatcher } from "../../extensions/crew/runner/dispatcher.mjs";
 
@@ -6,8 +7,9 @@ const handle = "developer-alpha-00";
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 const first = ".prettierignore";
 const second = ".github/workflows/ci.yml";
+const code = (head, files) =>
+  createHash("sha256").update(`${head}\n${[...files].sort().join("\n")}`).digest("hex").slice(0, 8);
 
-// Like the dispatcher test's scripted agent, each turn completes and verifies its current evidence.
 function world() {
   let files = [first, second];
   let head = "head-1";
@@ -32,60 +34,27 @@ function world() {
   };
 }
 
-test("gate replies require every exact path and reject ordinary follow-ups", async () => {
+test("only the exact confirmation phrase accepts the asked files", async () => {
   const w = world();
+  const files = [first, second];
+  const correct = code("head-1", files);
   w.d.start();
   await settle();
-  assert.match(w.results.at(-1).question, /reply `accept` followed by every file name exactly as listed/i);
-  await w.reply("please continue");
-  assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
-  await w.reply(`accept ${first}.backup`);
-  assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
-  await w.reply(`please fix ${first}; do not accept it`);
-  assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
-  await w.reply(`do not accept ${first}, ${second}`);
-  assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
-  await w.reply(`accept ${first}`);
-  assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
-  await w.reply(`accept ${first}, ${second} please`);
-  assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second]);
-  await w.reply(`AcCePt ${first}, ${second}`);
-  assert.equal(w.d.status()[0].state, "completed");
-});
-
-test("accepts exact paths containing spaces, commas, and overlapping prefixes", async () => {
-  const w = world();
-  const files = [".github/workflows/release checks.yml", ".github/workflows/a,b.yml", "config", "config.extra"];
-  w.setFiles(files);
-  w.d.start();
-  await settle();
-  await w.reply(`accept ${files[0]}, ${files[1]}, ${files[2]}`);
-  assert.deepEqual(w.results.at(-1).ci.gateFiles, files);
-  await w.reply(`accept ${files.join(", ")}`);
-  assert.equal(w.d.status()[0].state, "completed");
-});
-
-test("paths cannot be synthesized by joining text around another matched path", async () => {
-  const w = world();
-  const files = [".github/workflows/a", ".github/workflows/b"];
-  w.setFiles(files);
-  w.d.start();
-  await settle();
-  await w.reply("accept .github/workflows/.github/workflows/ab");
-  assert.deepEqual(w.results.at(-1).ci.gateFiles, files);
-  await w.reply(`accept ${files[0]} ${files[0]}`);
-  assert.deepEqual(w.results.at(-1).ci.gateFiles, files);
-  await w.reply(`accept ${files.join(", ")}`);
-  assert.equal(w.d.status()[0].state, "completed");
-});
-
-test("backtracks when a longer prefix cannot complete the reply", async () => {
-  const w = world();
-  const files = ["a", "a,b", "b,c"];
-  w.setFiles(files);
-  w.d.start();
-  await settle();
-  await w.reply("accept a,b,c a,b");
+  assert.match(w.results.at(-1).question, new RegExp(`reply \u0060accept ${correct}\u0060`, "i"));
+  for (const reply of [
+    "accept deadbeef",
+    `accept ${code("head-1", [first])}`,
+    `accept ${code("head-2", files)}`,
+    correct,
+    `accept ${correct} please`,
+    `please fix ${first}; accept ${correct}`,
+    `do not accept ${correct}`,
+    `accept ${first}, ${second}`,
+  ]) {
+    await w.reply(reply);
+    assert.deepEqual(w.results.at(-1).ci.gateFiles, files, reply);
+  }
+  await w.reply(` AcCePt ${correct} `);
   assert.equal(w.d.status()[0].state, "completed");
 });
 
@@ -96,22 +65,38 @@ test("a missing verified head fails closed", async () => {
   await settle();
   assert.equal(w.d.status()[0].state, "needs_input");
   assert.match(w.results.at(-1).question, /head/);
-  await w.reply(`accept ${first}, ${second}`);
+  await w.reply("accept deadbeef");
   assert.equal(w.d.status()[0].state, "needs_input");
 });
 
-test("naming every file accepts them, but a new file or head asks again", async () => {
+test("new files and heads require their own codes", async () => {
   const w = world();
   w.d.start();
   await settle();
-  await w.reply(`accept ${first} ${second}`);
+  await w.reply(`accept ${code("head-1", [first, second])}`);
   assert.equal(w.d.status()[0].state, "completed");
   w.setFiles([first, second, "package.json"]);
   await w.reply("add a file");
   assert.deepEqual(w.results.at(-1).ci.gateFiles, ["package.json"]);
-  await w.reply("accept package.json");
+  await w.reply(`accept ${code("head-1", ["package.json"])}`);
   assert.equal(w.d.status()[0].state, "completed");
   w.setHead("head-2");
   await w.reply("new head");
   assert.deepEqual(w.results.at(-1).ci.gateFiles, [first, second, "package.json"]);
+  await w.reply(`accept ${code("head-1", [first, second, "package.json"])}`);
+  assert.equal(w.d.status()[0].state, "needs_input");
+  await w.reply(`accept ${code("head-2", [first, second, "package.json"])}`);
+  assert.equal(w.d.status()[0].state, "completed");
+});
+
+test("hundreds of overlapping paths do not cause expensive reply parsing", { timeout: 2000 }, async () => {
+  const w = world();
+  const files = Array.from({ length: 500 }, (_, i) => `.eslintrc${"a".repeat(i)}`);
+  w.setFiles(files);
+  w.d.start();
+  await settle();
+  await w.reply(`accept ${files.join("")}`);
+  assert.equal(w.d.status()[0].state, "needs_input");
+  await w.reply(`accept ${code("head-1", files)}`);
+  assert.equal(w.d.status()[0].state, "completed");
 });

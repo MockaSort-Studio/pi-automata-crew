@@ -1,22 +1,10 @@
+import { createHash } from "node:crypto";
 import { createDependencyLedger } from "../crew/lib/dependency-ledger.mjs";
 
 const PREREQUISITE_CHARS = 4000;
 
-function acceptsGate(text, files) {
-  const match = /^accept\s+/i.exec(text.trim());
-  if (!match) return false;
-  const reply = text.trim();
-  const names = [...files].sort((a, b) => b.length - a.length);
-  function parse(position, remaining) {
-    while (position < reply.length && /[\s,]/.test(reply[position])) position += 1;
-    if (position === reply.length) return remaining.length === 0;
-    return remaining.some(
-      (name, index) =>
-        reply.startsWith(name, position) &&
-        parse(position + name.length, [...remaining.slice(0, index), ...remaining.slice(index + 1)]),
-    );
-  }
-  return parse(match[0].length, names);
+function gateCode(head, files) {
+  return createHash("sha256").update(`${head}\n${[...files].sort().join("\n")}`).digest("hex").slice(0, 8);
 }
 
 // Hands each member its assignment when its prerequisites are done, and reports what each run did.
@@ -123,7 +111,7 @@ export function createDispatcher({
         askedGate.set(handle, { files: gate, head, pullNumber: check.pullNumber });
         return needsInput(
           result,
-          `CI is ${check.state === "none" ? "absent" : "green"} on pull request #${check.pullNumber}, but the change touches files that define the checks: ${gate.join(", ")}. To acknowledge, reply \`accept\` followed by every file name exactly as listed, separated by spaces or commas (for example: accept ${gate.join(", ")}). Any other reply is a follow-up.`,
+          `CI is ${check.state === "none" ? "absent" : "green"} on pull request #${check.pullNumber}, but the change touches files that define the checks: ${gate.join(", ")}. Reply \`accept ${gateCode(head, gate)}\` to accept these changes to the checks, or ask the member to fix the content instead.`,
           { ...ciSummary(check, round), gateFiles: gate },
         );
       }
@@ -231,11 +219,12 @@ export function createDispatcher({
       if (!["needs_input", "failed", "completed"].includes(current))
         throw new Error(`${handle} is ${current}; it can be messaged once it has reported`);
       if (running.has(handle)) throw new Error(`${handle} is already working`);
-      // Only exact paths in Main's reply accept files from the question that was actually asked.
+      // Only the exact confirmation for the question that was actually asked accepts its files.
       const asked = askedGate.get(handle);
       if (asked) {
         const accepted = acknowledgedGate.get(handle);
-        if (acceptsGate(text, asked.files)) {
+        const reply = /^accept ([0-9a-f]{8})$/i.exec(text.trim());
+        if (reply && reply[1] === gateCode(asked.head, asked.files)) {
           for (const file of asked.files) accepted.files.add(file);
         }
         askedGate.delete(handle);
