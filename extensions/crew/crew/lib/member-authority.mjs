@@ -6,6 +6,45 @@ import { GITHUB_BASE_TOOL_SET } from "./github-base-tools.mjs";
 const roles = JSON.parse(readFileSync(new URL("../prompts/roles.json", import.meta.url), "utf8"));
 const native = new Set(["read", "grep", "find", "ls", "bash", "edit", "write"]);
 const github = "collaboration/pi-github-tools";
+const personaReads = new Set([
+  "read",
+  "grep",
+  "find",
+  "ls",
+  "github_discussion_comments",
+  "github_discussion_view",
+  "github_discussions_list",
+  "github_issue_view",
+  "github_subissues_list",
+  "github_issues_list",
+  "github_dependency_list",
+  "github_label_list",
+  "github_project_fields",
+  "github_project_item_find",
+  "github_pull_requests_list",
+  "github_pull_request_view",
+  "github_pull_request_files",
+  "github_pull_request_checks",
+  "github_pull_request_checks_wait",
+  "github_pull_request_review_threads",
+  "github_workflow_runs_list",
+  "github_workflow_run_view",
+  "github_workflow_run_failed_log",
+]);
+// Deferred until the repository boundary covers issue mutations and project targets.
+const deferredLeadDefaults = new Set([
+  "github_issue_create",
+  "github_issue_update",
+  "github_issue_comment",
+  "github_issue_add_label",
+  "github_issue_remove_label",
+  "github_subissue_add",
+  "github_dependency_add",
+  "github_project_fields",
+  "github_project_item_add",
+  "github_project_item_find",
+  "github_project_field_set",
+]);
 const implementationRoleCeiling = new Set([
   "github_pull_request_comment",
   "github_pull_request_review",
@@ -19,15 +58,19 @@ export function validateMemberAuthority(automaton, role, requested) {
   if (!policy) throw new Error(`Unknown role "${role}".`);
   const system = new Set();
   const operations = new Set();
-  for (const tool of [...policy.tools, ...automaton.tools]) {
+  for (const tool of automaton.tools) {
+    if (!native.has(tool) && !GITHUB_BASE_TOOL_SET.has(tool)) throw new Error(`Unknown policy capability "${tool}".`);
+  }
+  for (const tool of [...policy.tools, ...automaton.tools.filter((tool) => personaReads.has(tool))]) {
     if (native.has(tool)) system.add(tool);
     else if (GITHUB_BASE_TOOL_SET.has(tool)) {
       if (!(["developer", "integrator"].includes(role) && implementationRoleCeiling.has(tool))) operations.add(tool);
     } else throw new Error(`Unknown policy capability "${tool}".`);
   }
+  const defaultOperations = [...operations].filter((tool) => role !== "lead" || !deferredLeadDefaults.has(tool));
   const defaults = [
     ...(system.size ? [{ suite: "system", operations: [...system] }] : []),
-    ...(operations.size ? [{ suite: github, operations: [...operations] }] : []),
+    ...(defaultOperations.length ? [{ suite: github, operations: defaultOperations }] : []),
   ];
   const grants = suiteGrants(requested === undefined ? defaults : requested);
   for (const tool of grants.system ?? []) {

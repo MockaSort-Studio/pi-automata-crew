@@ -86,17 +86,11 @@ test("developer and integrator personas cannot grant review, comment, or merge a
 });
 
 test("persona capabilities union with role policy without widening other personas", () => {
-  const domain = { tools: ["edit", "github_project_fields"] };
-  assert.deepEqual(
-    validateMemberAuthority(domain, "advisor", [
-      ...grants("system", "edit"),
-      ...grants(github, "github_project_fields"),
-    ]),
-    {
-      tools: ["edit"],
-      suiteGrants: [{ suite: github, tools: ["github_project_fields"] }],
-    },
-  );
+  const domain = { tools: ["github_project_fields"] };
+  assert.deepEqual(validateMemberAuthority(domain, "advisor", grants(github, "github_project_fields")), {
+    tools: [],
+    suiteGrants: [{ suite: github, tools: ["github_project_fields"] }],
+  });
   assert.throws(
     () => validateMemberAuthority({ tools: [] }, "advisor", grants(github, "github_project_fields")),
     /outside/,
@@ -105,6 +99,49 @@ test("persona capabilities union with role policy without widening other persona
     () => validateMemberAuthority({ tools: ["github_not_real"] }, "advisor", grants(github, "github_not_real")),
     /Unknown/,
   );
+});
+
+test("personas cannot add mutations but can add audited reads", () => {
+  const persona = { tools: ["edit", "write", "bash", "github_issue_create", "github_project_fields"] };
+  for (const role of ["advisor", "reviewer"]) {
+    const defaults = validateMemberAuthority(persona, role);
+    for (const tool of ["edit", "write"]) {
+      assert.ok(!defaults.tools.includes(tool));
+      assert.throws(() => validateMemberAuthority(persona, role, grants("system", tool)), /outside/);
+    }
+    assert.throws(() => validateMemberAuthority(persona, role, grants(github, "github_issue_create")), /outside/);
+    assert.ok(!defaults.suiteGrants[0].tools.includes("github_issue_create"));
+    assert.ok(defaults.suiteGrants[0].tools.includes("github_project_fields"));
+  }
+  assert.throws(() => validateMemberAuthority(persona, "advisor", grants("system", "bash")), /outside/);
+});
+
+test("checks wait is role-granted to implementation and review roles and can be a persona read", () => {
+  const operation = "github_pull_request_checks_wait";
+  for (const role of ["developer", "integrator", "reviewer"]) {
+    assert.doesNotThrow(() => validateMemberAuthority({ tools: [] }, role, grants(github, operation)));
+  }
+  assert.throws(() => validateMemberAuthority({ tools: [] }, "advisor", grants(github, operation)), /outside/);
+  assert.doesNotThrow(() => validateMemberAuthority({ tools: [operation] }, "advisor", grants(github, operation)));
+});
+
+test("lead defaults defer issue mutations and project operations", () => {
+  const deferred = [
+    "github_issue_create",
+    "github_issue_update",
+    "github_issue_comment",
+    "github_issue_add_label",
+    "github_issue_remove_label",
+    "github_subissue_add",
+    "github_dependency_add",
+    "github_project_fields",
+    "github_project_item_add",
+    "github_project_item_find",
+    "github_project_field_set",
+  ];
+  const defaults = validateMemberAuthority({ tools: ["github_project_fields"] }, "lead").suiteGrants[0].tools;
+  for (const tool of deferred) assert.ok(!defaults.includes(tool), tool);
+  assert.ok(defaults.includes("github_issue_view"));
 });
 
 test("assembly and prepareCrew reject identical invalid grants before writing launch files", async () => {
