@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { assemble } from "../../extensions/crew/crew/lib/assembly.mjs";
+test("assembly rejects skill injection", () => {
+  assert.throws(() => assemble("snowball", "developer", "", { skills: ["probe"] }), /skills.*not supported/i);
+  assert.doesNotMatch(assemble("snowball", "developer", "").instructions, /## REQUIRED SKILLS/);
+});
 test("assembly narrows explicit system operations", () => {
   const actor = assemble("mergio", "architect", "Design one focused behavior and prove it.", {
     systemOperations: ["read"],
