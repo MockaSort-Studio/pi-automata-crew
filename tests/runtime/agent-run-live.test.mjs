@@ -27,21 +27,9 @@ async function agent(t, respond, environmentOptions = {}) {
   });
   modelRuntime.registerProvider("mock", providerFor(server));
   t.after(async () => {
-    const diagnostic = (phase) => {
-      if (process.env.HALL_VM_DIAGNOSTICS === "1")
-        console.error(
-          `VM diagnostic: teardown ${phase}; running=${environment.isRunning()}; resources=${JSON.stringify(process.getActiveResourcesInfo())}`,
-        );
-    };
-    diagnostic("starting");
-    try {
-      await environment.close();
-      diagnostic("environment closed");
-    } finally {
-      server.close();
-      rmSync(dir, { recursive: true, force: true });
-      diagnostic("complete");
-    }
+    await environment.close();
+    server.close();
+    rmSync(dir, { recursive: true, force: true });
   });
   const run = (extra = {}) =>
     runAgent({
