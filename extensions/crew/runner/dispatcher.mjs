@@ -3,6 +3,7 @@ import { createCiGate } from "./dispatcher-ci.mjs";
 import {
   AWAITING_MAIN,
   MESSAGEABLE,
+  carryEvidence,
   handoffRecord,
   holdRecord,
   memberStatus,
@@ -111,7 +112,8 @@ export function createDispatcher({
     let salvageAttempted = false;
     try {
       if (!agent) {
-        agent = await createAgent(member);
+        // A member recovered after a handoff continues with the runner-recorded evidence of its earlier session.
+        agent = carryEvidence(await createAgent(member), results.get(handle)?.evidence);
         agents.set(handle, agent);
       }
       if (state.get(handle) === "cancelled") return void release(handle);

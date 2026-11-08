@@ -60,7 +60,10 @@ Main decides what happens to a member that waits for it (`needs_input`, `failed`
   The member becomes `on_hold`, keeps its VM, and starts no turn; nothing polls or expires. A message resumes it.
 - **`crew_handoff`** ends it as `partial` or `superseded` work with its unmet criteria and saved evidence (pull
   request, pushed head, last CI snapshot, salvage). Its VM is released; its node stays blocked, so dependents
-  never start on it. A later message recovers it in a new session given its assignment and the handoff.
+  never start on it. A later message recovers it in a new session given its assignment and the handoff. The
+  new session carries the runner-recorded pull request and push evidence of the old one (never model or Main
+  text), so the CI gate verifies that pull request's current head before the member can complete; the handoff's
+  CI snapshot is history, never a green result.
 - **`crew_cancel`** ends it; its node fails and its VM is released.
 
 Holds and handoffs are recorded in the run's `events.jsonl` as `decision` events and are not delivered as
