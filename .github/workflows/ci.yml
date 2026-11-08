@@ -16,17 +16,39 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Install VM prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-utils qemu-system-x86
+          qemu-img --version
+          qemu-system-x86_64 --version
+      - name: Report Gondolin VMM selection
+        run: |
+          node --input-type=module <<'EOF'
+          import { createRequire } from 'node:module';
+          import { chooseVmm } from './extensions/crew/env-runtime/lib/guest-vmm.mjs';
+          const require = createRequire(import.meta.url);
+          try {
+            console.log('krun runner:', require.resolve('@earendil-works/gondolin-krun-runner-linux-x64/package.json'));
+          } catch (error) {
+            console.log('krun runner unavailable:', error.message);
+          }
+          console.log('selected VMM:', chooseVmm());
+          EOF
       - name: Enable KVM access
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm && test -w /dev/kvm
       - name: Read Gondolin version
         id: gondolin
         run: echo "version=$(node -p "require('./node_modules/@earendil-works/gondolin/package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/gondolin
+          path: |
+            ~/.cache/gondolin
+            ~/.pi/agent/cache/gondolin
           key: gondolin-${{ runner.os }}-${{ runner.arch }}-${{ steps.gondolin.outputs.version }}
       # Crew workers run this suite from inside a worker; set their identity variables so every CI
       # run proves the suite does not depend on, or break under, an inherited worker environment.
