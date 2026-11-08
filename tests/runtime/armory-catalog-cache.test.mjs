@@ -147,10 +147,7 @@ test("operations stay on canonical home when an alias is swapped", () => {
     }),
     true,
   );
-  assert.equal(
-    JSON.parse(readFileSync(join(catalogCacheRoot(attacker), "latest.json"), "utf8")).doc.value,
-    "attacker",
-  );
+  assert.equal(JSON.parse(readFileSync(join(catalogCacheRoot(attacker), "latest.json"), "utf8")).doc.value, "attacker");
   assert.equal(read(original).doc.value, "valid");
   unlinkSync(alias);
   symlinkSync(original, alias);

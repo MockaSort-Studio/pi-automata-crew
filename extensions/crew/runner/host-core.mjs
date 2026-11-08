@@ -129,6 +129,7 @@ export function createHostCore({ send, deps = {} }) {
         if (!token) throw new Error("The GitHub suite is granted but no Crew credential is set (HALL_GITHUB_TOKEN)");
         if (!githubModule) {
           const catalog = await d.resolveArmoryCatalog();
+          assertOpen();
           githubModule = await d.loadGithubModule(catalog);
           githubCatalogWarning = cachedCatalogWarning(catalog);
         }
