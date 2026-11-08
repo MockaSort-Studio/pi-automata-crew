@@ -50,14 +50,17 @@ test("restored role grants are confined for every released operation", () => {
       );
       assert.doesNotThrow(() => authorizeRepositoryOperation(operation, input, policy));
       assert.throws(() => authorizeRepositoryOperation(operation, { ...input, repo: "Other" }, policy));
+      if (target === "ownerRepo")
+        assert.throws(() => authorizeRepositoryOperation(operation, { ...input, owner: "Other" }, policy));
       assert.throws(() => authorizeRepositoryOperation(operation, input), /authorization/);
     }
   }
 });
 
 test("inventory deferred operations cannot be granted", () => {
-  for (const [operation, target] of Object.entries(repositoryTargets)) {
-    if (target !== "deferred") continue;
+  const projects = ["github_project_field_set", "github_project_fields", "github_project_item_add", "github_project_item_find"];
+  for (const operation of projects) assert.equal(repositoryTargets[operation], "deferred", operation);
+  for (const operation of new Set([...projects, ...Object.keys(repositoryTargets).filter((name) => repositoryTargets[name] === "deferred")])) {
     for (const role of ["lead", "architect", "advisor", "developer", "integrator", "reviewer"]) {
       assert.ok(
         !validateMemberAuthority({ tools: [operation] }, role)
