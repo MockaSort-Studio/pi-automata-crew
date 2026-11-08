@@ -150,7 +150,9 @@ export function createDispatcher({
         agents.set(handle, agent);
       }
       if (state.get(handle) === "cancelled") {
-        void Promise.resolve().then(() => agent.dispose?.()).catch(() => {});
+        void Promise.resolve()
+          .then(() => agent.dispose?.())
+          .catch(() => {});
         return;
       }
       result = await agent.run.prompt(text);
@@ -256,7 +258,9 @@ export function createDispatcher({
         stops.get(target)?.abort();
         const job = running.get(target);
         if (job) {
-          void Promise.resolve().then(() => agent?.run.abort()).catch(() => {});
+          void Promise.resolve()
+            .then(() => agent?.run.abort())
+            .catch(() => {});
           let timer;
           await Promise.race([job, new Promise((resolve) => (timer = setTimeout(resolve, 5000)))]);
           clearTimeout(timer);
@@ -268,7 +272,9 @@ export function createDispatcher({
             onResult(target, result);
             running.delete(target);
             stops.delete(target);
-            void Promise.resolve().then(() => agent?.dispose?.()).catch(() => {});
+            void Promise.resolve()
+              .then(() => agent?.dispose?.())
+              .catch(() => {});
             pump();
           }
         } else if (!["completed", "cancelled"].includes(state.get(target))) {

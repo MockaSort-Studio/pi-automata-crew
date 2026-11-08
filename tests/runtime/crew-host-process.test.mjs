@@ -69,7 +69,9 @@ test("host protocol cancels a member stuck in CI", { timeout: 9000 }, async (t) 
   t.after(() => host.kill("SIGKILL"));
   let output = "";
   host.stdout.on("data", (data) => (output += data));
-  host.stdin.write(`${JSON.stringify({ id: 1, method: "launch", params: { runId: "stuck", members: [member(A, { model: undefined })] } })}\n`);
+  host.stdin.write(
+    `${JSON.stringify({ id: 1, method: "launch", params: { runId: "stuck", members: [member(A, { model: undefined })] } })}\n`,
+  );
   assert.ok(await waitUntil(() => output.includes('"state":"ci"'), 3000));
   host.stdin.write(`${JSON.stringify({ id: 2, method: "cancel", params: { runId: "stuck", handle: A } })}\n`);
   assert.ok(await waitUntil(() => output.includes('"id":2,"ok":true'), 7000));
@@ -86,7 +88,9 @@ for (const trigger of ["SIGTERM", "stdin"]) {
     let output = "";
     host.stdout.on("data", (data) => (output += data));
     const exited = new Promise((resolve) => host.once("exit", resolve));
-    host.stdin.write(`${JSON.stringify({ id: 1, method: "launch", params: { runId: "stuck", members: [member(A, { model: undefined })] } })}\n`);
+    host.stdin.write(
+      `${JSON.stringify({ id: 1, method: "launch", params: { runId: "stuck", members: [member(A, { model: undefined })] } })}\n`,
+    );
     assert.ok(await waitUntil(() => output.includes('"state":"ci"'), 3000));
     if (trigger === "stdin") host.stdin.end();
     else host.kill(trigger);
