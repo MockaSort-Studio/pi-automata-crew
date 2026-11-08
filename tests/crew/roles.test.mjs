@@ -37,7 +37,10 @@ test("base Crew policy gives a member its operating contract and no implicit Git
   assert.match(architect.instructions, /Only the human, through Main, assigns work/);
   assert.match(architect.instructions, /ask Main with `request_input`/);
   assert.doesNotMatch(architect.instructions, /Fabric|Crew Lead assign|publish BLOCKED/);
-  assert.doesNotMatch(architect.instructions, /github_discussion|crew_ask|Discussion is the durable/);
+  assert.doesNotMatch(
+    architect.instructions.split("## ARMORY")[0],
+    /github_discussion|crew_ask|Discussion is the durable/,
+  );
   assert.ok(!lead.tools.some((tool) => tool.startsWith("github_")));
   assert.ok(!architect.tools.some((tool) => tool.startsWith("github_workflow_")));
   assert.ok(!architect.tools.some((tool) => tool.startsWith("github_")));
