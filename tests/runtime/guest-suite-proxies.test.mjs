@@ -52,7 +52,10 @@ test("a lazy guest resolves its VM on every call, so a released VM can be replac
   const ensure = async () => (current ??= ((boots += 1), guest()));
   await registerArmoryWorkerProxies(
     { registerTool: (tool) => tools.push(tool) },
-    { config: { suites: [{ rootPath, tools: ["github_issue_view"] }], repositoryAuthorization }, guest: lazyGuest(ensure) },
+    {
+      config: { suites: [{ rootPath, tools: ["github_issue_view"] }], repositoryAuthorization },
+      guest: lazyGuest(ensure),
+    },
   );
   assert.equal(boots, 1);
   current = undefined; // the idle release

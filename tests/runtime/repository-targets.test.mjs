@@ -28,7 +28,8 @@ test("every target is classified and fails closed", () => {
     if ("base" in input) input.base = policy.base;
     if ("paths" in input) input.paths = ["file"];
     if (operation === "github_pull_request_update") input.title = "title";
-    if (target !== "deferred") assert.doesNotThrow(() => authorizeRepositoryOperation(operation, input, policy), operation);
+    if (target !== "deferred")
+      assert.doesNotThrow(() => authorizeRepositoryOperation(operation, input, policy), operation);
     assert.throws(() => authorizeRepositoryOperation(operation, input), /authorization/);
     assert.throws(() => authorizeRepositoryOperation(operation, null, policy));
     if (target === "deferred") assert.throws(() => authorizeRepositoryOperation(operation, input, policy), /deferred/);
@@ -47,7 +48,13 @@ test("discussion, review and issue paths preserve authorized flows", () => {
   allow("github_discussion_view", { owner: "Owner", repo: "Repo" });
   assert.throws(() => authorizeRepositoryOperation("github_discussion_view", { owner: "Other", repo: "Repo" }, policy));
   allow("github_pull_request_review_inline_comment", { repo: policy.repo, pullNumber: 1, reviewId: "id" });
-  assert.throws(() => authorizeRepositoryOperation("github_pull_request_review_inline_comment", { repo: policy.repo, pullNumber: 0 }, policy));
+  assert.throws(() =>
+    authorizeRepositoryOperation(
+      "github_pull_request_review_inline_comment",
+      { repo: policy.repo, pullNumber: 0 },
+      policy,
+    ),
+  );
   allow("github_pull_request_review_submit", { reviewId: "id" });
   allow("github_issue_create", { repo: policy.repo, bodyFile: "issues/body.md" });
   for (const bodyFile of ["/tmp/x", "../x", "a/../x", "x\ny", "C:\\outside", "a\\..\\x"]) {

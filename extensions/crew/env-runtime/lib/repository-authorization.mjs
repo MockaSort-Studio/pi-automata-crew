@@ -104,17 +104,20 @@ export function authorizeRepositoryOperation(operation, input, policy) {
   if (target === "deferred") throw new Error(`Repository operation is deferred: ${operation}`);
   if (guardedOperations.has(operation)) assertKnownShape(operation, input);
   if (target === "ownerRepo") {
-    if (typeof input.owner !== "string" || typeof input.repo !== "string" ||
-        !/^[^/\s]+$/.test(input.owner) || !/^[^/\s]+$/.test(input.repo) ||
-        `${input.owner}/${input.repo}` !== policy.repo)
+    if (
+      typeof input.owner !== "string" ||
+      typeof input.repo !== "string" ||
+      !/^[^/\s]+$/.test(input.owner) ||
+      !/^[^/\s]+$/.test(input.repo) ||
+      `${input.owner}/${input.repo}` !== policy.repo
+    )
       throw new Error("Repository operation is outside the worker authorization");
   } else if (target !== "reviewSubmit" && input.repo !== policy.repo) {
     throw new Error("Repository operation is outside the worker authorization");
   }
   if (target === "reviewInline" && (!Number.isInteger(input.pullNumber) || input.pullNumber <= 0))
     throw new Error("pullNumber must be a positive integer");
-  if (operation === "github_issue_create" &&
-      (!safeWorkspacePath(input.bodyFile) || input.bodyFile.includes("\\")))
+  if (operation === "github_issue_create" && (!safeWorkspacePath(input.bodyFile) || input.bodyFile.includes("\\")))
     throw new Error("bodyFile must be a workspace-relative file path");
   if (
     (readPullRequestOperations.has(operation) || ownPullRequestOperations.has(operation)) &&
