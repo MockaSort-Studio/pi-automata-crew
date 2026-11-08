@@ -25,7 +25,12 @@ export function buildLaunchSpec({ config, directory, env = process.env }) {
       warnings.push(`${agent.name}: GitHub tools are unavailable because HALL_GITHUB_TOKEN is not set.`);
     }
     const tools = (agent.tools ?? []).filter((tool) => NATIVE_TOOLS.has(tool));
-    validateRequiredCapabilities({ member: agent.name, requiredCapabilities: agent.requiredCapabilities, tools, suiteGrants });
+    validateRequiredCapabilities({
+      member: agent.name,
+      requiredCapabilities: agent.requiredCapabilities,
+      tools,
+      suiteGrants,
+    });
     return {
       ...(agent.requiredCapabilities !== undefined ? { requiredCapabilities: agent.requiredCapabilities } : {}),
       handle: agent.name,

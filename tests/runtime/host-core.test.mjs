@@ -84,10 +84,24 @@ test("everything that can be known up front is validated before any agent or VM 
 
 test("direct host requirements cannot bypass grants or create a model runtime", async () => {
   let runtimes = 0;
-  const h = host({ deps: { createModelRuntime: async () => { runtimes++; return {}; } } });
-  const response = await h.call("launch", launch({ members: [member(A, {
-    requiredCapabilities: [{ suite: "system", operations: ["bash"] }],
-  })] }));
+  const h = host({
+    deps: {
+      createModelRuntime: async () => {
+        runtimes++;
+        return {};
+      },
+    },
+  });
+  const response = await h.call(
+    "launch",
+    launch({
+      members: [
+        member(A, {
+          requiredCapabilities: [{ suite: "system", operations: ["bash"] }],
+        }),
+      ],
+    }),
+  );
   assert.equal(response.ok, false);
   assert.match(response.error.message, /developer-alpha-00.*system.*bash.*missing grant/);
   assert.equal(runtimes, 0);

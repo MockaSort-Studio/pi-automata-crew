@@ -8,9 +8,14 @@ export function validateRequiredCapabilities({ member, requiredCapabilities, too
   if (requiredCapabilities === undefined) return;
   if (!Array.isArray(requiredCapabilities)) throw new Error(`${member}: requiredCapabilities must be an array`);
   for (const requirement of requiredCapabilities) {
-    if (!requirement || typeof requirement.suite !== "string" || !requirement.suite ||
-        !Array.isArray(requirement.operations) || !requirement.operations.length ||
-        requirement.operations.some((operation) => typeof operation !== "string" || !operation))
+    if (
+      !requirement ||
+      typeof requirement.suite !== "string" ||
+      !requirement.suite ||
+      !Array.isArray(requirement.operations) ||
+      !requirement.operations.length ||
+      requirement.operations.some((operation) => typeof operation !== "string" || !operation)
+    )
       throw new Error(`${member}: each required capability needs a suite and non-empty operations`);
     const { suite, operations } = requirement;
     for (const operation of operations) {
@@ -18,8 +23,10 @@ export function validateRequiredCapabilities({ member, requiredCapabilities, too
       if (!(suite === "system" ? native.has(operation) : suite === github && GITHUB_BASE_TOOL_SET.has(operation)))
         throw new Error(`${prefix}: unsupported suite or operation`);
       if (allowed && !allowed(suite, operation)) throw new Error(`${prefix}: role-ceiling denial`);
-      const granted = suite === "system" ? tools : suiteGrants.flatMap((grant) =>
-        grant.suite === suite ? (grant.operations ?? grant.tools ?? []) : []);
+      const granted =
+        suite === "system"
+          ? tools
+          : suiteGrants.flatMap((grant) => (grant.suite === suite ? (grant.operations ?? grant.tools ?? []) : []));
       if (!granted.includes(operation)) throw new Error(`${prefix}: missing grant`);
     }
   }

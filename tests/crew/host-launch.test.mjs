@@ -36,16 +36,26 @@ test("prepareCrew preserves requirements through both records and host spec", as
   const cwd = mkdtempSync(join(tmpdir(), "required-capabilities-"));
   try {
     const requiredCapabilities = [{ suite: "system", operations: ["edit", "bash"] }];
-    const prepared = await prepareCrew({ getAllTools: () => [] }, {
-      members: [{ name: "snowball", role: "developer", tools: requiredCapabilities, requiredCapabilities }],
-      environment: { microvm: "auto" },
-    }, { cwd }, ".pi");
+    const prepared = await prepareCrew(
+      { getAllTools: () => [] },
+      {
+        members: [{ name: "snowball", role: "developer", tools: requiredCapabilities, requiredCapabilities }],
+        environment: { microvm: "auto" },
+      },
+      { cwd },
+      ".pi",
+    );
     const config = JSON.parse(readFileSync(join(cwd, prepared.configFile), "utf8"));
     const selected = JSON.parse(readFileSync(join(cwd, prepared.selectedCrewFile), "utf8"));
     assert.deepEqual(config.agents[0].requiredCapabilities, requiredCapabilities);
     assert.deepEqual(selected.members[0].requiredCapabilities, requiredCapabilities);
-    assert.deepEqual(buildLaunchSpec({ config, directory: cwd, env: {} }).spec.members[0].requiredCapabilities, requiredCapabilities);
-  } finally { rmSync(cwd, { recursive: true, force: true }); }
+    assert.deepEqual(
+      buildLaunchSpec({ config, directory: cwd, env: {} }).spec.members[0].requiredCapabilities,
+      requiredCapabilities,
+    );
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });
 
 test("assembly output becomes a host launch: instructions, assignment, ordering, repository, environment", () => {
@@ -89,9 +99,15 @@ test("without a Crew credential the default GitHub grant is dropped with a warni
 
 test("credential narrowing rejects required default GitHub access before host launch", () => {
   const requiredCapabilities = [{ suite: GITHUB, operations: ["github_issue_view"] }];
-  assert.throws(() => buildLaunchSpec({
-    config: config([agent("reviewer-b-00", { requiredCapabilities })]), directory: "/d", env: {},
-  }), /reviewer-b-00.*github_issue_view.*missing grant/);
+  assert.throws(
+    () =>
+      buildLaunchSpec({
+        config: config([agent("reviewer-b-00", { requiredCapabilities })]),
+        directory: "/d",
+        env: {},
+      }),
+    /reviewer-b-00.*github_issue_view.*missing grant/,
+  );
 });
 
 test("launching sends the spec to the host, tracks the run, and reports the members", async () => {

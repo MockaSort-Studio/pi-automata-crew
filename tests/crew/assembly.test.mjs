@@ -51,22 +51,58 @@ test("assembly adds only supplied common assignment context", () => {
 
 test("structured requirements assert grants without widening them", () => {
   const requiredCapabilities = [{ suite: "system", operations: ["edit", "bash"] }];
-  assert.throws(() => assemble("snowball", "developer", "", { tools: [{ suite: "system", operations: ["read"] }], requiredCapabilities }), /developer-snowball.*system.*edit.*missing grant/i);
-  assert.throws(() => assemble("snowball", "developer", "", { requiredCapabilities: [{ suite: "system", operations: ["teleport"] }] }), /system.*teleport.*unsupported/i);
-  assert.throws(() => assemble("snowball", "developer", "", { requiredCapabilities: [{ suite: "collaboration/pi-github-tools", operations: ["github_pull_request_merge"] }] }), /github_pull_request_merge.*role.ceiling/i);
-  const actor = assemble("snowball", "developer", "", { tools: [{ suite: "system", operations: ["edit", "bash"] }], requiredCapabilities });
+  assert.throws(
+    () =>
+      assemble("snowball", "developer", "", {
+        tools: [{ suite: "system", operations: ["read"] }],
+        requiredCapabilities,
+      }),
+    /developer-snowball.*system.*edit.*missing grant/i,
+  );
+  assert.throws(
+    () =>
+      assemble("snowball", "developer", "", { requiredCapabilities: [{ suite: "system", operations: ["teleport"] }] }),
+    /system.*teleport.*unsupported/i,
+  );
+  assert.throws(
+    () =>
+      assemble("snowball", "developer", "", {
+        requiredCapabilities: [{ suite: "collaboration/pi-github-tools", operations: ["github_pull_request_merge"] }],
+      }),
+    /github_pull_request_merge.*role.ceiling/i,
+  );
+  const actor = assemble("snowball", "developer", "", {
+    tools: [{ suite: "system", operations: ["edit", "bash"] }],
+    requiredCapabilities,
+  });
   assert.deepEqual(actor.requiredCapabilities, requiredCapabilities);
   assert.deepEqual(actor.tools, ["edit", "bash"]);
 });
 
 test("evidence and PR assertions distinguish missing grants from unsupported operations", () => {
   const suite = "collaboration/pi-github-tools";
-  for (const [role, op] of [["reviewer", "github_issue_view"], ["developer", "github_pull_request_create"], ["developer", "github_git_push"]]) {
-    assert.throws(() => assemble("snowball", role, "", { tools: [], requiredCapabilities: [{ suite, operations: [op] }] }), new RegExp(`${role}-snowball.*${op}.*missing grant`));
+  for (const [role, op] of [
+    ["reviewer", "github_issue_view"],
+    ["developer", "github_pull_request_create"],
+    ["developer", "github_git_push"],
+  ]) {
+    assert.throws(
+      () => assemble("snowball", role, "", { tools: [], requiredCapabilities: [{ suite, operations: [op] }] }),
+      new RegExp(`${role}-snowball.*${op}.*missing grant`),
+    );
   }
-  assert.throws(() => assemble("snowball", "developer", "", { requiredCapabilities: [{ suite, operations: ["github_not_real"] }] }), /github_not_real.*unsupported/);
-  assert.throws(() => assemble("snowball", "developer", "", { requiredCapabilities: [{ suite: "unknown", operations: ["x"] }] }), /unknown.*x.*unsupported/);
-  assert.throws(() => assemble("snowball", "developer", "", { requiredCapabilities: "read" }), /requiredCapabilities must be an array/);
+  assert.throws(
+    () => assemble("snowball", "developer", "", { requiredCapabilities: [{ suite, operations: ["github_not_real"] }] }),
+    /github_not_real.*unsupported/,
+  );
+  assert.throws(
+    () => assemble("snowball", "developer", "", { requiredCapabilities: [{ suite: "unknown", operations: ["x"] }] }),
+    /unknown.*x.*unsupported/,
+  );
+  assert.throws(
+    () => assemble("snowball", "developer", "", { requiredCapabilities: "read" }),
+    /requiredCapabilities must be an array/,
+  );
 });
 
 test("assembly rejects oversized work", () =>
