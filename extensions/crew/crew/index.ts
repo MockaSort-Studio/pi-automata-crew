@@ -14,7 +14,12 @@ import { registerSkillTrace } from "./lib/skill-trace.ts";
 import { assemblyCardData } from "./lib/crew-assembly-card.mjs";
 import { CREW_ASSEMBLED_ENTRY, registerCrewAssemblyCard } from "./lib/crew-assembly-card.ts";
 import { registerCrewMessageRenderer } from "./lib/crew-message-renderer.ts";
-import { parseSpecialistRoutes, routeSpecialists, specialistRoutesPath } from "./lib/specialist-routing.mjs";
+import {
+  discoverSpecialistRoutes,
+  parseSpecialistRoutes,
+  routeSpecialists,
+  specialistRoutesPath,
+} from "./lib/specialist-routing.mjs";
 
 const output = (value, text = JSON.stringify(value)) => ({
   content: [{ type: "text", text }],
@@ -76,14 +81,17 @@ export default function crewExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "crew_route",
     label: "Crew: route specialists",
-    description: "Select specialist personas for repository paths using SPECIALIST_ROUTES. Does not select roles.",
+    description: "Inspect SPECIALIST_ROUTES or select specialist personas for repository paths. Does not select roles.",
     parameters: Type.Object({
-      paths: Type.Array(Type.String(), { minItems: 1 }),
+      paths: Type.Optional(Type.Array(Type.String({ maxLength: 4096 }), { minItems: 1, maxItems: 256 })),
       maxSpecialists: Type.Optional(Type.Integer({ minimum: 1, maximum: 8 })),
     }),
     async execute(_id, input, _signal, _update, ctx) {
       const source = readFileSync(specialistRoutesPath(ctx.cwd), "utf8");
-      return output(routeSpecialists(input.paths, parseSpecialistRoutes(source), input.maxSpecialists));
+      const routes = parseSpecialistRoutes(source);
+      if (input.paths) return output(routeSpecialists(input.paths, routes, input.maxSpecialists));
+      const roster = JSON.parse(readFileSync(new URL("./agents/roster.json", import.meta.url), "utf8"));
+      return output(discoverSpecialistRoutes(routes, roster));
     },
   });
 
