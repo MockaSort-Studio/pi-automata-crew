@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { validateRequiredCapabilities } from "./required-capabilities.mjs";
 
 const GITHUB_SUITE = "collaboration/pi-github-tools";
 const NATIVE_TOOLS = new Set(["read", "write", "edit", "bash", "grep", "find", "ls"]);
@@ -23,11 +24,19 @@ export function buildLaunchSpec({ config, directory, env = process.env }) {
       suiteGrants = suiteGrants.filter((grant) => grant.suite !== GITHUB_SUITE);
       warnings.push(`${agent.name}: GitHub tools are unavailable because HALL_GITHUB_TOKEN is not set.`);
     }
+    const tools = (agent.tools ?? []).filter((tool) => NATIVE_TOOLS.has(tool));
+    validateRequiredCapabilities({
+      member: agent.name,
+      requiredCapabilities: agent.requiredCapabilities,
+      tools,
+      suiteGrants,
+    });
     return {
+      ...(agent.requiredCapabilities !== undefined ? { requiredCapabilities: agent.requiredCapabilities } : {}),
       handle: agent.name,
       instructions: agent.task,
       task: plan.get(agent.name)?.task || DEFAULT_TASK,
-      tools: (agent.tools ?? []).filter((tool) => NATIVE_TOOLS.has(tool)),
+      tools,
       suiteGrants,
       model: agent.model,
       thinking: agent.thinking,
