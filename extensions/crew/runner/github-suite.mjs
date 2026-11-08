@@ -80,6 +80,7 @@ export function githubSuiteExtension({
   return (pi) => {
     module.activateSuite(pi, injection({ workspace, token, transport }));
     pi.on("tool_call", async (event) => {
+      if (!event.toolName.startsWith("github_")) return;
       try {
         authorizeRepositoryOperation(event.toolName, event.input, policy);
       } catch (error) {

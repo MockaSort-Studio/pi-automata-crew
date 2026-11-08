@@ -109,8 +109,10 @@ test("the suite is installed with the injected workspace, transport and credenti
             },
           }
         : n === 3
-          ? { toolCall: { name: "github_issue_view", arguments: JSON.stringify({ repo: "anyone/anything" }) } }
-          : { text: "done" },
+          ? { toolCall: { name: "github_issue_view", arguments: JSON.stringify({ repo: policy.repo }) } }
+          : n === 4
+            ? { toolCall: { name: "github_issue_view", arguments: JSON.stringify({ repo: "anyone/anything" }) } }
+            : { text: "done" },
   );
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const dir = mkdtempSync(join(tmpdir(), "suite-run-"));
@@ -149,11 +151,28 @@ test("the suite is installed with the injected workspace, transport and credenti
     calls.executed.map(({ name, input }) => [name, input.branch ?? input.repo]),
     [
       ["github_git_push", policy.branch],
-      ["github_issue_view", "anyone/anything"],
+      ["github_issue_view", policy.repo],
     ],
-    "the push to main was blocked before it ran; the authorized push and an unguarded tool executed",
+    "the push to main and cross-repo issue view were blocked; authorized calls executed",
   );
-  assert.equal(result.usage.toolErrors, 1, "the blocked call surfaced to the agent as an error");
+  assert.equal(result.usage.toolErrors, 2, "both blocked calls surfaced to the agent as errors");
+});
+
+test("native tools pass the GitHub hook while unknown GitHub operations are blocked", async () => {
+  const handlers = new Map();
+  githubSuiteExtension({
+    module: { activateSuite() {} },
+    workspace: new MemoryProvider(),
+    token: "t",
+    policy,
+    transport: { run: async () => "" },
+  })({ registerTool() {}, on: (name, handler) => handlers.set(name, handler) });
+  const guard = handlers.get("tool_call");
+  let executed = false;
+  const result = await guard({ toolName: "read", input: { path: "file" } });
+  if (!result?.block) executed = true;
+  assert.equal(executed, true);
+  assert.match((await guard({ toolName: "github_unknown", input: {} })).reason, /Unclassified/);
 });
 
 test("pull requests are forced to drafts without changing other calls or bypassing authorization", async () => {
@@ -257,7 +276,7 @@ test("PR ownership applies only to writes and fails closed", async () => {
     "github_pull_request_review_submit",
     "github_pull_request_merge",
   ])
-    assert.equal(await call(name, { repo: "other/repo", pullNumber: 2 }), undefined);
+    assert.equal(await call(name, { repo: policy.repo, pullNumber: 2 }), undefined);
   assert.equal(calls.length, count);
 });
 

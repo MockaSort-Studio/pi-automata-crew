@@ -81,5 +81,8 @@ test("staged and diffed paths must be plain workspace-relative paths", () => {
 test("guarded operations fail closed without a policy", () => {
   for (const operation of ["github_git_push", "github_workspace_checkout", "github_pull_request_create"])
     assert.throws(() => authorizeRepositoryOperation(operation, { repo }), /authorization is required/);
-  assert.doesNotThrow(() => authorizeRepositoryOperation("github_issue_view", { repo: "any/repo" }));
+  assert.throws(
+    () => authorizeRepositoryOperation("github_issue_view", { repo: "any/repo" }),
+    /authorization is required/,
+  );
 });
