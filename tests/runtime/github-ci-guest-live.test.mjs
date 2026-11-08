@@ -9,6 +9,7 @@ import { createTrackedVm } from "../../extensions/crew/env-runtime/lib/vm-lifecy
 import { writeSeedArchive } from "../../extensions/crew/env-runtime/lib/repository-seed-archive.mjs";
 import { githubCiHeadersAllowed, githubCiRequestAllowed } from "../../extensions/crew/runner/github-ci-network.mjs";
 import { skipLiveGondolin } from "./live-gondolin.mjs";
+import { scanForSecret } from "./github-ci-secret-scan.mjs";
 
 // The proxy resolves api.github.com normally, but this fake upstream never delegates HTTP.
 test("guest proxy confines CI metadata and revokes placeholders on VM release", { timeout: 120_000 }, async (t) => {
@@ -98,7 +99,6 @@ test("guest proxy confines CI metadata and revokes placeholders on VM release", 
   const exported = await run("tar -C /workspace -cf - . | base64");
   assert.equal(exported.exitCode, 0, exported.stderr);
   const tar = Buffer.from(exported.stdout, "base64");
-  assert.ok(!tar.includes(token));
   const directory = mkdtempSync(join(tmpdir(), "ci-guest-archive-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const tarPath = join(directory, "workspace.tar");
@@ -106,6 +106,7 @@ test("guest proxy confines CI metadata and revokes placeholders on VM release", 
   execFileSync("mkdir", [tree]);
   writeFileSync(tarPath, tar);
   execFileSync("tar", ["-xf", tarPath, "-C", tree]);
-  assert.ok(!writeSeedArchive(tree, "a".repeat(40)).includes(token));
-  assert.ok(!JSON.stringify({ records, logs }).includes(token));
+  // This seed archive is reconstructed from the exported workspace, not an artifact written by the run.
+  const seedArchive = writeSeedArchive(tree, "a".repeat(40));
+  assert.deepEqual(scanForSecret(token, { workspaceTar: tar, seedArchive, runRecords: { records, logs } }), []);
 });

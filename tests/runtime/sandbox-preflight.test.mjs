@@ -86,6 +86,44 @@ test("a Crew's later workers reuse a recent successful preflight instead of re-s
   assert.deepEqual(calls, ["qemu", "image", "nix", "assets"]);
 });
 
+test("an expired preflight is checked again", async () => {
+  const calls = [];
+  const dependencies = {
+    memo: {},
+    environment: {},
+    vmm: "krun",
+    verifyNix: () => calls.push("nix"),
+    gondolin: { ensureGuestAssets: async () => calls.push("assets") },
+  };
+  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
+  dependencies.memo.verifiedAt = Date.now() - 30_001;
+  await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
+  assert.deepEqual(calls, ["nix", "assets", "nix", "assets"]);
+});
+
+test("a failed preflight is retried rather than memoized", async () => {
+  const calls = [];
+  let fail = true;
+  const dependencies = {
+    memo: {},
+    environment: {},
+    vmm: "krun",
+    verifyNix: () => calls.push("nix"),
+    gondolin: {
+      ensureGuestAssets: async () => {
+        calls.push("assets");
+        if (fail) throw new Error("unavailable");
+      },
+    },
+  };
+  const config = { sandbox: { kind: "gondolin" } };
+  await assert.rejects(preflightWorkerSandbox(config, dependencies), /unavailable/);
+  fail = false;
+  await preflightWorkerSandbox(config, dependencies);
+  await preflightWorkerSandbox(config, dependencies);
+  assert.deepEqual(calls, ["nix", "assets", "nix", "assets"]);
+});
+
 test("real preflight reuses a recent success", async (t) => {
   const nix = spawnSync(nixBinary(), ["--version"], { stdio: "ignore" });
   if (nix.error?.code === "ENOENT") return t.skip("Nix is unavailable here");
