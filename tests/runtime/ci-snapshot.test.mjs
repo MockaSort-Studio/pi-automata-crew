@@ -17,7 +17,7 @@ test("host transport enriches only PR view rollup queries and suite passes the f
     seen.push(args);
     return { stdout: JSON.stringify(view(a, success)) };
   } });
-  const query = ["pr", "view", "1", "--repo", "o/r", "--json", "number,title,body,state,isDraft,author,headRefName,baseRefName,labels,reviews,statusCheckRollup,url"];
+  const query = ["pr", "view", "1", "-R", "o/r", "--json", "number,title,body,state,isDraft,author,headRefName,baseRefName,labels,reviews,statusCheckRollup,url"];
   const module = { activateSuite(pi, { commandTransport }) { pi.registerTool({ name: "github_pull_request_view", execute: async () => ({ content: [{ text: await commandTransport.run(query) }] }) }); } };
   const result = await createSuiteOperations({ module, workspace: {}, token: "t", transport }).call("github_pull_request_view", {});
   assert.equal(result.headRefOid, a);
