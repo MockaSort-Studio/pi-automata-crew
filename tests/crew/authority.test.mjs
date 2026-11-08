@@ -12,7 +12,7 @@ const member = (role, tools) => ({ name: "snowball", role, tools });
 const grants = (suite, ...operations) => [{ suite, operations }];
 
 test("role and persona policy allows only authorized suite and system operations", () => {
-  for (const role of ["lead", "architect", "advisor", "developer", "integrator", "reviewer"]) {
+  for (const role of ["architect", "advisor", "developer", "integrator", "reviewer"]) {
     assert.doesNotThrow(() => assemble("bollo", role, "", {}));
     assert.throws(
       () => assemble("bollo", role, "", { tools: grants(github, "github_issue_create") }),
@@ -115,7 +115,7 @@ test("personas cannot add mutations but can add audited reads", () => {
   assert.throws(() => validateMemberAuthority(persona, "advisor", grants("system", "bash")), /outside/);
 });
 
-test("deferred operations cannot enter through defaults, explicit requests, or personas", () => {
+test("restored operations enter through defaults and explicit requests", () => {
   const cases = [
     ["lead", "github_issue_create"],
     ["lead", "github_issue_update"],
@@ -124,8 +124,6 @@ test("deferred operations cannot enter through defaults, explicit requests, or p
     ["lead", "github_issue_remove_label"],
     ["lead", "github_subissue_add"],
     ["lead", "github_dependency_add"],
-    ["lead", "github_project_item_add"],
-    ["lead", "github_project_field_set"],
     ["architect", "github_discussion_post"],
     ["advisor", "github_issues_list"],
     ["advisor", "github_discussion_view"],
@@ -134,15 +132,13 @@ test("deferred operations cannot enter through defaults, explicit requests, or p
     ["lead", "github_subissues_list"],
     ["lead", "github_dependency_list"],
     ["lead", "github_label_list"],
-    ["lead", "github_project_fields"],
-    ["lead", "github_project_item_find"],
     ["reviewer", "github_pull_request_checks_wait"],
   ];
   for (const [role, operation] of cases) {
     for (const persona of [{ tools: [] }, { tools: [operation] }]) {
       const defaults = validateMemberAuthority(persona, role).suiteGrants.flatMap((grant) => grant.tools);
-      assert.ok(!defaults.includes(operation), `${role}: ${operation}`);
-      assert.throws(() => validateMemberAuthority(persona, role, grants(github, operation)), /outside/);
+      assert.ok(defaults.includes(operation), `${role}: ${operation}`);
+      assert.doesNotThrow(() => validateMemberAuthority(persona, role, grants(github, operation)));
     }
   }
   for (const operation of [
@@ -155,22 +151,18 @@ test("deferred operations cannot enter through defaults, explicit requests, or p
   }
 });
 
-test("lead defaults defer issue mutations and project operations", () => {
+test("lead defaults defer project operations", () => {
   const deferred = [
-    "github_issue_create",
-    "github_issue_update",
-    "github_issue_comment",
-    "github_issue_add_label",
-    "github_issue_remove_label",
-    "github_subissue_add",
-    "github_dependency_add",
     "github_project_fields",
     "github_project_item_add",
     "github_project_item_find",
     "github_project_field_set",
   ];
   const defaults = validateMemberAuthority({ tools: ["github_project_fields"] }, "lead").suiteGrants[0].tools;
-  for (const tool of deferred) assert.ok(!defaults.includes(tool), tool);
+  for (const tool of deferred) {
+    assert.ok(!defaults.includes(tool), tool);
+    assert.throws(() => validateMemberAuthority({ tools: [tool] }, "lead", grants(github, tool)), /outside/);
+  }
   assert.ok(defaults.includes("github_issue_view"));
 });
 

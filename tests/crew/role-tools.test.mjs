@@ -73,8 +73,6 @@ test("defaults grant the role and persona union in assembly and launch", async (
         [...roles[role].tools, ...persona.tools].filter(
           (tool) =>
             ![
-              "github_issues_list",
-              "github_pull_request_checks_wait",
               "github_pull_request_comment",
               "github_pull_request_review_start",
               "github_pull_request_review_inline_comment",

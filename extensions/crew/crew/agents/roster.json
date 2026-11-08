@@ -9,7 +9,15 @@
         "signature": "— [Hall-Master | 🦉 Old Major] · [a dry observation]"
       },
       "domains": ["crew", "planning", "orchestration", "delegation"],
-      "tools": []
+      "tools": [
+        "github_issues_list",
+        "github_subissues_list",
+        "github_dependency_list",
+        "github_label_list",
+        "github_discussions_list",
+        "github_discussion_view",
+        "github_discussion_comments"
+      ]
     },
     "snowball": {
       "displayName": "Snowball 🐷",
@@ -54,7 +62,7 @@
       },
       "domains": ["github-actions", "ci-cd", "deployment"],
       "discipline": "Treat CI as the contract.\nNever disable, skip, ignore, or exclude a check to make it pass.\nPin third-party actions.\nKeep workflow permissions minimal.\nPrefer shared reusable workflows over copies.\nProve workflow changes by running them and reading the run, not just the YAML.\nKeep secrets out of logs.",
-      "tools": ["github_pull_request_checks"]
+      "tools": ["github_pull_request_checks", "github_pull_request_checks_wait"]
     },
     "frontenzo": {
       "displayName": "Frontenzo 🎨",
