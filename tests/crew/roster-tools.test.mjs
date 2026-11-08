@@ -102,7 +102,10 @@ test("bollo domain tools union with reviewer authority and advisor stays read-on
   const roles = JSON.parse(
     readFileSync(new URL("../../extensions/crew/crew/prompts/roles.json", import.meta.url), "utf8"),
   );
-  const reviewer = roles.reviewer.tools.filter((tool) => tool.startsWith("github_"));
+  // Recognized role entries can still be explicitly deferred by authority policy.
+  const reviewer = roles.reviewer.tools.filter(
+    (tool) => tool.startsWith("github_") && tool !== "github_pull_request_checks_wait",
+  );
   const union = [...new Set([...reviewer, ...AUTOMATA.bollo.tools])];
   assert.deepEqual(validateMemberAuthority(AUTOMATA.bollo, "reviewer", grants(union)).suiteGrants, [
     { suite: github, tools: union },
