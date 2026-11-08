@@ -1,11 +1,21 @@
 import { ReadonlyProvider } from "@earendil-works/gondolin";
 import { constants } from "node:os";
+import { getSystemErrorName } from "node:util";
 
-// Same shape as Gondolin 0.14.0 createErrnoError(ERRNO.EROFS, ...): the guest
-// file RPC maps the numeric errno, so a bare `code` would surface as EIO.
+// Built by the same rule as Gondolin 0.14.0 createErrnoError(ERRNO.EROFS, ...)
+// used by ReadonlyProvider. The guest file RPC maps the numeric errno; a bare
+// `code` surfaced as EIO. getSystemErrorName expects a negative libuv value, so
+// for the positive errno Gondolin's code is `ERRNO_<n>`; match it exactly.
 export function readonlyError(syscall, path) {
-  const error = new Error(path ? `EROFS: ${syscall} '${path}'` : `EROFS: ${syscall}`);
-  return Object.assign(error, { code: "EROFS", errno: constants.errno.EROFS, syscall }, path ? { path } : {});
+  const errno = constants.errno.EROFS;
+  let code;
+  try {
+    code = getSystemErrorName(errno);
+  } catch {
+    code = `ERRNO_${errno}`;
+  }
+  const error = new Error(path ? `${code}: ${syscall} '${path}'` : `${code}: ${syscall}`);
+  return Object.assign(error, { code, errno, syscall }, path ? { path } : {});
 }
 
 const READ_FLAGS = new Set(["r", "rs", "sr"]);
