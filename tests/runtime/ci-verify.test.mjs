@@ -16,35 +16,29 @@ test("no pull request in the evidence means there is nothing to gate", async () 
   assert.equal(await verifyPullRequest({ ops, policy, evidence: { commits: [] } }), null);
 });
 
-test("it waits for exactly the commit the member pushed, on its own pull request, and can be cancelled", async () => {
+test("it checks the current pull request with the supplied signal", async () => {
   const calls = [];
   const controller = new AbortController();
-  const ops = {
-    call: async (name, input, options) => (calls.push([name, input, options]), { state: "success", checks: [] }),
-  };
+  const ops = { call: async (name, input, options) => {
+    calls.push([name, input, options]);
+    if (name === "github_pull_request_view") return { state: "OPEN" };
+    if (name === "github_pull_request_checks") return [{ __typename: "StatusContext", state: "SUCCESS" }];
+    return [];
+  } };
   const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: "f".repeat(40) } };
   const result = await verifyPullRequest({ ops, policy, evidence, signal: controller.signal });
-  assert.deepEqual(calls[0], [
-    "github_pull_request_checks_wait",
-    { repo: "o/r", pullNumber: 9, sha: "f".repeat(40) },
-    { signal: controller.signal },
-  ]);
-  assert.equal(calls[1][0], "github_pull_request_files", "then it looks at what the pull request changed");
+  assert.deepEqual(calls[0], ["github_pull_request_view", { repo: "o/r", pullNumber: 9 }, { signal: controller.signal }]);
   assert.deepEqual([result.state, result.pullNumber, result.followUp], ["success", 9, undefined]);
 });
 
 test("a red result carries a bounded follow-up naming each failing check with its log tail", async () => {
   const huge = `${"noise\n".repeat(5000)}AssertionError: expected 1 to equal 2`;
-  const ops = {
-    call: async () => ({
-      state: "failure",
-      checks: [],
-      failures: [
-        { name: "CI / test", url: "https://github.com/o/r/actions/runs/1", logTail: huge },
-        { name: "CI / format", url: "https://github.com/o/r/actions/runs/1", logTail: "" },
-      ],
-    }),
-  };
+  const ops = { call: async (name) => {
+    if (name === "github_pull_request_view") return { state: "OPEN" };
+    if (name === "github_pull_request_files") return [{ blob_url: `https://github.com/o/r/blob/${"abcdef0123456789".padEnd(40, "0")}/file` }];
+    if (name === "github_workflow_run_failed_log") return huge;
+    return [{ __typename: "CheckRun", workflowName: "CI", name: "test", status: "COMPLETED", conclusion: "FAILURE", detailsUrl: "https://github.com/o/r/actions/runs/1" }, { __typename: "CheckRun", workflowName: "CI", name: "format", status: "COMPLETED", conclusion: "FAILURE" }];
+  } };
   const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: "abcdef0123456789" } };
   const { followUp } = await verifyPullRequest({ ops, policy, evidence });
   assert.match(followUp, /CI is red on your pull request #9 \(commit abcdef0\)/);
@@ -89,9 +83,11 @@ test("files that define the checks are recognized; ordinary files are not", () =
 test("a green result reports whether the pull request changed the files that define the checks", async () => {
   const ops = {
     call: async (name) =>
-      name === "github_pull_request_checks_wait"
-        ? { state: "success", checks: [] }
-        : [
+      name === "github_pull_request_view"
+        ? { state: "OPEN" }
+        : name === "github_pull_request_checks"
+          ? [{ __typename: "StatusContext", state: "SUCCESS" }]
+          : [
             {
               filename: "docs/ci-probe.md",
               blob_url: `https://github.com/o/r/blob/${"f".repeat(40)}/docs/ci-probe.md`,
@@ -102,12 +98,9 @@ test("a green result reports whether the pull request changed the files that def
   const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: "f".repeat(40) } };
   const check = await verifyPullRequest({ ops, policy, evidence });
   assert.deepEqual(check.gateFiles, [".prettierignore"]);
-  // A red result goes back to the member first: it does not look at the files at all.
+  // A red result goes back to the member before gate acknowledgement.
   const red = {
-    call: async (name) =>
-      name === "github_pull_request_files"
-        ? assert.fail("not needed for a red CI")
-        : { state: "failure", failures: [] },
+    call: async (name) => name === "github_pull_request_view" ? { state: "OPEN" } : name === "github_pull_request_files" ? [] : [{ __typename: "StatusContext", state: "FAILURE" }],
   };
   assert.equal((await verifyPullRequest({ ops: red, policy, evidence })).state, "failure");
 });
@@ -116,9 +109,9 @@ test("closed pull requests are reported even with gate files and missing or stal
   for (const commit of [undefined, "b".repeat(40)]) {
     const ops = {
       call: async (name) =>
-        name === "github_pull_request_checks_wait"
-          ? { state: "closed", prState: "MERGED" }
-          : [{ filename: ".prettierignore", blob_url: `https://github.com/o/r/blob/${"a".repeat(40)}/file` }],
+        name === "github_pull_request_view"
+          ? { state: "MERGED" }
+          : assert.fail("closed PR must not be polled"),
     };
     const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit } };
     const check = await verifyPullRequest({ ops, policy, evidence });

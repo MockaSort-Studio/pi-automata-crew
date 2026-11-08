@@ -82,6 +82,8 @@ export function createDispatcher({
     rounds,
     checks: (check.checks ?? []).map(({ name, conclusion }) => ({ name, conclusion })),
     waitedSeconds: check.waitedSeconds,
+    headSha: check.headSha,
+    headDiffersFromPush: check.headDiffersFromPush,
   });
 
   // A member that opened a pull request completes only when CI says so. Red CI resumes the member's own session.
