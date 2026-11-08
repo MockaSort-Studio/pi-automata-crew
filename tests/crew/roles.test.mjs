@@ -4,6 +4,8 @@ import { test } from "node:test";
 import { roleModule } from "../../extensions/crew/crew/lib/automaton-body/lib/modules/role.mjs";
 import { assemble } from "../../extensions/crew/crew/lib/assembly.mjs";
 import { GITHUB_BASE_TOOLS } from "../../extensions/crew/crew/lib/github-base-tools.mjs";
+import { validateMemberAuthority } from "../../extensions/crew/crew/lib/member-authority.mjs";
+import { AUTOMATA } from "../../extensions/crew/crew/lib/roster.mjs";
 
 test("roles provide bounded native capabilities", () => {
   for (const [role, tool, thinking] of [
@@ -26,6 +28,18 @@ test("GitHub base catalog declares bounded workflow inspection operations", () =
     assert.ok(GITHUB_BASE_TOOLS.includes(operation));
 });
 
+test("checks wait is recognized and explicit requests can narrow it away", () => {
+  const operation = "github_pull_request_checks_wait";
+  assert.ok(GITHUB_BASE_TOOLS.includes(operation));
+  const automaton = { ...AUTOMATA.snowball, tools: ["github_pull_request_checks", operation] };
+  assert.deepEqual(
+    validateMemberAuthority(automaton, "advisor", [
+      { suite: "collaboration/pi-github-tools", operations: ["github_pull_request_checks"] },
+    ]).suiteGrants,
+    [{ suite: "collaboration/pi-github-tools", tools: ["github_pull_request_checks"] }],
+  );
+});
+
 test("base Crew policy gives a member its operating contract and no implicit GitHub operations", () => {
   const lead = roleModule({ role: "lead", override: {} });
   const architect = assemble("tomashco", "architect", "");
@@ -37,7 +51,10 @@ test("base Crew policy gives a member its operating contract and no implicit Git
   assert.match(architect.instructions, /Only the human, through Main, assigns work/);
   assert.match(architect.instructions, /ask Main with `request_input`/);
   assert.doesNotMatch(architect.instructions, /Fabric|Crew Lead assign|publish BLOCKED/);
-  assert.doesNotMatch(architect.instructions, /github_discussion|crew_ask|Discussion is the durable/);
+  assert.doesNotMatch(
+    architect.instructions.split("## ARMORY")[0],
+    /github_discussion|crew_ask|Discussion is the durable/,
+  );
   assert.ok(!lead.tools.some((tool) => tool.startsWith("github_")));
   assert.ok(!architect.tools.some((tool) => tool.startsWith("github_workflow_")));
   assert.ok(!architect.tools.some((tool) => tool.startsWith("github_")));

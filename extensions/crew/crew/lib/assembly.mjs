@@ -3,6 +3,7 @@ import {
   ROLE_NAMES,
   safetyModule,
   soulModule,
+  domainModule,
   roleModule,
   crewDisciplineModule,
 } from "./automaton-body/lib/index.mjs";
@@ -18,6 +19,7 @@ export function assemble(name, role, task, override = {}) {
   const body = createRobot({ id: `${role}-${name}`, name, role })
     .install(safetyModule)
     .install(soulModule, { persona: automaton.persona })
+    .install(domainModule, { discipline: automaton.discipline })
     .install(crewDisciplineModule)
     .install(roleModule, { role, override })
     .build();
