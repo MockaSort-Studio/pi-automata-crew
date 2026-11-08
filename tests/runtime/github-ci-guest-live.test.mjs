@@ -15,7 +15,8 @@ test("guest proxy confines CI metadata and revokes placeholders on VM release", 
   const fetch = async (url, options) => {
     requests.push({ url, authorization: options.headers.authorization });
     const page = new URL(url).searchParams.get("page");
-    if (page === "2") return new Response(null, { status: 302, headers: { location: "/repos/Owner/Repo/actions/runs?page=1" } });
+    if (page === "2")
+      return new Response(null, { status: 302, headers: { location: "/repos/Owner/Repo/actions/runs?page=1" } });
     if (page === "3") return new Response(null, { status: 302, headers: { location: "https://evil.example/leak" } });
     return new Response("metadata-ok", { status: 200 });
   };
@@ -42,7 +43,9 @@ test("guest proxy confines CI metadata and revokes placeholders on VM release", 
   const run = (command) => environment.withVm((vm) => vm.exec(command));
   const curl = (path, auth = "$GH_TOKEN") =>
     `curl -skS -m 15 -w ' status=%{http_code}' -H "Authorization: Bearer ${auth}" 'https://api.github.com${path}'`;
-  const first = await run(`${curl("/repos/Owner/Repo/actions/runs?page=1")}; printf '\\n'; printf '%s' "$GH_TOKEN"; printf '\\n'; cat /workspace/seed.txt`);
+  const first = await run(
+    `${curl("/repos/Owner/Repo/actions/runs?page=1")}; printf '\\n'; printf '%s' "$GH_TOKEN"; printf '\\n'; cat /workspace/seed.txt`,
+  );
   assert.equal(first.exitCode, 0, first.stderr);
   assert.match(first.stdout, /metadata-ok status=200/);
   assert.ok(first.stdout.includes(boots[0].placeholder));
@@ -55,16 +58,26 @@ test("guest proxy confines CI metadata and revokes placeholders on VM release", 
     assert.equal(requests.length, before + 1);
     assert.ok(!result.stdout.includes(token));
   }
-  for (const path of ["/repos/Other/Repo/actions/runs", "/repos/Owner/Repo/actions/runs/1/logs", "/repos/Owner/Repo/actions/runs/1"]) {
+  for (const path of [
+    "/repos/Other/Repo/actions/runs",
+    "/repos/Owner/Repo/actions/runs/1/logs",
+    "/repos/Owner/Repo/actions/runs/1",
+  ]) {
     const before = requests.length;
     assert.match((await run(curl(path))).stdout, /status=403/);
     assert.equal(requests.length, before);
   }
   await environment.release();
   const old = boots[0].placeholder;
-  const revoked = await boots[0].hooks.onRequest(new Request("https://api.github.com/repos/Owner/Repo/actions/runs", { headers: { authorization: `Bearer ${old}` } }));
+  const revoked = await boots[0].hooks.onRequest(
+    new Request("https://api.github.com/repos/Owner/Repo/actions/runs", {
+      headers: { authorization: `Bearer ${old}` },
+    }),
+  );
   assert.notEqual(revoked.headers.get("authorization"), `Bearer ${token}`);
-  const reboot = await run(`printf '%s\\n' "$GH_TOKEN"; ${curl("/repos/Owner/Repo/actions/runs?page=1")}; printf '\\n'; ${curl("/repos/Owner/Repo/actions/runs", old)}; printf '\\n'; cat /workspace/seed.txt`);
+  const reboot = await run(
+    `printf '%s\\n' "$GH_TOKEN"; ${curl("/repos/Owner/Repo/actions/runs?page=1")}; printf '\\n'; ${curl("/repos/Owner/Repo/actions/runs", old)}; printf '\\n'; cat /workspace/seed.txt`,
+  );
   assert.notEqual(boots[1].placeholder, old);
   assert.match(reboot.stdout, /metadata-ok status=200/);
   assert.match(reboot.stdout, /status=403/);
