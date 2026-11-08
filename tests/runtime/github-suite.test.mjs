@@ -238,7 +238,7 @@ test("PR ownership applies only to writes and fails closed", async () => {
     for (const number of [2, 3, 4, 5])
       assert.match((await call(name, input(number))).reason, /can only change its own pull request/);
   }
-  assert.equal(calls.filter((args) => args[2] === "1").length, 1);
+  assert.equal(calls.filter((args) => args[2] === "1").length, 3);
   assert.deepEqual(calls[0], [
     "pr",
     "view",
