@@ -32,7 +32,10 @@ test("registered crew_route discovers policy and reports unknown specialists", a
   const { details } = await run(tool, cwd, {});
   assert.deepEqual(details.rules, [{ line: 1, pattern: "/src/**", specialists: ["snowball", "unknown"] }]);
   assert.ok(Array.isArray(details.specialists.find((item) => item.name === "snowball").domains));
-  assert.deepEqual(details.specialists.find((item) => item.name === "unknown"), { name: "unknown", domains: null });
+  assert.deepEqual(
+    details.specialists.find((item) => item.name === "unknown"),
+    { name: "unknown", domains: null },
+  );
 });
 
 test("registered crew_route validates paths and returns matches and unmatched paths", async () => {
