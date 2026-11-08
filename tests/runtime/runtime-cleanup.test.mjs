@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
@@ -18,10 +18,11 @@ test("concurrent Crews remove workers and worktrees before Runtime stop returns"
   const ids = [`cleanup-${randomUUID()}`, `cleanup-${randomUUID()}`];
   try {
     // Runtime loads its worker module from the installed source, not the worktree.
-    // This test uses no bundles or sandbox, so only a committed repository is needed.
+    // This test uses no bundles or sandbox; worktree sync needs an empty extensions directory.
     execFileSync("git", ["init", "-q"], { cwd });
     execFileSync("git", ["config", "user.email", "test@example.com"], { cwd });
     execFileSync("git", ["config", "user.name", "test"], { cwd });
+    mkdirSync(join(cwd, "extensions"), { recursive: true });
     writeFileSync(join(cwd, ".gitignore"), ".pi/runtime/\n");
     execFileSync("git", ["add", ".gitignore"], { cwd });
     execFileSync("git", ["commit", "-q", "-m", "init"], { cwd });
@@ -30,7 +31,10 @@ test("concurrent Crews remove workers and worktrees before Runtime stop returns"
     const [one, two] = launches.map((launch) => launch.value);
     assert.notEqual(realpathSync(cwd), realpathSync(process.cwd()), "the crews must not use the shared checkout");
     const ownedWorktrees = execFileSync("git", ["worktree", "list", "--porcelain"], { cwd, encoding: "utf8" });
-    const paths = ownedWorktrees.split("\n").filter((line) => line.startsWith("worktree ")).map((line) => realpathSync(line.slice(9)));
+    const paths = ownedWorktrees
+      .split("\n")
+      .filter((line) => line.startsWith("worktree "))
+      .map((line) => realpathSync(line.slice(9)));
     for (const agent of [...one.agents, ...two.agents]) {
       assert.ok(paths.includes(realpathSync(agent.worktree)));
       const commonDir = execFileSync("git", ["rev-parse", "--git-common-dir"], {
@@ -44,7 +48,10 @@ test("concurrent Crews remove workers and worktrees before Runtime stop returns"
     const stops = await Promise.allSettled([first.stop(), second.stop()]);
     for (const stop of stops) if (stop.status === "rejected") throw stop.reason;
     const stopped = stops.map((stop) => stop.value);
-    assert.deepEqual(stopped.map((result) => result.removals.length), [2, 2]);
+    assert.deepEqual(
+      stopped.map((result) => result.removals.length),
+      [2, 2],
+    );
     assert.ok(
       stopped.every((result) => result.removals.every((item) => item.removed)),
       `a worker was not removed: ${JSON.stringify(stopped.flatMap((result) => result.removals.filter((item) => !item.removed)))}`,
