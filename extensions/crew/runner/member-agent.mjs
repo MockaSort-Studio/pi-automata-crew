@@ -5,6 +5,7 @@ import { populateRepositoryWorkspace } from "../env-runtime/lib/repository-works
 import { createAgentRun } from "./agent-run.mjs";
 import { verifyPullRequest } from "./ci-verify.mjs";
 import { createEnvironment } from "./environment.mjs";
+import { githubCiHeadersAllowed, githubCiRequestAllowed } from "./github-ci-network.mjs";
 import { createSuiteOperations, githubSuiteExtension } from "./github-suite.mjs";
 import { routedToolsExtension } from "./routing-extension.mjs";
 import { salvage } from "./salvage.mjs";
@@ -23,12 +24,6 @@ export async function createMemberAgent({ member, crew, onEvent }) {
   const policy = crew.repository
     ? repositoryAuthorization({ ...crew.repository, branch: `crew/${crew.runId}/${member.handle}` })
     : undefined;
-  const environment = createEnvironment({
-    localCwd: cwd,
-    label: member.handle,
-    idleMs: crew.idleMs,
-    seed: crew.seedArchive ? (workspace) => populateRepositoryWorkspace(workspace, crew.seedArchive) : undefined,
-  });
   const granted = member.suiteGrants?.find((grant) => grant.suite === GITHUB_SUITE);
   const github = granted && crew.github;
   if (granted && !github)
@@ -36,6 +31,26 @@ export async function createMemberAgent({ member, crew, onEvent }) {
   if (granted && !policy)
     throw new Error(`${member.handle} is granted the GitHub suite but the crew has no repository authorization`);
   const operations = granted?.operations ?? [];
+  const ciAccess =
+    github?.token &&
+    operations.some((name) => ["github_workflow_runs_list", "github_workflow_run_view"].includes(name));
+  const environment = createEnvironment({
+    localCwd: cwd,
+    label: member.handle,
+    idleMs: crew.idleMs,
+    ...(ciAccess
+      ? {
+          allowedHosts: ["api.github.com"],
+          secrets: { GH_TOKEN: { value: github.token, hosts: ["api.github.com"] } },
+          onRequest: (request, env) =>
+            githubCiHeadersAllowed(request.headers, env.GH_TOKEN) &&
+            githubCiRequestAllowed(request, { repo: policy.repo, operations })
+              ? undefined
+              : new Response("blocked", { status: 403 }),
+        }
+      : {}),
+    seed: crew.seedArchive ? (workspace) => populateRepositoryWorkspace(workspace, crew.seedArchive) : undefined,
+  });
   const extensionFactories = [routedToolsExtension(environment)];
   if (github)
     extensionFactories.push(
