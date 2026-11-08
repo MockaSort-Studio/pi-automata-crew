@@ -29,6 +29,23 @@ test("polls again and reports a head pushed by someone else", async () => {
   assert.equal(result.headDiffersFromPush, true);
 });
 
+test("discards a settled rollup when the head changes during its lookup", async () => {
+  let files = 0;
+  let polls = 0;
+  const result = await run(async (name) => {
+    if (name === "github_pull_request_view") return { state: "OPEN" };
+    if (name === "github_pull_request_files") return file((++files === 1 ? "a" : "b").repeat(40));
+    if (name === "github_pull_request_checks") {
+      polls++;
+      return [check("COMPLETED", polls === 1 ? "SUCCESS" : "FAILURE")];
+    }
+    assert.fail(name);
+  });
+  assert.equal(polls, 2);
+  assert.equal(result.state, "failure");
+  assert.equal(result.headSha, "b".repeat(40));
+});
+
 test("abort interrupts both sleep and a hung poll", async () => {
   for (const hung of [false, true]) {
     const controller = new AbortController();

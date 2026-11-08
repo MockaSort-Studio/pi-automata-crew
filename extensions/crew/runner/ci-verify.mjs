@@ -1,6 +1,5 @@
-// A member that opened a pull request is not done until its CI is green. The runner, not the model, checks: it finds
-// the member's PR and last pushed commit in the run's evidence and asks the GitHub suite to wait for that commit's
-// checks. A red result is turned into a message for the member's own session, with the failing checks and log tails.
+// A member that opened a pull request is not done until its CI is green. The runner polls the PR's current checks;
+// a red result becomes a message for the member's own session, with the failing checks and log tails.
 const PULL_URL = /\/pull\/(\d+)(?:[/?#]|$)/;
 const MAX_FOLLOW_UP_CHARS = 8000;
 const MAX_LOG_CHARS = 2500;
@@ -77,7 +76,10 @@ export async function verifyPullRequest({ ops, policy, evidence, signal, pollInt
   if (!pullNumber) return null;
   const sha = evidence?.pushed?.commit;
   const input = { repo: policy.repo, pullNumber };
-  const call = (name, args = input) => abortable(Promise.resolve().then(() => ops.call(name, args, { signal })), signal);
+  const call = (name, args = input) => {
+    if (signal?.aborted) return Promise.reject(signal.reason ?? new Error("Aborted"));
+    return abortable(Promise.resolve().then(() => ops.call(name, args, { signal })), signal);
+  };
   const started = Date.now();
   for (;;) {
     const view = await call("github_pull_request_view");
@@ -88,10 +90,18 @@ export async function verifyPullRequest({ ops, policy, evidence, signal, pollInt
     const headSha = headOf(files);
     if (headOf(before) !== headSha) continue;
     if (check.state === "pending" || (check.state === "none" && Date.now() - started < noChecksGraceMs)) {
-      await abortable(new Promise((resolve) => {
-        const timer = setTimeout(resolve, pollIntervalMs);
-        signal?.addEventListener("abort", () => clearTimeout(timer), { once: true });
-      }), signal);
+      await new Promise((resolve, reject) => {
+        if (signal?.aborted) return reject(signal.reason ?? new Error("Aborted"));
+        const abort = () => {
+          clearTimeout(timer);
+          reject(signal.reason ?? new Error("Aborted"));
+        };
+        const timer = setTimeout(() => {
+          signal?.removeEventListener("abort", abort);
+          resolve();
+        }, pollIntervalMs);
+        signal?.addEventListener("abort", abort, { once: true });
+      });
       continue;
     }
     const result = { ...check, pullNumber, headSha, headDiffersFromPush: Boolean(headSha && sha && headSha !== String(sha).toLowerCase()), waitedSeconds: (Date.now() - started) / 1000 };
