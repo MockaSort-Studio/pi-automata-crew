@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,6 +53,10 @@ jobs:
             ~/.cache/gondolin
             ~/.pi/agent/cache/gondolin
           key: gondolin-${{ runner.os }}-${{ runner.arch }}-${{ steps.gondolin.outputs.version }}
+      - name: Diagnose live agent VMs
+        run: |
+          trap 'echo "Process state after focused run:"; ps -eo pid,ppid,stat,comm' EXIT
+          HALL_VM_DIAGNOSTICS=1 timeout --kill-after=15s 5m node --test-reporter=tap tests/runtime/agent-run-live.test.mjs
       # Crew workers run this suite from inside a worker; set their identity variables so every CI
       # run proves the suite does not depend on, or break under, an inherited worker environment.
       - run: npm test
