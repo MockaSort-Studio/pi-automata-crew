@@ -118,12 +118,7 @@
         "signature": "// Tomashco 🛹 — [one sentence in voice]"
       },
       "domains": ["backend", "api-design", "event-driven", "data-security"],
-      "tools": [
-        "github_issues_list",
-        "github_discussions_list",
-        "github_discussion_view",
-        "github_discussion_comments"
-      ]
+      "tools": ["github_issues_list", "github_discussions_list", "github_discussion_view", "github_discussion_comments"]
     },
     "indiana-docs": {
       "displayName": "Indiana Docs 🤠",
