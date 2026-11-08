@@ -5,14 +5,15 @@ const text = (value: unknown) => ({
   details: value,
 });
 
-// What Main can do with a running crew besides starting it: look, answer, cancel, clean up. Reports arrive as
-// messages (crew-reports.mjs); none of these tools is for polling.
+// What Main can do with a running crew besides starting it: look, resume, hold, hand off, cancel, clean up.
+// Reports arrive as messages (crew-reports.mjs); none of these tools is for polling. The lifecycle they act on
+// is defined in runner/member-lifecycle.mjs.
 export function registerCrewHostTools(pi: any, host: (ctx: any) => any) {
   pi.registerTool({
     name: "crew_status",
     label: "Crew: status",
     description:
-      "Show each member's state (queued, running, ci = waiting for its pull request checks, needs_input, held, completed, failed, cancelled) and its last activity. For a deliberate check, not for waiting: reports arrive as messages.",
+      "Show each member's one current state (queued, held, running, ci = waiting for its pull request checks, needs_input, failed, on_hold, completed, handed_off, cancelled), its lastReport (the member's latest report with its time; current=false means the member has moved on since), its ci snapshot (state of an exact headSha at checkedAt; only success is green: none and unavailable are not), Main's hold or handoff, and its last activity. completed means the model finished and the CI gate passed or found no checks; it is not review or acceptance. For a deliberate check, not for waiting: reports arrive as messages.",
     parameters: Type.Object({ runId: Type.Optional(Type.String()) }),
     async execute(_id: string, input: { runId?: string }, _signal: unknown, _update: unknown, ctx: any) {
       const { client, runs } = host(ctx);
@@ -25,7 +26,7 @@ export function registerCrewHostTools(pi: any, host: (ctx: any) => any) {
     name: "crew_message",
     label: "Crew: message a member",
     description:
-      "Send a member a message in its existing conversation: the answer to a question it asked, a retry for a failed member, or a follow-up for a completed one.",
+      "Resume a member with one new turn in its existing conversation: an answer to its question, new evidence, a decision, a retry for a failed member, a follow-up for a completed one, or recovery of a handed-off one (in a new session). Every message resumes; to acknowledge without new evidence or a decision, use crew_hold instead.",
     parameters: Type.Object({ runId: Type.String(), member: Type.String(), text: Type.String({ minLength: 1 }) }),
     async execute(
       _id: string,
@@ -37,6 +38,51 @@ export function registerCrewHostTools(pi: any, host: (ctx: any) => any) {
       return text(
         await host(ctx).client().request("message", { runId: input.runId, handle: input.member, text: input.text }),
       );
+    },
+  });
+
+  pi.registerTool({
+    name: "crew_hold",
+    label: "Crew: hold a member",
+    description:
+      "Acknowledge a member that is waiting for you (needs_input, failed or on_hold) without starting a turn: record what blocks it, who owns the blocker, and what will make you resume it, with optional pull request, head SHA or artifact references. The member stays on_hold with its VM and its dependents held. Nothing resumes it automatically: resume it later with crew_message.",
+    parameters: Type.Object({
+      runId: Type.String(),
+      member: Type.String(),
+      blocker: Type.String({ minLength: 1 }),
+      owner: Type.String({ minLength: 1, description: "Who must act: a member handle, main or human" }),
+      resumeWhen: Type.String({ minLength: 1 }),
+      refs: Type.Optional(
+        Type.Object({
+          pullRequest: Type.Optional(Type.String()),
+          head: Type.Optional(Type.String({ description: "Commit SHA" })),
+          artifact: Type.Optional(Type.String()),
+        }),
+      ),
+    }),
+    async execute(_id: string, input: any, _s: unknown, _u: unknown, ctx: any) {
+      const { runId, member, blocker, owner, resumeWhen, refs } = input;
+      return text(
+        await host(ctx).client().request("hold", { runId, handle: member, blocker, owner, resumeWhen, refs }),
+      );
+    },
+  });
+
+  pi.registerTool({
+    name: "crew_handoff",
+    label: "Crew: hand off a member",
+    description:
+      "End a member that is waiting for you (needs_input, failed or on_hold) as partial or superseded work, without accepting it: list the acceptance criteria it did not meet; its pull request, pushed head, last CI snapshot and salvage are kept as evidence and its VM is released. Its dependents are not released and nothing is approved or merged. A later crew_message recovers it in a new session.",
+    parameters: Type.Object({
+      runId: Type.String(),
+      member: Type.String(),
+      unmet: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
+      supersededBy: Type.Optional(Type.String({ description: "The work that replaces it, e.g. a pull request" })),
+      note: Type.Optional(Type.String()),
+    }),
+    async execute(_id: string, input: any, _s: unknown, _u: unknown, ctx: any) {
+      const { runId, member, unmet, supersededBy, note } = input;
+      return text(await host(ctx).client().request("handoff", { runId, handle: member, unmet, supersededBy, note }));
     },
   });
 

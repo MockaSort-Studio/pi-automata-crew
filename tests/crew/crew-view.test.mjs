@@ -31,7 +31,7 @@ test("the footer counts members by what they are doing and totals the output tok
   assert.equal(line.view.runId, "7f56ff8f");
   assert.equal(
     line.footer,
-    "Crew 7f56ff8f · 4 automata · 1 running · 1 queued · 1 needs attention · 1 complete · 1.5k output tokens",
+    "Crew 7f56ff8f · 4 automata · 1 running · 1 needs attention · 1 complete · 1 blocked · 1.5k output tokens",
   );
 });
 
@@ -134,4 +134,43 @@ test("a member waiting for CI shows as running, not queued", () => {
   assert.equal(line.view.phase, "Working");
   assert.equal(buildAutomataTab(snapshot)[0].bucket, "running");
   assert.equal(isActive([m("developer-a-00", "ci")]), true);
+});
+
+test("a held member and a handed-off one are blocked, never passed, and only a handoff ends the crew", () => {
+  const { line, snapshot } = crewView({
+    runId: RUN,
+    members: [m("developer-a-00", "on_hold"), m("developer-b-00", "handed_off"), m("developer-c-00", "completed")],
+  });
+  assert.equal(line.view.phase, "On hold");
+  assert.deepEqual(
+    buildAutomataTab(snapshot).map((row) => row.bucket),
+    ["blocked", "blocked", "complete"],
+  );
+  assert.equal(isActive([m("a", "on_hold")]), true, "a hold waits for Main, it does not end the crew");
+  assert.equal(isActive([m("a", "handed_off"), m("b", "completed")]), false, "a handoff released its VM");
+  assert.equal(crewView({ runId: RUN, members: [m("a", "handed_off")] }).line.view.phase, "Handed off", "not Done");
+  assert.deepEqual(
+    planRows({
+      plan: [{ handle: "developer-b-00", task: "t", dependsOn: [] }],
+      members: [m("developer-b-00", "handed_off", { ledger: "blocked" })],
+    }).map((row) => row.status),
+    ["blocked"],
+  );
+});
+
+test("a handed-off member with a dependent held behind it reads as handed off and blocked, never queued", () => {
+  const members = [
+    m("developer-a-00", "handed_off", { ledger: "blocked" }),
+    m("reviewer-b-00", "held", { ledger: "blocked" }),
+  ];
+  const { line, snapshot } = crewView({ runId: RUN, members });
+  assert.equal(line.view.phase, "Handed off");
+  assert.deepEqual(
+    buildAutomataTab(snapshot).map((row) => row.bucket),
+    ["blocked", "blocked"],
+  );
+  assert.doesNotMatch(line.footer, /queued/);
+  const cancelled = [m("developer-a-00", "cancelled"), m("reviewer-b-00", "held", { ledger: "blocked" })];
+  assert.equal(crewView({ runId: RUN, members: cancelled }).line.view.phase, "Blocked");
+  assert.equal(crewView({ runId: RUN, members: [m("a", "completed"), m("b", "queued")] }).line.view.phase, "Queued");
 });

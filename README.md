@@ -80,13 +80,15 @@ and landing belong to reviewers, Main and humans.
 | ------------------------------ | -------------------------------------------------------------- |
 | `start_crew`                   | Launch members; assignments dispatch immediately               |
 | `crew_status`                  | Look at each member's state (including `ci`) and last activity |
-| `crew_message`                 | Answer a question, retry a failed member, or follow up         |
+| `crew_message`                 | Resume a member: answer, retry, follow up, or recover          |
+| `crew_hold`                    | Acknowledge a waiting member without a turn                    |
+| `crew_handoff`                 | End a member as partial or superseded, without accepting it    |
 | `crew_cancel`                  | Stop a member or the whole crew; running commands are killed   |
 | `runtime_cleanup`              | Dispose every crew from this session and close its VMs         |
 | `crew_doctor` / `/crew-doctor` | Check this machine                                             |
 
 There is no deadline on an agent run. A member that fails or asks a question is
-held, not lost, until you message or cancel it. Quitting Pi closes every VM; `/reload` leaves running crews alone.
+held, not lost, until you message, hold, hand off or cancel it. Quitting Pi closes every VM; `/reload` leaves running crews alone.
 
 ## License
 

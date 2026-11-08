@@ -72,6 +72,24 @@ test("a member's result is delivered to Main as a steering message and appended 
   assert.equal(existsSync(join(cwd, ".pi/runtime/crews/untracked")), false, "only tracked runs are recorded");
 });
 
+test("Main's hold and handoff decisions are recorded in the run record but never start a Main turn", (t) => {
+  const { host, created, pi, cwd } = setup(t);
+  const dir = join(cwd, ".pi/runtime/crews/run1");
+  host.client();
+  host.track("run1", dir);
+  for (const type of ["hold", "handoff"])
+    created[0].options.onEvent({ event: "decision", runId: "run1", handle: "developer-a-00", decision: { type } });
+  assert.equal(pi.sent.length, 0);
+  const lines = readFileSync(join(dir, "events.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+  assert.deepEqual(
+    lines.map((line) => [line.event, line.decision.type, typeof line.at]),
+    [
+      ["decision", "hold", "string"],
+      ["decision", "handoff", "string"],
+    ],
+  );
+});
+
 test("when every member has settled Main is told once, and asked for input if someone is waiting", (t) => {
   const { host, created, pi } = setup(t);
   host.client();

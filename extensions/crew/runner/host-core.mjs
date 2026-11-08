@@ -128,6 +128,8 @@ export function createHostCore({ send, deps = {} }) {
       onResult: (handle, result) => send({ event: "result", runId, handle, result }),
       onState: (handle, state) => send({ event: "state", runId, handle, state }),
       onIdle: (members) => send({ event: "idle", runId, members }),
+      // Main's hold and handoff decisions are recorded, never delivered as reports: they start no turn.
+      onDecision: (handle, decision) => send({ event: "decision", runId, handle, decision }),
     });
 
     let registered = false;
@@ -183,6 +185,12 @@ export function createHostCore({ send, deps = {} }) {
   const methods = {
     launch,
     message: async ({ runId, handle, text }) => (crewOf(runId).dispatcher.message(handle, text), { ok: true }),
+    hold: async ({ runId, handle, blocker, owner, resumeWhen, refs }) => ({
+      hold: crewOf(runId).dispatcher.hold(handle, { blocker, owner, resumeWhen, refs }),
+    }),
+    handoff: async ({ runId, handle, unmet, supersededBy, note }) => ({
+      handoff: await crewOf(runId).dispatcher.handoff(handle, { unmet, supersededBy, note }),
+    }),
     cancel: async ({ runId, handle }) => (await crewOf(runId).dispatcher.cancel(handle), { ok: true }),
     status: async ({ runId }) => {
       const { dispatcher, activity, live } = crewOf(runId);

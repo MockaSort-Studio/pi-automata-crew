@@ -46,6 +46,37 @@ The runner decides, from the session's messages and facts it recorded itself:
 | `failed`      | A provider error (a fixed category), an empty turn, an abort or other stop                                     |
 | `cancelled`   | Main cancelled it; the guest process group is killed                                                           |
 
+### Member lifecycle
+
+`runner/member-lifecycle.mjs` defines it. Each member has exactly one current `state`: `queued`, `held` (a
+prerequisite is not complete), `running`, `ci`, `needs_input`, `failed`, `on_hold`, `completed`, `handed_off` or
+`cancelled`. Only `completed` releases dependents, and it means the model finished and the CI gate passed or found
+no checks: it is not review approval or acceptance.
+
+Main decides what happens to a member that waits for it (`needs_input`, `failed` or `on_hold`):
+
+- **`crew_message`** resumes it with exactly one turn. Every message resumes; the runner never judges prose.
+- **`crew_hold`** records a blocker, its owner, a resume condition and optional PR/head/artifact references.
+  The member becomes `on_hold`, keeps its VM, and starts no turn; nothing polls or expires. A message resumes it.
+- **`crew_handoff`** ends it as `partial` or `superseded` work with its unmet criteria and saved evidence (pull
+  request, pushed head, last CI snapshot, salvage). Its VM is released; its node stays blocked, so dependents
+  never start on it. A later message recovers it in a new session given its assignment and the handoff. The
+  new session carries the runner-recorded pull request and push evidence of the old one (never model or Main
+  text), so the CI gate verifies that pull request's current head before the member can complete; the handoff's
+  CI snapshot is history, never a green result.
+- **`crew_cancel`** ends it; its node fails and its VM is released. Cancelling the crew also fails the nodes of
+  members that never started, even those held behind a prerequisite.
+
+When every member has settled, Main is told once. It gets a turn only if a member still waits for its answer
+(`needs_input` or `failed`) or the crew finished; a crew whose blocked members are on hold, handed off, cancelled
+or held behind one of those is reported without a turn. The dashboard shows those members as blocked.
+
+Holds and handoffs are recorded in the run's `events.jsonl` as `decision` events and are not delivered as
+reports. `crew_status` shows, beside the state, `lastReport` (the latest report's status and time, `current`
+only while the member is still in that state), `ci` (state, `pullNumber`, `headSha`, `checkedAt`, and `current`
+until the member works again; only `success` is green, `none` and `unavailable` are not), and the current `hold`
+or `handoff`. Main's text in a hold or handoff is recorded whole or refused, never shortened.
+
 ### The CI gate
 
 A member that opened a pull request is not `completed` when it stops talking, but when CI says so. The runner
@@ -63,7 +94,8 @@ waits the member's state is `ci`.
   exactly that by adding its file to `.prettierignore`.
 - **Cancel** ends the wait.
 
-A member that fails or asks a question is **held** with its dependents, not terminal. Only a cancel ends it.
+A member that fails or asks a question is **held** with its dependents, not terminal. Only a cancel or a handoff
+ends it.
 When a run ends, salvage is best-effort for members granted typed Git commit and push: the runner attempts to
 commit and push uncommitted work to the member's `crew/<run>/<member>` branch. Salvage failure is reported
 beside the result.

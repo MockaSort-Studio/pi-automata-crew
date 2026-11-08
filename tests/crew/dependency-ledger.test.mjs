@@ -252,3 +252,24 @@ test("a reopened node can end as blocked or failed, and only a complete node can
   ledger.fail("developer-a-00");
   assert.equal(ledger.status("developer-a-00"), "failed");
 });
+
+test("cancel ends a node that waits, is ready, or is blocked by itself or a prerequisite, and holds what follows", () => {
+  const ledger = createDependencyLedger();
+  for (const handle of ["developer-a-00", "developer-b-00", "developer-c-00"]) ledger.addNode(handle);
+  ledger.addDependency("developer-b-00", "developer-a-00");
+  ledger.addDependency("developer-c-00", "developer-b-00");
+  ledger.start("developer-a-00");
+  ledger.block("developer-a-00");
+  assert.equal(ledger.status("developer-b-00"), "blocked");
+  assert.throws(() => ledger.start("developer-b-00"), /blocked by a prerequisite/);
+  assert.equal(ledger.cancel("developer-b-00"), "failed", "a prerequisite-blocked node can still be cancelled");
+  assert.equal(ledger.status("developer-c-00"), "blocked");
+  ledger.cancel("developer-a-00");
+  assert.equal(ledger.status("developer-a-00"), "failed");
+  assert.throws(() => ledger.start("developer-a-00"), /Illegal/, "a cancelled node is not resumed");
+  assert.throws(() => ledger.cancel("developer-a-00"), /failed -> failed \(cancel\)/);
+  const running = createDependencyLedger();
+  running.addNode("developer-d-00");
+  running.start("developer-d-00");
+  assert.throws(() => running.cancel("developer-d-00"), /running -> failed \(cancel\)/, "a running node fails instead");
+});
