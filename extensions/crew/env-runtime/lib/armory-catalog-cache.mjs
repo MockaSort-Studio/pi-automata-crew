@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, parse } from "node:path";
 
 export const catalogCacheRoot = (home = homedir()) => join(home, ".cache", "pi-crew", "armory-catalog");
 const fileFor = (name, home) => join(catalogCacheRoot(home), `${name}.json`);
@@ -23,7 +23,15 @@ function safeDirectory(home = homedir(), uid, create = false) {
   if (typeof uid !== "function" || typeof constants.O_NOFOLLOW !== "number") return false;
   const owner = uid();
   if (!Number.isInteger(owner) || owner < 0) return false;
-  let path = realpathSync(home);
+  const canonicalHome = realpathSync(home);
+  let ancestor = dirname(canonicalHome);
+  while (true) {
+    const stat = lstatSync(ancestor);
+    if (!stat.isDirectory() || (stat.uid !== 0 && stat.uid !== owner) || (stat.mode & 0o022) !== 0) return false;
+    if (ancestor === parse(ancestor).root) break;
+    ancestor = dirname(ancestor);
+  }
+  let path = canonicalHome;
   for (const component of [undefined, ".cache", "pi-crew", "armory-catalog"]) {
     if (component) {
       path = join(path, component);
@@ -38,13 +46,14 @@ function safeDirectory(home = homedir(), uid, create = false) {
     const stat = lstatSync(path);
     if (!stat.isDirectory() || stat.uid !== owner || (stat.mode & 0o022) !== 0) return false;
   }
-  return true;
+  return canonicalHome;
 }
 
 export function readCachedCatalog(name, { home, validate, uid = process.getuid } = {}) {
   try {
-    if (!safeDirectory(home, uid)) return undefined;
-    const fd = openSync(fileFor(name, home), constants.O_RDONLY | constants.O_NOFOLLOW);
+    const canonicalHome = safeDirectory(home, uid);
+    if (!canonicalHome) return undefined;
+    const fd = openSync(fileFor(name, canonicalHome), constants.O_RDONLY | constants.O_NOFOLLOW);
     let body;
     try {
       const stat = fstatSync(fd);
@@ -70,10 +79,11 @@ export function writeCachedCatalog(
   let temporary;
   let created = false;
   try {
-    if (!safeDirectory(home, uid, true)) return false;
+    const canonicalHome = safeDirectory(home, uid, true);
+    if (!canonicalHome) return false;
     const body = JSON.stringify({ fetchedAt: now().toISOString(), doc });
     for (const name of latest ? ["latest", doc.revision] : [doc.revision]) {
-      const path = fileFor(name, home);
+      const path = fileFor(name, canonicalHome);
       temporary = `${path}.${random(16).toString("hex")}.tmp`;
       writeFileSync(temporary, body, { mode: 0o600, flag: "wx" });
       created = true;
