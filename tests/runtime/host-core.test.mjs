@@ -82,6 +82,63 @@ test("everything that can be known up front is validated before any agent or VM 
   }
 });
 
+test("direct host requirements cannot bypass grants or create a model runtime", async () => {
+  let runtimes = 0;
+  const h = host({
+    deps: {
+      createModelRuntime: async () => {
+        runtimes++;
+        return {};
+      },
+    },
+  });
+  const response = await h.call(
+    "launch",
+    launch({
+      members: [
+        member(A, {
+          requiredCapabilities: [{ suite: "system", operations: ["bash"] }],
+        }),
+      ],
+    }),
+  );
+  assert.equal(response.ok, false);
+  assert.match(response.error.message, /developer-alpha-00.*system.*bash.*missing grant/);
+  assert.equal(runtimes, 0);
+  assert.deepEqual(h.created, []);
+});
+
+test("raw host rejects malformed native tools and duplicate suite grants before external creation", async () => {
+  const suite = "collaboration/pi-github-tools";
+  for (const extra of [
+    { tools: "bash", requiredCapabilities: [{ suite: "system", operations: ["bash"] }] },
+    { tools: "readedit", requiredCapabilities: [{ suite: "system", operations: ["edit"] }] },
+    { tools: ["read", "not-a-tool"] },
+    {
+      suiteGrants: [
+        { suite, operations: ["github_git_status"] },
+        { suite, operations: ["github_issue_view"] },
+      ],
+      requiredCapabilities: [{ suite, operations: ["github_issue_view"] }],
+    },
+  ]) {
+    let external = 0;
+    const h = host({
+      deps: {
+        createModelRuntime: async () => {
+          external++;
+          return {};
+        },
+      },
+    });
+    const response = await h.call("launch", launch({ members: [member(A, extra)] }));
+    assert.equal(response.ok, false);
+    assert.match(response.error.message, /developer-alpha-00/);
+    assert.equal(external, 0);
+    assert.deepEqual(h.created, []);
+  }
+});
+
 test("an unavailable repository revision and a missing credential fail the launch before any agent", async () => {
   const github = [{ suite: "collaboration/pi-github-tools", operations: ["github_git_push"] }];
   const bad = host({

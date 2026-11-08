@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import { suiteGrants } from "./suite-grants.mjs";
 import { GITHUB_BASE_TOOL_SET } from "./github-base-tools.mjs";
 import { repositoryTargets } from "../../env-runtime/lib/repository-targets.mjs";
+import { NATIVE_TOOLS as native } from "./required-capabilities.mjs";
 
 const roles = JSON.parse(readFileSync(new URL("../prompts/roles.json", import.meta.url), "utf8"));
-const native = new Set(["read", "grep", "find", "ls", "bash", "edit", "write"]);
 const github = "collaboration/pi-github-tools";
 const personaReads = new Set([
   "read",
