@@ -1,5 +1,5 @@
 // Closed inventory of released Armory operations. Projects lack a repository target and are
-// deferred until their provenance can be bound. Review IDs are not bound (follow-up #143).
+// deferred until their provenance can be bound. The host suite binds review IDs to session provenance.
 const repo = [
   "github_dependency_add",
   "github_dependency_list",

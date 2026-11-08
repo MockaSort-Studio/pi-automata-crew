@@ -230,7 +230,7 @@ test("PR ownership applies only to writes and fails closed", async () => {
     transport,
   })({ registerTool() {}, on: (name, handler) => handlers.set(name, handler) });
   const guard = handlers.get("tool_call");
-  const call = (toolName, input) => guard({ toolName, input });
+  const call = (toolName, input) => guard({ toolName, input, toolCallId: `test-${toolName}` });
   for (const name of [
     "github_pull_requests_list",
     "github_pull_request_view",
@@ -272,8 +272,6 @@ test("PR ownership applies only to writes and fails closed", async () => {
     "github_pull_request_comment",
     "github_pull_request_review",
     "github_pull_request_review_start",
-    "github_pull_request_review_inline_comment",
-    "github_pull_request_review_submit",
     "github_pull_request_merge",
   ])
     assert.equal(await call(name, { repo: policy.repo, pullNumber: 2 }), undefined);

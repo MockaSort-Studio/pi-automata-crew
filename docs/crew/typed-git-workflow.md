@@ -58,6 +58,16 @@ re-checks every guarded call against that binding, so the typed operations can
 only check out, diff, stage, commit, push and open a PR for the one repository,
 revision, base and branch the worker was authorized for.
 
+## Pending review provenance
+
+The host GitHub suite records the ID and repository/PR returned by this member's successful review start.
+Inline comments require that ID and matching repository/PR; submit requires that ID. A successful submit
+removes the ID. No review lookup is used to authorize mutations. The record exists only in the extension
+instance: after a restart, pending reviews fail closed and must be started again. A pending review created
+outside this session, even with the same token, cannot be used. A review started by this member is trusted
+by construction; this does not establish an independent GitHub guarantee about review parent immutability.
+Review mutations remain explicit grants, not default tools.
+
 ## What this does not bound
 
 The authorization constrains the typed operations, not the guest. A worker
