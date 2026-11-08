@@ -17,8 +17,6 @@
 export const MESSAGEABLE = new Set(["needs_input", "failed", "completed", "on_hold", "handed_off"]);
 // States a hold or a handoff may follow: the member is idle and waiting for Main, with work that is not accepted.
 export const AWAITING_MAIN = new Set(["needs_input", "failed", "on_hold"]);
-// States whose VM is gone or never needed again unless Main recovers the member.
-export const ENDED = new Set(["completed", "handed_off", "cancelled"]);
 
 const TEXT_CHARS = 500;
 const HEAD = /^[0-9a-f]{7,40}$/i;
