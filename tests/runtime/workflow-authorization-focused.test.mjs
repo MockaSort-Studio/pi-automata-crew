@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { authorizeRepositoryOperation, repositoryAuthorization } from "../../extensions/crew/env-runtime/lib/repository-authorization.mjs";
+import {
+  authorizeRepositoryOperation,
+  repositoryAuthorization,
+} from "../../extensions/crew/env-runtime/lib/repository-authorization.mjs";
 
 const repo = "owner/repo";
 const policy = repositoryAuthorization({ repo, revision: "a".repeat(40), base: "main", branch: "crew/test" });

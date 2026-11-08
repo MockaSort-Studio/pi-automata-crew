@@ -118,8 +118,11 @@ export function authorizeRepositoryOperation(operation, input, policy) {
   if (operation === "github_workflow_run_view" || operation === "github_workflow_run_failed_log") {
     if (!Number.isSafeInteger(input.runId) || input.runId <= 0) throw new Error("Invalid runId");
   }
-  if (operation === "github_workflow_run_failed_log" && "maxChars" in input &&
-      (!Number.isInteger(input.maxChars) || input.maxChars < 1 || input.maxChars > 12000))
+  if (
+    operation === "github_workflow_run_failed_log" &&
+    "maxChars" in input &&
+    (!Number.isInteger(input.maxChars) || input.maxChars < 1 || input.maxChars > 12000)
+  )
     throw new Error("Invalid maxChars");
   if (operation === "github_pull_request_update") {
     if (!["title", "body", "state"].some((key) => key in input))

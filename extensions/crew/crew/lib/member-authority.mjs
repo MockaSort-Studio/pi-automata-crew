@@ -18,8 +18,12 @@ const gitOperations = new Set([
 ]);
 
 const implementationRoleDenied = new Set([
-  "github_pull_request_comment", "github_pull_request_review", "github_pull_request_review_start",
-  "github_pull_request_review_inline_comment", "github_pull_request_review_submit", "github_pull_request_merge",
+  "github_pull_request_comment",
+  "github_pull_request_review",
+  "github_pull_request_review_start",
+  "github_pull_request_review_inline_comment",
+  "github_pull_request_review_submit",
+  "github_pull_request_merge",
 ]);
 const workflowReads = ["github_workflow_runs_list", "github_workflow_run_view", "github_workflow_run_failed_log"];
 
