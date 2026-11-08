@@ -11,6 +11,8 @@ import {
 import { workspaceFs } from "./workspace-fs.mjs";
 
 const run = promisify(execFile);
+const MAX_PENDING_REVIEWS = 64;
+const MAX_RECORDED_REVIEWS = 256;
 
 // How the suite's `gh` runs on the host. The Crew's own token is the only credential: it is set explicitly,
 // and gh's own config directory is an empty private one, so the user's stored login can never be used and
@@ -80,7 +82,6 @@ export function githubSuiteExtension({
   return (pi) => {
     const reviews = new Map();
     const pendingReviews = new Map();
-    const usedStartCalls = new Set();
     module.activateSuite(pi, injection({ workspace, token, transport }));
     pi.on("tool_call", async (event) => {
       if (!event.toolName.startsWith("github_")) return;
@@ -130,12 +131,14 @@ export function githubSuiteExtension({
         if (
           typeof event.toolCallId !== "string" ||
           !event.toolCallId ||
-          usedStartCalls.has(event.toolCallId) ||
+          pendingReviews.has(event.toolCallId) ||
           !Number.isInteger(event.input.pullNumber) ||
           event.input.pullNumber <= 0
         )
           return { block: true, reason: "Review start requires a unique call ID and valid pull number" };
-        usedStartCalls.add(event.toolCallId);
+        if (reviews.size >= MAX_RECORDED_REVIEWS)
+          return { block: true, reason: "Recorded review limit reached for this session" };
+        if (pendingReviews.size >= MAX_PENDING_REVIEWS) pendingReviews.delete(pendingReviews.keys().next().value);
         pendingReviews.set(event.toolCallId, { repo: event.input.repo, pullNumber: event.input.pullNumber });
       }
     });
@@ -153,11 +156,13 @@ export function githubSuiteExtension({
           } catch {}
         }
         if (
-          (result?.repo === undefined || result.repo === pending.repo) &&
-          (result?.pullNumber === undefined || result.pullNumber === pending.pullNumber) &&
+          result?.repo === pending.repo &&
+          result?.pullNumber === pending.pullNumber &&
           typeof result?.reviewId === "string" &&
           result.reviewId.length > 0 &&
-          result.reviewId.length <= 256
+          result.reviewId.length <= 256 &&
+          !reviews.has(result.reviewId) &&
+          reviews.size < MAX_RECORDED_REVIEWS
         )
           reviews.set(result.reviewId, pending);
       }

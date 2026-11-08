@@ -59,6 +59,7 @@ test("concurrent starts are bound to their own PR and one-time call IDs", async 
   const second = { ...target, pullNumber: 8 };
   assert.equal(await h.call(start, target, "a"), undefined);
   assert.equal(await h.call(start, second, "b"), undefined);
+  assert.ok((await h.call(start, target, "a"))?.block);
   h.result("b", target, details(second, "second"));
   h.result("a", target, details(target, "first"));
   assert.equal(await h.call(inline, inlineInput("first")), undefined);
@@ -69,7 +70,6 @@ test("concurrent starts are bound to their own PR and one-time call IDs", async 
   assert.equal(await h.call(submit, submitInput("second")), undefined);
   h.result("a", target, details(target, "replayed"));
   assert.ok((await h.call(submit, submitInput("replayed"))).block);
-  assert.ok((await h.call(start, target, "a"))?.block);
 });
 
 test("start results must be allowed, successful, correlated and carry a bounded string id", async () => {
@@ -83,12 +83,23 @@ test("start results must be allowed, successful, correlated and carry a bounded 
     ["large", details(target, "x".repeat(257))],
     ["pr", details({ ...target, pullNumber: 8 }, "wrong-pr")],
     ["repo", details({ ...target, repo: "other/repo" }, "wrong-repo")],
+    ["missing-repo", { details: { pullNumber: target.pullNumber, reviewId: "missing-repo" } }],
+    ["missing-pr", { details: { repo: target.repo, reviewId: "missing-pr" } }],
   ];
   for (const [id, result] of cases) {
     assert.equal(await h.call(start, target, id), undefined);
     h.result(id, target, result);
   }
-  for (const id of ["failed", "42", "x".repeat(257), "wrong-pr", "wrong-repo", "wrong-input"]) {
+  for (const id of [
+    "failed",
+    "42",
+    "x".repeat(257),
+    "wrong-pr",
+    "wrong-repo",
+    "wrong-input",
+    "missing-repo",
+    "missing-pr",
+  ]) {
     assert.ok((await h.call(inline, inlineInput(id))).block);
     assert.ok((await h.call(submit, submitInput(id))).block);
   }
@@ -98,6 +109,33 @@ test("start results must be allowed, successful, correlated and carry a bounded 
   });
   assert.equal(await h.call(inline, inlineInput("text")), undefined);
   assert.equal(await h.call(submit, submitInput("text")), undefined);
+});
+
+test("abandoned pending starts are evicted and late results fail closed", async () => {
+  const h = setup();
+  assert.equal(await h.call(start, target, "old"), undefined);
+  for (let i = 0; i < 64; i++) assert.equal(await h.call(start, target, `new-${i}`), undefined);
+  h.result("old", target, details(target, "evicted"));
+  assert.ok((await h.call(inline, inlineInput("evicted"))).block);
+  assert.ok((await h.call(submit, submitInput("evicted"))).block);
+  h.result("new-0", target, details(target, "valid"));
+  assert.equal(await h.call(submit, submitInput("valid")), undefined);
+});
+
+test("recorded review capacity fails closed for starts and concurrent results", async () => {
+  const h = setup();
+  assert.equal(await h.call(start, target, "late"), undefined);
+  for (let i = 0; i < 256; i++) {
+    const id = `review-${i}`;
+    assert.equal(await h.call(start, target, id), undefined);
+    h.result(id, target, details(target, id));
+  }
+  assert.match((await h.call(start, target, "full")).reason, /limit/i);
+  h.result("late", target, details(target, "overflow"));
+  assert.ok((await h.call(submit, submitInput("overflow"))).block);
+  assert.equal(await h.call(submit, submitInput("review-0")), undefined);
+  h.result("submit", submitInput("review-0"), { isError: false }, submit);
+  assert.equal(await h.call(start, target, "after-submit"), undefined);
 });
 
 test("a blocked start cannot create provenance even if a success result is fabricated", async () => {
