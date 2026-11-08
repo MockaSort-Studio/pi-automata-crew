@@ -97,6 +97,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     environmentProfile: actor.profile,
     extensionPaths: actor.extensionPaths,
     suiteGrants: actor.suiteGrants,
+    ...(actor.requiredCapabilities !== undefined ? { requiredCapabilities: actor.requiredCapabilities } : {}),
     // Whether the member's tools were chosen by the caller or are the default profile (see host-launch.mjs).
     grantsExplicit: Boolean(input.members[actors.indexOf(actor)]?.tools),
     model: actor.model,
@@ -131,6 +132,7 @@ export async function prepareCrew(pi, input, ctx, configDir) {
         ? { acceptanceCriteria: input.members[index].acceptanceCriteria }
         : {}),
       suiteGrants: actor.suiteGrants,
+      ...(actor.requiredCapabilities !== undefined ? { requiredCapabilities: actor.requiredCapabilities } : {}),
     })),
   };
   const kickoff = kickoffPayload(runId, topic, selected.members);

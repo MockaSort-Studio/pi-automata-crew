@@ -7,6 +7,7 @@ import { createDispatcher } from "./dispatcher.mjs";
 import { loadSuiteModule } from "./github-suite.mjs";
 import { createMemberAgent } from "./member-agent.mjs";
 import { resolveModel } from "./model.mjs";
+import { validateRequiredCapabilities } from "../crew/lib/required-capabilities.mjs";
 
 const GITHUB_SUITE = "collaboration/pi-github-tools";
 // role-persona-NN; a persona name may itself contain hyphens (old-major, indiana-docs).
@@ -86,6 +87,8 @@ export function createHostCore({ send, deps = {} }) {
           grant.operations.some((operation) => typeof operation !== "string")
         )
           throw new Error(`${member.handle}: a suite grant needs a suite and a list of operations`);
+    for (const member of members)
+      validateRequiredCapabilities({ member: member.handle, requiredCapabilities: member.requiredCapabilities, tools: member.tools, suiteGrants: member.suiteGrants });
     const activity = new Map();
     // Running totals per member, for Main's footer: they grow while a member works, not only when it reports.
     const live = new Map(members.map((member) => [member.handle, emptyLive()]));

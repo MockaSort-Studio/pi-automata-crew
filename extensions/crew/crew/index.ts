@@ -34,6 +34,11 @@ const assignmentFields = {
   tools: Type.Optional(
     Type.Array(Type.Object({ suite: Type.String(), operations: Type.Array(Type.String(), { minItems: 1 }) })),
   ),
+  requiredCapabilities: Type.Optional(
+    Type.Array(Type.Object({ suite: Type.String(), operations: Type.Array(Type.String(), { minItems: 1 }) }), {
+      description: "Required authorization only; grants do not guarantee runtime tools or installed dependencies.",
+    }),
+  ),
 };
 const initialMember = Type.Object({
   name: Type.String(),

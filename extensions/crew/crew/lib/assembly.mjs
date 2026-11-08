@@ -10,6 +10,7 @@ import {
 import { getAutomaton } from "./roster.mjs";
 import { assignmentContext } from "./assignment-context.mjs";
 import { validateMemberAuthority } from "./member-authority.mjs";
+import { validateRequiredCapabilities } from "./required-capabilities.mjs";
 
 export function assemble(name, role, task, override = {}) {
   if (Object.hasOwn(override, "skills")) throw new Error("Member skills are not supported.");
@@ -31,7 +32,21 @@ export function assemble(name, role, task, override = {}) {
         ? undefined
         : [{ suite: "system", operations: override.systemOperations }];
   const authority = validateMemberAuthority(automaton, role, requested);
+  validateRequiredCapabilities({
+    member: `${role}-${name}`,
+    requiredCapabilities: override.requiredCapabilities,
+    ...authority,
+    allowed: (suite, operation) => {
+      try {
+        validateMemberAuthority(automaton, role, [{ suite, operations: [operation] }]);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  });
   return {
+    ...(override.requiredCapabilities !== undefined ? { requiredCapabilities: override.requiredCapabilities } : {}),
     name: `${role}-${name}`,
     instructions: `${body.instructions}${automaton.tools.length ? `\n\n## ARMORY\nDeclared domain tools: ${automaton.tools.join(", ")}.` : ""}${assignment ? `\n\n## BOUNDED ASSIGNMENT\n${assignment}` : ""}${assignmentContext(override)}`,
     ...authority,
