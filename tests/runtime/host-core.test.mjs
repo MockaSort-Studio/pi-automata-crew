@@ -114,10 +114,23 @@ test("raw host rejects malformed native tools and duplicate suite grants before 
     { tools: "bash", requiredCapabilities: [{ suite: "system", operations: ["bash"] }] },
     { tools: "readedit", requiredCapabilities: [{ suite: "system", operations: ["edit"] }] },
     { tools: ["read", "not-a-tool"] },
-    { suiteGrants: [{ suite, operations: ["github_git_status"] }, { suite, operations: ["github_issue_view"] }], requiredCapabilities: [{ suite, operations: ["github_issue_view"] }] },
+    {
+      suiteGrants: [
+        { suite, operations: ["github_git_status"] },
+        { suite, operations: ["github_issue_view"] },
+      ],
+      requiredCapabilities: [{ suite, operations: ["github_issue_view"] }],
+    },
   ]) {
     let external = 0;
-    const h = host({ deps: { createModelRuntime: async () => { external++; return {}; } } });
+    const h = host({
+      deps: {
+        createModelRuntime: async () => {
+          external++;
+          return {};
+        },
+      },
+    });
     const response = await h.call("launch", launch({ members: [member(A, extra)] }));
     assert.equal(response.ok, false);
     assert.match(response.error.message, /developer-alpha-00/);

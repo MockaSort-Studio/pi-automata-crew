@@ -21,7 +21,11 @@ export function validateRequiredCapabilities({ member, requiredCapabilities, too
     const { suite, operations } = requirement;
     for (const operation of operations) {
       const prefix = `${member}: ${suite} ${operation}`;
-      if (!(suite === "system" ? NATIVE_TOOLS.has(operation) : suite === github && GITHUB_BASE_TOOL_SET.has(operation) && repositoryTargets[operation] !== "deferred"))
+      if (
+        !(suite === "system"
+          ? NATIVE_TOOLS.has(operation)
+          : suite === github && GITHUB_BASE_TOOL_SET.has(operation) && repositoryTargets[operation] !== "deferred")
+      )
         throw new Error(`${prefix}: unsupported suite or operation`);
       if (allowed && !allowed(suite, operation)) throw new Error(`${prefix}: role-ceiling denial`);
       const granted =

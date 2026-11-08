@@ -79,7 +79,10 @@ export function createHostCore({ send, deps = {} }) {
     for (const member of members)
       if (!HANDLE.test(member.handle ?? "")) throw new Error(`Invalid member handle: ${member.handle}`);
     for (const member of members) {
-      if (!Array.isArray(member.tools) || member.tools.some((tool) => typeof tool !== "string" || !NATIVE_TOOLS.has(tool)))
+      if (
+        !Array.isArray(member.tools) ||
+        member.tools.some((tool) => typeof tool !== "string" || !NATIVE_TOOLS.has(tool))
+      )
         throw new Error(`${member.handle}: tools must be an array of recognized native tool names`);
       if (member.suiteGrants !== undefined && !Array.isArray(member.suiteGrants))
         throw new Error(`${member.handle}: suiteGrants must be an array`);
