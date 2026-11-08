@@ -85,7 +85,8 @@ test("launching sends the spec to the host, tracks the run, and reports the memb
     const host = {
       client: () => ({
         request: async (method, params) => (
-          requests.push([method, params]), { members: [{ handle: "developer-a-00", state: "running" }], warnings: ["cached catalog abc"] }
+          requests.push([method, params]),
+          { members: [{ handle: "developer-a-00", state: "running" }], warnings: ["cached catalog abc"] }
         ),
       }),
       track: (...args) => tracked.push(args),

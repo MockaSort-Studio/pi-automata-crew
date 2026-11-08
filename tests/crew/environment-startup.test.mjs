@@ -142,7 +142,12 @@ test("a cached catalog produces a launch warning visible to the caller", async (
     const prepared = await prepare(cwd);
     const launched = await launchPreparedCrew(cwd, prepared, {
       resolveEnvironment: async () => gondolin,
-      resolveArmoryCatalog: async () => ({ release: "https://example.test/artifacts.json", revision: "abc", fromCache: true, cachedAt: "2026-01-01T00:00:00.000Z" }),
+      resolveArmoryCatalog: async () => ({
+        release: "https://example.test/artifacts.json",
+        revision: "abc",
+        fromCache: true,
+        cachedAt: "2026-01-01T00:00:00.000Z",
+      }),
       realizeArmorySuites: async () => [],
       resolveArmoryToolSuites: async () => [],
       runtimeFor: () => runtime({}),

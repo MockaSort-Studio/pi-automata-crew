@@ -4,7 +4,11 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
-import { catalogCacheRoot, readCachedCatalog, writeCachedCatalog } from "../../extensions/crew/env-runtime/lib/armory-catalog-cache.mjs";
+import {
+  catalogCacheRoot,
+  readCachedCatalog,
+  writeCachedCatalog,
+} from "../../extensions/crew/env-runtime/lib/armory-catalog-cache.mjs";
 
 const home = () => mkdtempSync(join(tmpdir(), "armory-cache-"));
 const doc = { revision: "a".repeat(40), value: "valid" };
@@ -66,11 +70,15 @@ test("concurrent writers leave a complete valid catalog", async () => {
   const dir = home();
   const moduleUrl = new URL("../../extensions/crew/env-runtime/lib/armory-catalog-cache.mjs", import.meta.url).href;
   const script = `import { writeCachedCatalog } from ${JSON.stringify(moduleUrl)}; for (let i = 0; i < 20; i++) if (!writeCachedCatalog(${JSON.stringify(doc)}, { home: ${JSON.stringify(dir)} })) process.exit(1);`;
-  const jobs = Array.from({ length: 8 }, () => new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["--input-type=module", "-e", script]);
-    child.on("error", reject);
-    child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`writer exited ${code}`)));
-  }));
+  const jobs = Array.from(
+    { length: 8 },
+    () =>
+      new Promise((resolve, reject) => {
+        const child = spawn(process.execPath, ["--input-type=module", "-e", script]);
+        child.on("error", reject);
+        child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`writer exited ${code}`))));
+      }),
+  );
   await Promise.all(jobs);
   assert.deepEqual(read(dir).doc, doc);
 });

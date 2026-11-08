@@ -98,7 +98,10 @@ export async function resolveArmoryCatalog({ release, fetchImpl = fetch, cache, 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     let response;
     try {
-      response = await fetchImpl(release ?? LATEST_RELEASE_URL, { redirect: "follow", signal: AbortSignal.timeout(15_000) });
+      response = await fetchImpl(release ?? LATEST_RELEASE_URL, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(15_000),
+      });
       if (!response.ok) throw new Error(`Armory release unavailable (HTTP ${response.status})`);
     } catch (error) {
       failure = error;
@@ -112,11 +115,15 @@ export async function resolveArmoryCatalog({ release, fetchImpl = fetch, cache, 
   }
   const hit = release === undefined ? cached("latest") : undefined;
   if (hit) return hit;
-  throw new Error(`${failure?.message ?? "Armory release unavailable"} (no cached Armory catalog to fall back to)`, { cause: failure });
+  throw new Error(`${failure?.message ?? "Armory release unavailable"} (no cached Armory catalog to fall back to)`, {
+    cause: failure,
+  });
 }
 
 export function cachedCatalogWarning(catalog) {
-  return catalog?.fromCache ? `Using cached Armory catalog ${catalog.revision} (cached at ${catalog.cachedAt}; possibly stale).` : undefined;
+  return catalog?.fromCache
+    ? `Using cached Armory catalog ${catalog.revision} (cached at ${catalog.cachedAt}; possibly stale).`
+    : undefined;
 }
 
 export function readCatalogSuite(reference, manifestPath) {

@@ -73,5 +73,11 @@ export async function launchOnHost({ host, prepared, cwd, configDir, env }) {
     directory,
     spec.members.map(({ handle, task, dependsOn }) => ({ handle, task, dependsOn })),
   );
-  return { runId: config.runId, topic: prepared.topic, status: "started", members: started.members, warnings: [...warnings, ...(started.warnings ?? [])] };
+  return {
+    runId: config.runId,
+    topic: prepared.topic,
+    status: "started",
+    members: started.members,
+    warnings: [...warnings, ...(started.warnings ?? [])],
+  };
 }

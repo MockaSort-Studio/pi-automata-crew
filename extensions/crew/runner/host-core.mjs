@@ -128,7 +128,11 @@ export function createHostCore({ send, deps = {} }) {
 
     crews.set(runId, { dispatcher, activity, live });
     dispatcher.start();
-    return { runId, members: dispatcher.status(), ...(crew.github && githubCatalogWarning ? { warnings: [githubCatalogWarning] } : {}) };
+    return {
+      runId,
+      members: dispatcher.status(),
+      ...(crew.github && githubCatalogWarning ? { warnings: [githubCatalogWarning] } : {}),
+    };
   }
 
   const crewOf = (runId) => {
