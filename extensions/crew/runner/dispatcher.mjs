@@ -4,7 +4,10 @@ import { createDependencyLedger } from "../crew/lib/dependency-ledger.mjs";
 const PREREQUISITE_CHARS = 4000;
 
 function gateCode(head, files) {
-  return createHash("sha256").update(`${head}\n${[...files].sort().join("\n")}`).digest("hex").slice(0, 8);
+  return createHash("sha256")
+    .update(`${head}\n${[...files].sort().join("\n")}`)
+    .digest("hex")
+    .slice(0, 8);
 }
 
 // Hands each member its assignment when its prerequisites are done, and reports what each run did.

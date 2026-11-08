@@ -8,7 +8,10 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 const first = ".prettierignore";
 const second = ".github/workflows/ci.yml";
 const code = (head, files) =>
-  createHash("sha256").update(`${head}\n${[...files].sort().join("\n")}`).digest("hex").slice(0, 8);
+  createHash("sha256")
+    .update(`${head}\n${[...files].sort().join("\n")}`)
+    .digest("hex")
+    .slice(0, 8);
 
 function world() {
   let files = [first, second];
