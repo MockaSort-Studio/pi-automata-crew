@@ -39,7 +39,14 @@ export async function resolveLaunchEnvironment(config, dependencies = {}) {
     ? await (dependencies.resolveArmoryToolSuites ?? resolveNixGuestSuiteRequests)({ catalog, requests: suiteRequests })
     : [];
   const agents = config.agents.map((agent) => {
-    const suites = suiteTools.filter((suite) => (agent.suiteGrants ?? []).some((grant) => grant.suite === suite.suite));
+    const suites = suiteTools
+      .map((suite) => {
+        const granted = new Set(
+          (agent.suiteGrants ?? []).filter((grant) => grant.suite === suite.suite).flatMap((grant) => grant.tools),
+        );
+        return { ...suite, tools: suite.tools.filter((tool) => granted.has(tool)) };
+      })
+      .filter((suite) => suite.tools.length);
     const tools = [...new Set([...(agent.tools ?? []), ...suites.flatMap((suite) => suite.tools)])];
     const environmentProfile = compileActorProfile({ tools, commTools: agent.commTools ?? [], suites });
     return {

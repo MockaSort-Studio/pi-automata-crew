@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { launchPreparedCrew, prepareCrew } from "../../extensions/crew/crew/lib/startup.mjs";
+import { resolveLaunchEnvironment } from "../../extensions/crew/crew/lib/launch-environment.mjs";
+import { suiteGrants } from "../../extensions/crew/crew/lib/suite-grants.mjs";
 
 const pi = { getAllTools: () => [] };
 const prepare = (cwd, environment) =>
@@ -21,6 +23,67 @@ const runtime = (capture) => ({
     return { comm: {}, agents: agents.map((agent) => ({ id: agent.actorId, name: agent.name })) };
   },
   broadcast: async () => {},
+});
+
+test("retained launch intersects shared suite resolution with each member's grants", async () => {
+  const suite = "example/work";
+  const grants = (operations) => suiteGrants([{ suite, operations }]).suites;
+  const agents = [
+    { name: "developer", tools: ["read"], commTools: ["send"], suiteGrants: grants(["alpha"]) },
+    { name: "reviewer", tools: [], suiteGrants: grants(["beta"]) },
+    { name: "empty", tools: [] },
+    { name: "unresolved", tools: [], suiteGrants: grants(["missing"]) },
+  ];
+  const requests = agents.flatMap((agent) => agent.suiteGrants ?? []);
+  const catalog = { release: "https://example.test/catalog", revision: "abc", fromCache: true, cachedAt: "today" };
+  const result = await resolveLaunchEnvironment(
+    {
+      agents,
+      runId: "run",
+      environment: { microvm: "gondolin", repository: { repo: "org/repo", revision: "rev", base: "main" } },
+    },
+    {
+      resolveEnvironment: async () => gondolin,
+      resolveArmoryCatalog: async () => catalog,
+      realizeArmorySuites: async (input) => assert.deepEqual(input, { catalog, requests }),
+      resolveArmoryToolSuites: async (input) => {
+        assert.deepEqual(input, { catalog, requests });
+        return [{ suite, tools: ["alpha", "beta"] }];
+      },
+    },
+  );
+  assert.deepEqual(result.resolution, gondolin);
+  for (const [index, expected] of [
+    [0, ["alpha"]],
+    [1, ["beta"]],
+    [2, []],
+    [3, []],
+  ]) {
+    const agent = result.agents[index];
+    const suites = expected.length ? [{ suite, tools: expected }] : [];
+    const tools = [...agents[index].tools, ...expected];
+    assert.deepEqual(agent.tools, tools);
+    assert.deepEqual(agent.environmentProfile, {
+      format: "hall.crew-profile/v1",
+      tools,
+      commTools: agents[index].commTools ?? [],
+      builtins: agents[index].tools,
+      suites,
+    });
+    assert.deepEqual(
+      agent.armory,
+      expected.length ? { catalog: { release: catalog.release }, requests: suites } : undefined,
+    );
+    assert.deepEqual(agent.repositoryAuthorization, {
+      repo: "org/repo",
+      revision: "rev",
+      base: "main",
+      branch: `crew/run/${agent.name}`,
+    });
+    assert.deepEqual(agent.sandbox, gondolin.sandbox);
+  }
+  assert.deepEqual(result.credentials.status, {});
+  assert.match(result.credentials.warnings.join(" "), /cached.*abc.*today/);
 });
 
 test("start_crew ignores a stale dependencyCache property", async () => {
