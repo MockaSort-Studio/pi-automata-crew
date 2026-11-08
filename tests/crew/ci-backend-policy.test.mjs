@@ -5,7 +5,7 @@ import { parse } from "yaml";
 
 const workflow = parse(readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8"));
 
-test("the experimental selector covers exactly the four paired backend cases", () => {
+test("the krun-named cases excluded from required CI are exactly the four paired backend cases", () => {
   const runtime = new URL("../runtime/", import.meta.url);
   const names = [];
   for (const file of readdirSync(runtime).filter((name) => name.endsWith(".test.mjs"))) {
@@ -27,7 +27,8 @@ test("the experimental selector covers exactly the four paired backend cases", (
   );
 });
 
-test("required CI retains generic, QEMU and extension-load coverage; only explicit krun cases are experimental", () => {
+test("required CI retains generic, QEMU and extension-load coverage and is the only job; only explicit krun cases are excluded", () => {
+  assert.deepEqual(Object.keys(workflow.jobs), ["test"]);
   const required = workflow.jobs.test;
   assert.notEqual(required["continue-on-error"], true);
   assert.equal(required.env.HALL_VMM, "qemu");
@@ -46,24 +47,4 @@ test("required CI retains generic, QEMU and extension-load coverage; only explic
   }
   assert.ok(!JSON.stringify(required).includes("HALL_SKIP_GONDOLIN_LIVE_TESTS"));
   assert.ok(required.steps.some((step) => step.run === "npm run format:check"));
-});
-
-test("experimental krun coverage still executes, records failures and cannot fail the required job", () => {
-  const experimental = workflow.jobs["krun-experimental"];
-  assert.equal(experimental["continue-on-error"], true);
-  const preflight = experimental.steps.find((step) => step.name?.startsWith("Require an installed krun"));
-  assert.ok(preflight);
-  assert.match(preflight.run, /execFileSync\(runner/);
-  assert.match(preflight.run, /assert.equal\(chooseVmm/);
-  const command = experimental.steps.find((step) => step.name === "Run explicit krun coverage").run;
-  assert.ok(command.includes('export PATH="$PWD/node_modules/.bin:$PATH"'));
-  assert.match(command, /set -o pipefail/);
-  assert.match(command, /--test-name-pattern='\^krun: '/);
-  for (const file of ["gondolin-worker-smoke", "gondolin-idle-release", "vm-lifecycle"]) {
-    assert.ok(command.includes(`tests/runtime/${file}.test.mjs`));
-  }
-  assert.ok(!command.includes("|| true"));
-  const artifact = experimental.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"));
-  assert.equal(artifact.if, "always()");
-  assert.equal(artifact.with.path, "krun-experimental.tap");
 });
