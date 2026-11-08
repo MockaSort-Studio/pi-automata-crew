@@ -1,3 +1,5 @@
+import { repositoryTargets } from "./repository-targets.mjs";
+
 // Typed Git workspace operations a developer worker may invoke. A worker edits files with the
 // sandboxed read/edit/write tools and only checks out, stages, commits and pushes through these
 // typed guest operations, plus one pull-request creation call.
@@ -94,10 +96,26 @@ function assertKnownShape(operation, input) {
 // Armory remains generic. This trusted Env projection is the only place that binds generic
 // GitHub operations to one worker's repository, revision, base and derived branch.
 export function authorizeRepositoryOperation(operation, input, policy) {
-  if (!guardedOperations.has(operation)) return;
+  const target = Object.hasOwn(repositoryTargets, operation) && repositoryTargets[operation];
+  if (!target) throw new Error(`Unclassified repository operation: ${operation}`);
   if (!policy) throw new Error(`Repository authorization is required for ${operation}`);
-  assertKnownShape(operation, input);
-  if (input.repo !== policy.repo) throw new Error("Repository operation is outside the worker authorization");
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    throw new Error(`Repository operation input is required for ${operation}`);
+  if (target === "deferred") throw new Error(`Repository operation is deferred: ${operation}`);
+  if (guardedOperations.has(operation)) assertKnownShape(operation, input);
+  if (target === "ownerRepo") {
+    if (typeof input.owner !== "string" || typeof input.repo !== "string" ||
+        !/^[^/\s]+$/.test(input.owner) || !/^[^/\s]+$/.test(input.repo) ||
+        `${input.owner}/${input.repo}` !== policy.repo)
+      throw new Error("Repository operation is outside the worker authorization");
+  } else if (target !== "reviewSubmit" && input.repo !== policy.repo) {
+    throw new Error("Repository operation is outside the worker authorization");
+  }
+  if (target === "reviewInline" && (!Number.isInteger(input.pullNumber) || input.pullNumber <= 0))
+    throw new Error("pullNumber must be a positive integer");
+  if (operation === "github_issue_create" &&
+      (!safeWorkspacePath(input.bodyFile) || input.bodyFile.includes("\\")))
+    throw new Error("bodyFile must be a workspace-relative file path");
   if (
     (readPullRequestOperations.has(operation) || ownPullRequestOperations.has(operation)) &&
     operation !== "github_pull_requests_list" &&

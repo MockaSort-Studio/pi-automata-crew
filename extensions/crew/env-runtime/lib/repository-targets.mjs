@@ -1,0 +1,29 @@
+// Closed inventory of released Armory operations. Projects lack a repository target and are
+// deferred until their provenance can be bound. Review IDs are not bound (follow-up #143).
+const repo = [
+  "github_dependency_add", "github_dependency_list", "github_git_commit", "github_git_diff",
+  "github_git_push", "github_git_stage", "github_git_status", "github_issue_add_label",
+  "github_issue_comment", "github_issue_create", "github_issue_remove_label", "github_issue_update",
+  "github_issue_view", "github_issues_list", "github_label_create", "github_label_list", "github_label_update",
+  "github_pull_request_add_label", "github_pull_request_checks", "github_pull_request_checks_wait",
+  "github_pull_request_comment", "github_pull_request_create", "github_pull_request_files",
+  "github_pull_request_merge", "github_pull_request_remove_label", "github_pull_request_review",
+  "github_pull_request_review_start", "github_pull_request_review_threads", "github_pull_request_update",
+  "github_pull_request_view", "github_pull_requests_list", "github_repo_discussions_set", "github_subissue_add",
+  "github_subissues_list", "github_workflow_run_failed_log", "github_workflow_run_view",
+  "github_workflow_runs_list", "github_workspace_checkout",
+];
+const ownerRepo = [
+  "github_discussion_comments", "github_discussion_delete", "github_discussion_post", "github_discussion_view",
+  "github_discussions_list",
+];
+const deferred = [
+  "github_project_field_set", "github_project_fields", "github_project_item_add", "github_project_item_find",
+];
+export const repositoryTargets = Object.freeze(Object.fromEntries([
+  ...repo.map((name) => [name, "repo"]),
+  ...ownerRepo.map((name) => [name, "ownerRepo"]),
+  ...deferred.map((name) => [name, "deferred"]),
+  ["github_pull_request_review_inline_comment", "reviewInline"],
+  ["github_pull_request_review_submit", "reviewSubmit"],
+]));
