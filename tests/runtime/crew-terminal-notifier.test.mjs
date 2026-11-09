@@ -63,3 +63,17 @@ test("a crew whose blocked members Main already decided on is reported without a
   assert.match(sent[1].message.content, /waiting for input/, "one member still asks Main");
   assert.deepEqual(sent[1].options, { triggerTurn: true, deliverAs: "steer" });
 });
+
+test("the crew host's settled-only snapshots notify again after resume(), and a forgotten run starts afresh", () => {
+  const sent = [];
+  const notifier = createCrewTerminalNotifier((message) => sent.push(message.content));
+  assert.equal(notifier.observe(snap("run-1", ["complete", "blocked"])), true);
+  assert.equal(notifier.observe(snap("run-1", ["complete", "complete"])), false, "no work seen in between");
+  notifier.resume("run-1");
+  assert.equal(notifier.observe(snap("run-1", ["complete", "complete"])), true);
+  notifier.forget("run-1");
+  assert.equal(notifier.observe(snap("run-1", ["complete", "complete"])), true, "a disposed run is not remembered");
+  notifier.forget();
+  assert.equal(notifier.observe(snap("run-1", ["complete", "complete"])), true);
+  assert.equal(sent.length, 4);
+});

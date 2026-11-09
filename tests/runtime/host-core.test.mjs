@@ -502,3 +502,26 @@ test("host launch reports cached catalog revision and timestamp", async () => {
   assert.match(response.result.warnings.join(" "), /cached.*abc.*2026-01-01/);
   await h.core.close();
 });
+
+test("two concurrent launches of one run id: only the first starts a crew", { timeout: 5000 }, async () => {
+  const pending = [];
+  const h = host({ deps: { createModelRuntime: () => new Promise((resolve) => pending.push(resolve)) } });
+  const first = h.core.handle({ id: 1, method: "launch", params: launch() });
+  const second = h.core.handle({ id: 2, method: "launch", params: launch() });
+  await settle();
+  for (const resolve of pending) resolve({});
+  await Promise.all([first, second]);
+  const replies = [1, 2].map((id) => h.sent.find((m) => m.id === id));
+  assert.deepEqual(
+    replies.map((reply) => reply.ok),
+    [true, false],
+  );
+  assert.match(replies[1].error.message, /already exists/);
+  assert.equal(pending.length, 1, "the second launch built nothing");
+  await settle();
+  assert.deepEqual(
+    h.created.map((c) => c.handle),
+    [A],
+  );
+  assert.deepEqual((await h.call("list", {})).result, { crews: ["run1"] });
+});

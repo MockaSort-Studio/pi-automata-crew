@@ -74,9 +74,21 @@ export function createHostCore({ send, deps = {} }) {
   const secretsOf = () => [d.env.HALL_GITHUB_TOKEN].filter(Boolean);
   const scrub = (text) => secretsOf().reduce((out, secret) => out.split(secret).join("[redacted]"), String(text));
 
-  async function launch({ runId, crewDir, repository, members, maxParallel, idleMs }) {
+  // A run id is reserved from the moment its launch starts, so two concurrent launches cannot both pass the check.
+  const reserved = new Set();
+  async function launch(params) {
     assertOpen();
-    if (!runId || crews.has(runId)) throw new Error(`Crew ${runId} already exists`);
+    const { runId } = params;
+    if (!runId || crews.has(runId) || reserved.has(runId)) throw new Error(`Crew ${runId} already exists`);
+    reserved.add(runId);
+    try {
+      return await startCrew(params);
+    } finally {
+      reserved.delete(runId);
+    }
+  }
+
+  async function startCrew({ runId, crewDir, repository, members, maxParallel, idleMs }) {
     if (!Array.isArray(members) || !members.length) throw new Error("A crew needs at least one member");
     for (const member of members)
       if (!HANDLE.test(member.handle ?? "")) throw new Error(`Invalid member handle: ${member.handle}`);

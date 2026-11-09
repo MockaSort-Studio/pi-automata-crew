@@ -181,3 +181,26 @@ test("quitting Pi stops the host and closing every VM; a reload and other reason
   await stopHostOnQuit({ reason: "quit" }, host);
   assert.deepEqual(stops, ["stop"]);
 });
+
+test("a run's notice is forgotten when it is untracked or the host exits, so the bookkeeping does not grow", (t) => {
+  const { host, created, pi, cwd } = setup(t);
+  host.client();
+  const idle = (runId) =>
+    created[0].options.onEvent({
+      event: "idle",
+      runId,
+      members: [{ handle: "developer-a-00", ledger: "complete", state: "completed" }],
+    });
+  const notices = () => pi.sent.filter(({ message }) => message.customType === "crew-terminal").length;
+  host.track("run1", join(cwd, "run1"));
+  idle("run1");
+  idle("run1");
+  assert.equal(notices(), 1, "one settling, one notice");
+  host.untrack("run1");
+  idle("run1");
+  assert.equal(notices(), 2, "an untracked run is not remembered");
+  created[0].options.onExit({ code: 1 });
+  host.client();
+  idle("run1");
+  assert.equal(notices(), 3, "nor is any run once the host exits");
+});

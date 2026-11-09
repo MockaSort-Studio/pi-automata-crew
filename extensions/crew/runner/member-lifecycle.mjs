@@ -48,13 +48,16 @@ function refsOf(refs) {
 }
 const compact = (record) => Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
 
-// A non-resuming acknowledgement: who must act, on what, and what will make Main resume the member.
+// A non-resuming acknowledgement: who must act, on what, and what will make Main resume the member. Its refs are
+// Main's own claims, recorded as given and never verified by the runner, and are labelled so.
 export function holdRecord({ blocker, owner, resumeWhen, refs }, at) {
+  const kept = refsOf(refs);
   return compact({
     blocker: requiredText(blocker, "blocker"),
     owner: requiredText(owner, "owner"),
     resumeWhen: requiredText(resumeWhen, "resumeWhen"),
-    refs: refsOf(refs),
+    refs: kept,
+    refsAssertedBy: kept && "main",
     at,
   });
 }

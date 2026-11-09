@@ -1,11 +1,18 @@
 // Read-only typed-state completion notifier. It never infers lifecycle from
 // prose, worker settlement, or process state; callers provide Comm snapshots.
 // A Crew whose nodes are all settled needs Main: to finish it, or to answer a blocked member,
-// which resumes on that reply. Settling again after a resume notifies again.
+// which resumes on that reply.
+//
+// One contract: a run is notified once per settling, and settles again only after it worked again. Work
+// resuming is either a snapshot with a node that is not settled (the Comm path observes every change), or
+// `resume(namespace)`, which the crew host calls when a member reports `running` (it observes only idle
+// snapshots, which are always settled). `forget(namespace)` drops a run that was disposed; with no namespace,
+// every run.
 const TERMINAL = new Set(["complete", "blocked", "failed"]);
 // A node may also carry the crew host's member `state`. A blocked node in one of these states needs no answer
-// from Main: Main put it on hold, handed it off or cancelled it, or it is only held behind a prerequisite.
-const DECIDED = new Set(["on_hold", "handed_off", "held", "cancelled"]);
+// from Main: Main put it on hold or handed it off, or it is only held behind a prerequisite. (A cancelled
+// member's node is failed, never blocked.)
+const DECIDED = new Set(["on_hold", "handed_off", "held"]);
 const awaitingMain = (node) => node.status === "blocked" && !DECIDED.has(node.state);
 
 function nodesOf(snapshot) {
@@ -42,27 +49,27 @@ function terminalMessage(namespace, nodes) {
 
 export function createCrewTerminalNotifier(sendMessage) {
   if (typeof sendMessage !== "function") throw new TypeError("sendMessage must be a function");
-  const runs = new Map();
+  // Runs notified since they last worked.
+  const notified = new Set();
 
   function observe(snapshot) {
     const namespace = snapshot?.namespace;
     if (!namespace || !nodesOf(snapshot).length) return false;
-    let run = runs.get(namespace);
-    if (!run) {
-      run = { seenSnapshot: true, notified: false };
-      runs.set(namespace, run);
-    }
     if (!terminal(snapshot)) {
-      run.notified = false;
+      notified.delete(namespace);
       return false;
     }
-    if (run.notified) return false;
-    run.notified = true;
+    if (notified.has(namespace)) return false;
+    notified.add(namespace);
     const { triggerTurn, ...message } = terminalMessage(namespace, nodesOf(snapshot));
     const options = triggerTurn ? { triggerTurn, deliverAs: "steer" } : { triggerTurn };
     Promise.resolve(sendMessage(message, options)).catch(() => {});
     return true;
   }
 
-  return { observe };
+  return {
+    observe,
+    resume: (namespace) => void notified.delete(namespace),
+    forget: (namespace) => void (namespace === undefined ? notified.clear() : notified.delete(namespace)),
+  };
 }
