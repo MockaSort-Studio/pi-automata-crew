@@ -163,3 +163,32 @@ test("abort during failed log lookup ignores its late rejection", async () => {
   rejectLog(Error("late"));
   await new Promise((resolve) => setTimeout(resolve, 5));
 });
+
+// GitHub gives a removed file's blob_url the BASE commit; a pull request that deletes a file must still be verifiable.
+const removed = (base, filename) => ({
+  filename,
+  status: "removed",
+  blob_url: `https://github.com/o/r/blob/${base}/${filename}`,
+});
+const gateRun = (list) => run(async (name) => (name === "github_pull_request_view" ? view(a, success) : list));
+
+test("a deleted file's base-commit URL does not hide the head identity of the other files", async () => {
+  const base = "c".repeat(40);
+  const result = await gateRun([...files(a, "src/a"), removed(base, "src/old")]);
+  assert.equal(result.ci?.state ?? result.state ?? "success", "success");
+  assert.deepEqual(result.gateFiles, []);
+});
+
+test("a deleted file that defines the checks is still reported as a gate file", async () => {
+  const base = "c".repeat(40);
+  const result = await gateRun([...files(a, "src/a"), removed(base, ".github/workflows/ci.yml")]);
+  assert.deepEqual(result.gateFiles, [".github/workflows/ci.yml"]);
+});
+
+test("only deletions cannot identify the head and still fail closed", async () => {
+  await assert.rejects(gateRun([removed("c".repeat(40), "src/old")]), /match the verified head/);
+});
+
+test("present files from a different head still fail closed next to a deletion", async () => {
+  await assert.rejects(gateRun([...files(b, "src/a"), removed("c".repeat(40), "src/old")]), /match the verified head/);
+});

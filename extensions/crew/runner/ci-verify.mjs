@@ -78,9 +78,14 @@ function abortable(promise, signal) {
   });
 }
 
+// GitHub points the blob URL of a REMOVED file at the base commit, not at the head, so only files that exist on the
+// head can identify it. A list with no such file (empty, or only deletions) cannot identify the head: fail closed.
 const headOf = (files) => {
-  const heads = new Set(files.map((file) => /\/blob\/([a-f\d]{40})\//i.exec(file.blob_url ?? "")?.[1]?.toLowerCase()));
-  return heads.size === 1 ? [...heads][0] : undefined;
+  const present = files.filter((file) => file.status !== "removed");
+  const heads = new Set(
+    present.map((file) => /\/blob\/([a-f\d]{40})\//i.exec(file.blob_url ?? "")?.[1]?.toLowerCase()),
+  );
+  return present.length && heads.size === 1 ? [...heads][0] : undefined;
 };
 
 export async function verifyPullRequest({
