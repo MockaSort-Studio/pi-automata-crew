@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
@@ -41,12 +43,15 @@ test("the krun-named cases excluded from required CI are exactly the four paired
 // how their source spells them; a string literal starting "krun: " anywhere else (a subtest) is refused too.
 test("the only test titles required CI skips are the four paired krun cases", () => {
   const files = requiredTestFiles();
-  const output = execFileSync(process.execPath, ["tests/crew/test-titles.mjs", ...files], {
-    cwd: root,
-    encoding: "utf8",
-    maxBuffer: 16 * 1024 * 1024,
-    timeout: 90_000,
-  });
+  const dir = mkdtempSync(join(tmpdir(), "crew-titles-"));
+  const out = join(dir, "titles.json");
+  let output;
+  try {
+    execFileSync(process.execPath, ["tests/crew/test-titles.mjs", out, ...files], { cwd: root, timeout: 90_000 });
+    output = readFileSync(out, "utf8");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
   const { titles, unloadable } = JSON.parse(output);
   assert.deepEqual(unloadable, [], "every required test file must register its tests");
   const skipped = new RegExp("^krun: ");

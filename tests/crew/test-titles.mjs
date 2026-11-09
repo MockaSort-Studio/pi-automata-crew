@@ -1,8 +1,10 @@
 // Lists the titles every given test file registers, without running any test body or hook.
-// Usage: node tests/crew/test-titles.mjs <file>... ; prints {"titles":[...],"unloadable":[...]} as JSON.
+// Usage: node tests/crew/test-titles.mjs <out.json> <file>... ; writes {"titles":[...],"unloadable":[...]} to <out.json>
+// (a file, not stdout: a piped stdout is cut at the 64 KiB pipe buffer on some platforms).
 // `node:test` is replaced, for this process only, by a recorder: test/it/suite titles are recorded and describe
 // bodies are called to register their children; nothing else executes. Subtests created inside a test body are
 // not visible here (no body runs); tests/crew/ci-backend-policy.test.mjs also scans the sources for them.
+import { writeFileSync } from "node:fs";
 import { register } from "node:module";
 import { resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -40,12 +42,13 @@ export async function resolve(specifier, context, next) {
 
 register(`data:text/javascript,${encodeURIComponent(HOOKS)}`);
 const unloadable = [];
-for (const file of process.argv.slice(2)) {
+const [outFile, ...testFiles] = process.argv.slice(2);
+for (const file of testFiles) {
   try {
     await import(pathToFileURL(resolvePath(file)).href);
   } catch (error) {
     unloadable.push({ file, error: String(error?.message ?? error).split("\n")[0] });
   }
 }
-process.stdout.write(JSON.stringify({ titles: globalThis.__crewTestTitles ?? [], unloadable }));
+writeFileSync(outFile, JSON.stringify({ titles: globalThis.__crewTestTitles ?? [], unloadable }));
 process.exit(0);
