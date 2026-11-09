@@ -120,7 +120,20 @@ chain here, so directory checks are not a guarantee against same-account pathnam
 other accounts exploiting shared or mis-permissioned cache locations, not a compromised account.
 
 The latest catalog is retried on transport failure within a total 12-second fetch budget and may fall back to the cached latest; launch and doctor report
-its revision and timestamp as potentially stale. Successfully received malformed or invalid payloads are rejected,
+its revision and timestamp as potentially stale. A cached latest catalog is used only if it was fetched within the last
+30 days (and not in the future); an older one is refused with an error naming its revision and timestamp, and the
+launch needs the network again. A cached pinned revision is immutable and is used at any age. Successfully received malformed or invalid payloads are rejected,
 not replaced with cached data. Canonical pinned release URLs use only their matching revision cache and a downloaded
 revision must match the requested one. Other explicit URLs never fall back to latest or populate the cache. Cache writes
 are best effort and cannot fail a launch.
+
+## Extension source cache
+
+A suite's extension source bundle is cached under `~/.cache/pi-crew/armory-src/<sha256>/` with exactly the same
+directory, file and write rules as the catalog cache. A cached file is used only if its size and SHA-256 match the
+catalog's pin; otherwise it is downloaded from the release URL built from the revision and file name, and verified
+again. The host never imports the cached path: the verified bytes are written from memory, with an exclusive create,
+into a fresh private `mkdtemp` directory (mode 0700) and that copy is imported and then removed, so swapping the cache
+file after verification, or planting a symlink at a temporary name, cannot change the loaded code. Another account
+cannot reach the copy; the same account (or root) can, which is the same residual as above: code running as the user
+can already replace the extension itself.
