@@ -27,7 +27,7 @@ const outcome = (handle) =>
     ? { status: "needs_input", question: "which?", finalText: "", evidence: {} }
     : { status: "completed", finalText: "done", evidence: {} };
 
-function crew(t, members) {
+function crew(t, members, script = {}) {
   const cwd = mkdtempSync(join(tmpdir(), "crew-idle-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const sent = [];
@@ -51,7 +51,7 @@ function crew(t, members) {
         run: {
           prompt: async () => {
             await gates.get(member.handle);
-            return outcome(member.handle);
+            return script[member.handle]?.shift() ?? outcome(member.handle);
           },
           abort: async () => {},
         },
@@ -119,4 +119,24 @@ test("a handed-off member and its held dependent read as handed off and blocked,
     buildAutomataTab(view.snapshot).map((row) => row.bucket),
     ["blocked", "blocked"],
   );
+});
+
+test("after the waiting-for-input notice, answering until the crew completes brings the terminal notice", async (t) => {
+  const done = { status: "completed", finalText: "done", evidence: {} };
+  const asks = { status: "needs_input", question: "which?", finalText: "", evidence: {} };
+  const c = crew(t, [[A], [B, [A]]], { [A]: [asks, asks, done] });
+  await c.launch();
+  await settle();
+  assert.equal(c.terminal().length, 1);
+  assert.match(c.terminal()[0].message.content, /waiting for input/);
+  await c.call("message", { handle: A, text: "the first" });
+  await settle();
+  assert.equal(c.terminal().length, 2, "settling again on a new question notifies again");
+  assert.match(c.terminal()[1].message.content, /waiting for input/);
+  await c.call("message", { handle: A, text: "the second" });
+  await settle();
+  const notices = c.terminal();
+  assert.equal(notices.length, 3);
+  assert.match(notices[2].message.content, /reached terminal lifecycle state \(2 complete\)/);
+  assert.deepEqual(notices[2].options, { triggerTurn: true, deliverAs: "steer" });
 });

@@ -41,7 +41,7 @@ test("Main can look at, answer, cancel and clean up crews", async () => {
 });
 
 test("Main can hold a member without a turn and hand off unaccepted work, each routed as its own request", async () => {
-  const { call, requests } = setup();
+  const { call, requests, tools } = setup();
   const refs = { pullRequest: "https://github.com/o/r/pull/9", head: "a".repeat(40) };
   await call("crew_hold", {
     runId: "run1",
@@ -55,6 +55,8 @@ test("Main can hold a member without a turn and hand off unaccepted work, each r
     "hold",
     { runId: "run1", handle: "developer-a-00", blocker: "PR #9", owner: "human", resumeWhen: "merged", refs },
   ]);
+  for (const name of ["crew_hold", "crew_status"])
+    assert.match(tools.get(name).description, /Main-asserted/, `${name} says hold refs are Main's own claims`);
   await call("crew_handoff", { runId: "run1", member: "developer-a-00", unmet: ["green CI"] });
   assert.deepEqual(requests.at(-1), [
     "handoff",

@@ -273,3 +273,26 @@ test("cancel ends a node that waits, is ready, or is blocked by itself or a prer
   running.start("developer-d-00");
   assert.throws(() => running.cancel("developer-d-00"), /running -> failed \(cancel\)/, "a running node fails instead");
 });
+
+// A dependent already running started on its prerequisite's earlier result (see reopen): a later block, failure
+// or cancellation of that prerequisite leaves it running, so it can still end as itself.
+for (const [name, end] of [
+  ["blocks", (ledger) => ledger.block("developer-a-00")],
+  ["fails", (ledger) => ledger.fail("developer-a-00")],
+]) {
+  test(`a reopened node that ${name} leaves its running dependent running, and that dependent can complete`, () => {
+    const ledger = createDependencyLedger();
+    for (const handle of ["developer-a-00", "developer-b-00", "developer-c-00"]) ledger.addNode(handle);
+    ledger.addDependency("developer-b-00", "developer-a-00");
+    ledger.addDependency("developer-c-00", "developer-b-00");
+    ledger.start("developer-a-00");
+    ledger.complete("developer-a-00");
+    ledger.start("developer-b-00");
+    ledger.reopen("developer-a-00");
+    end(ledger);
+    assert.equal(ledger.status("developer-b-00"), "running", "running: left alone");
+    assert.equal(ledger.status("developer-c-00"), "waiting", "what follows the running node still waits on it");
+    assert.equal(ledger.complete("developer-b-00"), "complete");
+    assert.equal(ledger.status("developer-c-00"), "ready");
+  });
+}

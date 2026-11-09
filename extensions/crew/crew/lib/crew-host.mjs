@@ -48,6 +48,8 @@ function onEvent(event) {
     }
     deliver(message);
   }
+  // A member working again re-arms the run's notice: the next idle snapshot is a new settling.
+  if (event.event === "state" && event.state === "running") holder.notifier.resume(event.runId);
   if (event.event === "idle")
     holder.notifier.observe({
       namespace: event.runId,
@@ -65,6 +67,7 @@ export function crewHost({ cwd, configDir, createClient = createHostClient }) {
         onEvent,
         onExit: (exit) => {
           holder.client = undefined;
+          holder.notifier.forget();
           holder.runs.clear();
           holder.plans.clear();
           if (!holder.stopping) deliver(hostExitMessage(exit));
@@ -75,7 +78,7 @@ export function crewHost({ cwd, configDir, createClient = createHostClient }) {
     },
     // `plan` is what each member was assigned ({handle, task, dependsOn}); the dashboard's Plan tab shows it.
     track: (runId, dir, plan = []) => (holder.runs.set(runId, dir), holder.plans.set(runId, plan)),
-    untrack: (runId) => (holder.runs.delete(runId), holder.plans.delete(runId)),
+    untrack: (runId) => (holder.runs.delete(runId), holder.plans.delete(runId), holder.notifier.forget(runId)),
     plan: (runId) => holder.plans.get(runId) ?? [],
     // The running host's client, or nothing: looking must never start a host.
     peek: () => holder.client,
