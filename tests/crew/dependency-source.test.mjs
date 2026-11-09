@@ -81,6 +81,14 @@ test("facts distinguish missing formatter and project CI", () => {
   assert.match(verificationFacts({ available: ["prettier"], failures: [] }, true), /bin\/prettier.cjs/);
   assert.match(verificationFacts(undefined, false), /bash.*not granted/i);
 });
+test("facts state the guest's real limits: no git, BusyBox grep, source-only ws and typebox", () => {
+  const text = verificationFacts({ available: ["ws", "typebox", "prettier"], failures: [] }, true);
+  assert.match(text, /no git binary.*pull request files/i);
+  assert.match(text, /BusyBox grep lacks --include/);
+  assert.match(text, /ws and typebox mounts are source only.*cannot be imported/);
+  assert.doesNotMatch(verificationFacts({ available: ["prettier"], failures: [] }, true), /ws and typebox mounts/);
+  assert.doesNotMatch(text, /skip/i);
+});
 test("source cache retries failures and deduplicates simultaneous preparation", async () => {
   let calls = 0;
   const cache = createSourceCache([{ name: "demo" }], async () => {

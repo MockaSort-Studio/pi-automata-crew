@@ -29,7 +29,6 @@ test("concurrent Crews remove workers and worktrees before Runtime stop returns"
     const launches = await Promise.allSettled([first.launchCrew(actors(ids[0])), second.launchCrew(actors(ids[1]))]);
     for (const launch of launches) if (launch.status === "rejected") throw launch.reason;
     const [one, two] = launches.map((launch) => launch.value);
-    assert.notEqual(realpathSync(cwd), realpathSync(process.cwd()), "the crews must not use the shared checkout");
     const ownedWorktrees = execFileSync("git", ["worktree", "list", "--porcelain"], { cwd, encoding: "utf8" });
     const paths = ownedWorktrees
       .split("\n")
@@ -37,6 +36,7 @@ test("concurrent Crews remove workers and worktrees before Runtime stop returns"
       .map((line) => realpathSync(line.slice(9)));
     for (const agent of [...one.agents, ...two.agents]) {
       assert.ok(paths.includes(realpathSync(agent.worktree)));
+      assert.notEqual(realpathSync(agent.worktree), realpathSync(cwd), "a worker must not use the shared checkout");
       const commonDir = execFileSync("git", ["rev-parse", "--git-common-dir"], {
         cwd: agent.worktree,
         encoding: "utf8",

@@ -15,6 +15,7 @@ This is a scaffold for Main or the user, not worker prompt content.
    up front: repository and full remote revision, relevant files or PR, and any decisions already made.
    Explicitly grant the tools and operations needed to inspect that evidence, run tests, and deliver the
    result. Verify grants and evidence access before launch; never assume omitted tools default to a role.
+   `deliverTo` is lowercase `main` or a member handle (`Main` is rejected). Optional `requiredCapabilities` (`[{ suite, operations }]`) asserts authorization only: `start_crew` refuses a member whose grants or role ceiling lack it, but a grant does not guarantee runtime tools or installed dependencies. An optional `inputs` entry `{ kind: "autonomy", allowedFileClasses: ["tests"], forbiddenFiles: ["src/secret/**"] }` (exactly those two keys, kind exactly `autonomy`, one per member) is scope guidance the member must obey, enforced by nothing in the runtime and granting no authority. Members granted bash find verified read-only dependency sources and Prettier under `/opt/crew/dependency-sources` (`docs/crew/verification.md`).
    Set only authorized repository and branch operations. A worker's role and persona provide its discipline.
 3. **Launch and wait.** Use `start_crew`; it dispatches immediately in dependency order. End your turn and
    wait for messages rather than polling. A blocked member stays held until you have the requested evidence

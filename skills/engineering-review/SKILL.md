@@ -14,7 +14,7 @@ This is a dispatch scaffold for Main or the user. Reviewers must not review thei
 2. Launch one review crew with several independent reviewers for each related batch, not a separate crew
    per reviewer. Give each reviewer a bounded domain, explicit criteria, relevant files and evidence up
    front, a recipient, and appropriate review authority. Include the PR and revision so they can inspect
-   the same change.
+   the same change. `deliverTo` is lowercase `main` or a member handle (`Main` is rejected). Optional `requiredCapabilities` (`[{ suite, operations }]`) asserts authorization only: `start_crew` refuses a member whose grants or role ceiling lack it, but a grant does not guarantee runtime tools or installed dependencies. An optional `inputs` entry `{ kind: "autonomy", allowedFileClasses: ["tests"], forbiddenFiles: ["src/secret/**"] }` (exactly those two keys, kind exactly `autonomy`, one per member) is scope guidance the member must obey, enforced by nothing in the runtime and granting no authority. Members granted bash find verified read-only dependency sources and Prettier under `/opt/crew/dependency-sources` (`docs/crew/verification.md`).
 3. Before `start_crew`, validate explicit tool grants and evidence access for every reviewer: reading the
    workspace or PR, inspecting checks and review threads, running focused tests, and submitting a review
    if authorized. Never assume omitted tools default to a role. If access is unavailable, obtain it or

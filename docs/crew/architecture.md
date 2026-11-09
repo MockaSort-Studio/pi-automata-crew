@@ -73,7 +73,7 @@ or held behind one of those is reported without a turn. The dashboard shows thos
 
 Holds and handoffs are recorded in the run's `events.jsonl` as `decision` events and are not delivered as
 reports. `crew_status` shows, beside the state, `lastReport` (the latest report's status and time, `current`
-only while the member is still in that state), `ci` (state, `pullNumber`, `headSha`, `checkedAt`, and `current`
+only while the member is still in that state), `ci` (state, `pullNumber`, `headSha`, `checkedAt`, `rounds`, `checks` as name and conclusion pairs, and `current`
 until the member works again; only `success` is green, `none` and `unavailable` are not), and the current `hold`
 or `handoff`. Main's text in a hold or handoff is recorded whole or refused, never shortened.
 

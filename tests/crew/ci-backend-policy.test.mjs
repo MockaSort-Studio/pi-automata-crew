@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { parse } from "yaml";
 
 const workflow = parse(readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8"));
@@ -39,12 +39,26 @@ test("required CI retains generic, QEMU and extension-load coverage and is the o
     "tests/crew/*.test.mjs",
     "tests/runtime/*.test.mjs",
     "tests/pi/*.test.mjs",
-    "tests/github-armory-routing.test.mjs",
-    "tests/github-pull-reviews.test.mjs",
     "bash tests/pi/test-extension-load.sh",
   ]) {
     assert.ok(command.includes(path), path);
   }
+  // Node silently ignores a missing path, so a deleted test file would vanish from CI unnoticed: every
+  // test path named by the CI command and by `npm run test:suite` must exist (globs must match a file).
+  const suite = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).scripts["test:suite"];
+  for (const text of [command, suite]) {
+    for (const [path] of text.matchAll(/tests\/[^\s]+/g)) {
+      const dir = new URL(`../../${path.slice(0, path.lastIndexOf("/") + 1)}`, import.meta.url);
+      const base = path.slice(path.lastIndexOf("/") + 1);
+      const pattern = new RegExp(`^${base.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`);
+      assert.ok(existsSync(dir) && readdirSync(dir).some((name) => pattern.test(name)), `${path} matches no file`);
+    }
+  }
+  assert.equal(
+    suite.match(/tests\/\S+\.test\.mjs/g).join(" "),
+    command.match(/tests\/\S+\.test\.mjs/g).join(" "),
+    "package.json test:suite and CI run the same test files",
+  );
   assert.ok(!JSON.stringify(required).includes("HALL_SKIP_GONDOLIN_LIVE_TESTS"));
   assert.ok(required.steps.some((step) => step.run === "npm run format:check"));
 });

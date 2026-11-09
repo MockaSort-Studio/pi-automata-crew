@@ -1,6 +1,6 @@
 # Crew alpha status
 
-Snapshot: post-migration to `main`. Built from the docs, follow-ups and designs, checked against the
+Snapshot: `main` at `bcde87c`. Built from the docs, follow-ups and designs, checked against the
 code and live runs. Active work is tracked in [implementation-plan.md](implementation-plan.md); suites in
 [armory-suite-proposals.md](armory-suite-proposals.md); measurements in
 [gondolin-benchmark.md](gondolin-benchmark.md).
@@ -11,19 +11,19 @@ product focus is runtime and tooling; Claude Code skill migration is out of scop
 
 ## Complete
 
-| Area          | What exists                                                                                                                                                                                                        |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Runtime       | Main, then Lifecycle RPC, then worker processes in isolated git worktrees. Transactional launch with rollback, evidence archived before cleanup, a launch that fails fast when a worker exits before ready (live). |
-| Dispatch      | Explicit dispatch with idempotency. Leadless dependency release (live chain A, B, C). Lead-led dispatch with broker-validated `crew_assign` (live).                                                                |
-| Comm          | Separate WebSocket broker, namespaced actors, request and reply, readiness barrier, Lead-only broadcast, queue-style delivery for Main and the Lead. Main turns start on incoming messages.                        |
-| State         | Typed live state and dependency ledger, `PASS`/`BLOCKED`/`FAIL` outcomes, roster rollup (worst outcome wins). `waiting` exists as a worker state.                                                                  |
-| TUI           | Per-Crew footer, structured dashboard with real tables and chrome, Crew picker.                                                                                                                                    |
-| Isolation     | Per-worker Gondolin VM, `auto`/`gondolin`/`none` with host fallback. libkrun by default (QEMU fallback, `HALL_VMM`), idle release, hidden `.env` and `node_modules`. Live on macOS arm64.                          |
-| Armory        | GitHub suite (38 typed tools), released and hash-pinned catalog, verified fetch (10 s cold), Ubuntu and macOS CI.                                                                                                  |
-| Credentials   | `HALL_GITHUB_TOKEN` is leased to the worker and seen by the guest only as a placeholder; a live read of issue #469 matched the host.                                                                               |
-| Observability | Per-worker metrics, static context tokens, event logs.                                                                                                                                                             |
-| Quality       | 449 tests (446 pass, 3 skipped) in about 16 s locally; CI runs the same suite and format check; Comm and Lifecycle servers exit when Main dies.                                                                    |
-| Optional      | GitHub Discussion adapter, on demand.                                                                                                                                                                              |
+| Area          | What exists                                                                                                                                                                                                                                        |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime       | Main, then Lifecycle RPC, then worker processes in isolated git worktrees. Transactional launch with rollback, evidence archived before cleanup, a launch that fails fast when a worker exits before ready (live).                                 |
+| Dispatch      | Explicit dispatch with idempotency. Leadless dependency release (live chain A, B, C). Lead-led dispatch with broker-validated `crew_assign` (live).                                                                                                |
+| Comm          | Separate WebSocket broker, namespaced actors, request and reply, readiness barrier, Lead-only broadcast, queue-style delivery for Main and the Lead. Main turns start on incoming messages.                                                        |
+| State         | Typed live state and dependency ledger, `PASS`/`BLOCKED`/`FAIL` outcomes, roster rollup (worst outcome wins). `waiting` exists as a worker state.                                                                                                  |
+| TUI           | Per-Crew footer, structured dashboard with real tables and chrome, Crew picker.                                                                                                                                                                    |
+| Isolation     | Per-worker Gondolin VM, no host fallback. libkrun by default (QEMU fallback, `HALL_VMM`), idle release, a private guest workspace (the host `.env` is not specially hidden: the `HIDDEN_WORKSPACE_PATHS` constant is unused). Live on macOS arm64. |
+| Armory        | GitHub suite (49 typed tools), released and hash-pinned catalog, verified fetch (10 s cold), Ubuntu and macOS CI.                                                                                                                                  |
+| Credentials   | `HALL_GITHUB_TOKEN` is leased to the worker and seen by the guest only as a placeholder; a live read of issue #469 matched the host.                                                                                                               |
+| Observability | Per-worker metrics, static context tokens, event logs.                                                                                                                                                                                             |
+| Quality       | a suite that CI runs with the format check (no count is kept here: it drifts); Comm and Lifecycle servers exit when Main dies.                                                                                                                     |
+| Optional      | GitHub Discussion adapter, on demand.                                                                                                                                                                                                              |
 
 ## Needs refinement
 
@@ -43,19 +43,19 @@ product focus is runtime and tooling; Claude Code skill migration is out of scop
 
 ## Missing
 
-| Area               | Gap                                                                                                                          |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| Lifecycle          | Durable service, audit log, crash recovery (plan items 5 and 8).                                                             |
-| Retry              | A blocked worker cannot be resumed; the design is to export evidence, remove it and dispatch a fresh, linked actor.          |
-| Model policy       | No selection by task risk, no budgets (item 16).                                                                             |
-| Evidence           | No baseline, A/B quality gate, or serial-versus-Crew benchmark (item 17).                                                    |
-| Setup              | `/hall-setup` (item 18).                                                                                                     |
-| Runtime roadmap    | Heartbeat snapshots and deadline-aware replanning have no implementation. Claude skill migration is explicitly out of scope. |
-| Hall CLI port      | Project progression, Issue closure, dependency management, GitHub adapter contracts.                                         |
-| Suites             | CI inspection, workflow lint, `act`, `dev/tasks`, prettier, `yq`, `jq`. See the suites todo.                                 |
-| Network and `bash` | Default-deny egress, denied-host logging, `bash` telemetry, a `bash`-less `reviewer`.                                        |
-| Armory release     | Lead-time measurement, suite scaffold, local harness, launch-time catalog check.                                             |
-| Platforms          | Linux and Windows validation. Terraform suite and VM snapshots are deferred.                                                 |
+| Area               | Gap                                                                                                                                      |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Lifecycle          | Durable service, audit log, crash recovery (plan items 5 and 8).                                                                         |
+| Retry              | A resumed worker is not a linked attempt: `crew_message` resumes a held member in the same session, but there is no fresh, linked actor. |
+| Model policy       | No selection by task risk, no budgets (item 16).                                                                                         |
+| Evidence           | No baseline, A/B quality gate, or serial-versus-Crew benchmark (item 17).                                                                |
+| Setup              | `/hall-setup` (item 18).                                                                                                                 |
+| Runtime roadmap    | Heartbeat snapshots and deadline-aware replanning have no implementation. Claude skill migration is explicitly out of scope.             |
+| Hall CLI port      | Project progression, Issue closure, dependency management, GitHub adapter contracts.                                                     |
+| Suites             | CI inspection, workflow lint, `act`, `dev/tasks`, prettier, `yq`, `jq`. See the suites todo.                                             |
+| Network and `bash` | Default-deny egress, denied-host logging, `bash` telemetry, a `bash`-less `reviewer`.                                                    |
+| Armory release     | Lead-time measurement, suite scaffold, local harness, launch-time catalog check.                                                         |
+| Platforms          | Linux and Windows validation. Terraform suite and VM snapshots are deferred.                                                             |
 
 ## Measured this cycle
 

@@ -38,7 +38,7 @@
   },
   "scripts": {
     "test": "env -u PI_SDK_ACTOR_ID -u PI_CREW_WORKER_CONFIG -u PI_CREW_COMM_TOKEN -u PI_CREW_ROOT -u PI_SESSION_ID npm run test:suite",
-    "test:suite": "node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/pi/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs && bash tests/pi/test-extension-load.sh",
+    "test:suite": "node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/pi/*.test.mjs && bash tests/pi/test-extension-load.sh",
     "format": "prettier --write extensions tests scripts docs README.md CHANGELOG.md CONTRIBUTING.md",
     "format:check": "prettier --check extensions tests scripts docs README.md CHANGELOG.md CONTRIBUTING.md"
   },

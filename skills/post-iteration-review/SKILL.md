@@ -14,6 +14,8 @@ that the granted tools and operations can access that evidence and run the reque
 omitted tools defaulting to a role. Ask reviewers to assess complexity, dead code and tests, weak failure
 paths, and relevant vulnerabilities, with evidence and actionable findings.
 
+Set `deliverTo` to lowercase `main` or a member handle; optional `requiredCapabilities` and an `{ kind: "autonomy" }` input are described in `docs/crew/verification.md` and `docs/crew/architecture.md`.
+
 Wait for reports without polling. Keep a blocked member held until you have evidence or a decision that
 answers its question. Resolve blocking findings and verify the changed work independently. A green check
 alone is not sufficient to merge; consider the diff, verdicts and acceptance evidence.
