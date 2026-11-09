@@ -207,6 +207,39 @@ test("pull requests are forced to drafts without changing other calls or bypassi
   assert.equal(result({ toolName: "github_issue_view", content, isError: false }), undefined);
 });
 
+test("the hook passes released optional workflow inputs and blocks malformed ones", async () => {
+  const handlers = new Map();
+  githubSuiteExtension({
+    module: { activateSuite() {} },
+    workspace: new MemoryProvider(),
+    token: "t",
+    policy,
+    transport: { run: async () => "" },
+  })({ registerTool() {}, on: (name, handler) => handlers.set(name, handler) });
+  const guard = handlers.get("tool_call");
+  const repo = policy.repo;
+  for (const event of [
+    { toolName: "github_workflow_run_view", input: { repo, runId: 1, artifacts: true } },
+    {
+      toolName: "github_workflow_run_failed_log",
+      input: { repo, runId: 1, jobId: 2, step: 3, firstFailure: true, startLine: 4, maxLines: 50, startChar: 0 },
+    },
+    {
+      toolName: "github_workflow_run_failed_log",
+      input: { repo, runId: 1, artifactId: 5, artifactName: "logs", artifactPath: "out/report.txt", maxChars: 100 },
+    },
+  ])
+    assert.equal(await guard(event), undefined, JSON.stringify(event.input));
+  for (const [input, reason] of [
+    [{ repo, runId: 1, artifactPath: "../secret" }, /Invalid artifactPath/],
+    [{ repo, runId: 1, maxLines: 2001 }, /Invalid maxLines/],
+    [{ repo, runId: 1, jobId: -1 }, /Invalid jobId/],
+    [{ repo, runId: 1, logUrl: "https://x" }, /does not accept/],
+    [{ repo: "other/repo", runId: 1, jobId: 1 }, /outside the worker authorization/],
+  ])
+    assert.match((await guard({ toolName: "github_workflow_run_failed_log", input })).reason, reason);
+});
+
 test("PR ownership applies only to writes and fails closed", async () => {
   const handlers = new Map();
   const calls = [];
