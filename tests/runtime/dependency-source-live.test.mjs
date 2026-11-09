@@ -1,8 +1,38 @@
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { createEnvironment } from "../../extensions/crew/runner/environment.mjs";
-import { prepareDependencyMount, GUEST_SOURCES } from "../../extensions/crew/runner/dependency-mount.mjs";
+import { prepareSources } from "../../extensions/crew/runner/dependency-bootstrap.mjs";
+import {
+  buildDependencyMount,
+  prepareDependencyMount,
+  GUEST_SOURCES,
+} from "../../extensions/crew/runner/dependency-mount.mjs";
+import { DEPENDENCY_PINS } from "../../extensions/crew/runner/dependency-pins.mjs";
 import { skipLiveGondolin } from "./live-gondolin.mjs";
+
+// Hermetic by default: the reviewed prettier archive is the one `npm ci` already recorded in npm's content-addressed
+// cache (keyed by the same SRI the pin carries), and it still goes through the full verification and extraction path.
+// HALL_LIVE_REGISTRY_TESTS=1 instead downloads every pin from the npm registry, as a launch does.
+const recordedArtifact = async (pin) => {
+  const hex = Buffer.from(pin.integrity.replace(/^sha512-/, ""), "base64").toString("hex");
+  const cache = process.env.npm_config_cache || join(homedir(), ".npm");
+  const path = join(cache, "_cacache", "content-v2", "sha512", hex.slice(0, 2), hex.slice(2, 4), hex.slice(4));
+  try {
+    return readFileSync(path);
+  } catch (error) {
+    throw new Error(`no recorded ${pin.name}@${pin.version} archive at ${path}: run npm ci first`, { cause: error });
+  }
+};
+const verifiedSources = async () => {
+  if (process.env.HALL_LIVE_REGISTRY_TESTS === "1") return prepareDependencyMount();
+  const pins = DEPENDENCY_PINS.filter((pin) => pin.name === "prettier");
+  const recorded = await prepareSources(pins, recordedArtifact);
+  assert.deepEqual(recorded.failures, [], "the recorded archive must verify against the reviewed pin");
+  return buildDependencyMount(recorded);
+};
 
 // Exit codes: 10-29 a writable /workspace control failed; 30-49 a source-mount
 // mutation succeeded; 130-149 it failed with an error other than EROFS; 50-59
@@ -75,7 +105,7 @@ cat /workspace/format.js`;
 
 test("verified formatter runs in the guest and source mount denies writes", { timeout: 120_000 }, async (t) => {
   if (skipLiveGondolin(t)) return;
-  const sources = await prepareDependencyMount();
+  const sources = await verifiedSources();
   assert.ok(sources.available.includes("prettier"), sources.failures.join("; "));
   const environment = createEnvironment({ localCwd: "/unused", dependencySources: sources.provider, idleMs: 0 });
   t.after(() => environment.close());

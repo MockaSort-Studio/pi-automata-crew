@@ -87,6 +87,8 @@ test("files that define the checks are recognized; ordinary files are not", () =
       "eslint.config.js",
       "vitest.config.ts",
       "jest.config.mjs",
+      "package.json",
+      "tools/package.json",
     ]),
     [
       ".prettierignore",
@@ -97,10 +99,20 @@ test("files that define the checks are recognized; ordinary files are not", () =
       "eslint.config.js",
       "vitest.config.ts",
       "jest.config.mjs",
+      "package.json",
+      "tools/package.json",
     ],
   );
   assert.deepEqual(
-    names([".gitignore", "docs/a.md", "src/index.js", "package.json", "tests/a.test.mjs", "github/workflows.md"]),
+    names([
+      ".gitignore",
+      "docs/a.md",
+      "src/index.js",
+      "package-json.md",
+      "docs/package.json.md",
+      "tests/a.test.mjs",
+      "github/workflows.md",
+    ]),
     [],
   );
 });

@@ -13,6 +13,10 @@ const NAR_HASH = /^sha256-[A-Za-z0-9+/]{43}=$/;
 const SYSTEMS = ["x86_64-linux", "aarch64-linux"];
 const SOURCE_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]*\.mjs$/;
 export const MAX_SOURCE_BYTES = 8 * 1024 * 1024;
+// An offline launch may fall back to the last cached latest catalog, but not forever: an old catalog keeps
+// suites (and their pinned extension sources) alive long after the release moved on.
+export const MAX_CACHED_CATALOG_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 // This is the trust boundary for a downloaded catalog. It is deliberately strict
 // and independent of the producer's own validation.
@@ -91,6 +95,8 @@ export async function resolveArmoryCatalog({
   home,
   attempts = 2,
   budgetMs = 12_000,
+  now = Date.now,
+  maxCacheAgeMs = MAX_CACHED_CATALOG_AGE_MS,
 } = {}) {
   const match = typeof release === "string" && /\/armory-([0-9a-f]{40})\/artifacts\.json$/.exec(release);
   const pinned = match && release === pinnedReleaseUrl(match[1]) ? match[1] : undefined;
@@ -142,7 +148,16 @@ export async function resolveArmoryCatalog({
     controller.abort();
   }
   const hit = release === undefined ? cached("latest") : undefined;
-  if (hit) return hit;
+  if (hit) {
+    const age = now() - Date.parse(hit.cachedAt);
+    if (Number.isFinite(age) && age >= -MAX_CLOCK_SKEW_MS && age <= maxCacheAgeMs) return hit;
+    const days = Math.round(maxCacheAgeMs / 86_400_000);
+    throw new Error(
+      `${failure?.message ?? "Armory release unavailable"} (the cached Armory catalog ${hit.revision} from ` +
+        `${hit.cachedAt} is not within the last ${days} days and is not used; reconnect to fetch the current release)`,
+      { cause: failure },
+    );
+  }
   throw new Error(`${failure?.message ?? "Armory release unavailable"} (no cached Armory catalog to fall back to)`, {
     cause: failure,
   });
