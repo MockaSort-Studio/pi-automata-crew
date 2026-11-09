@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { MAX_SOURCE_BYTES } from "../env-runtime/lib/armory-artifacts.mjs";
 import { readOwnedFile, safeCacheDirectory, writeOwnedFile } from "../env-runtime/lib/armory-catalog-cache.mjs";
@@ -16,11 +16,13 @@ const privateCopies = new Set();
 let cleanupRegistered = false;
 
 // The verified bytes, never a checked path, are what gets loaded: they are written from memory into a fresh
-// private directory (mkdtemp, 0700) with an exclusive create, so neither the shared cache nor a planted link can
-// change what is imported after verification. Another account cannot reach the copy; this account (or root) can,
-// which is outside this boundary: code running as the user can already replace the extension itself.
-function privateCopy(bytes, file) {
-  const directory = mkdtempSync(join(tmpdir(), "crew-armory-src-"));
+// private directory (mkdtemp, 0700) with an exclusive create. Its parent is under the same checked owner-only
+// cache hierarchy, not TMPDIR, so another account cannot replace the directory before import. This account (or
+// root) can, which is outside this boundary: code running as the user can already replace the extension itself.
+function privateCopy(bytes, file, { home, uid }) {
+  const parent = safeCacheDirectory({ home, uid, create: true, components: ["armory-imports"] });
+  if (!parent) throw new Error("Crew's private Armory import directory is unsafe");
+  const directory = mkdtempSync(join(parent, "import-"));
   privateCopies.add(directory);
   if (!cleanupRegistered) {
     cleanupRegistered = true;
@@ -85,7 +87,7 @@ export async function fetchSuiteExtension({
   )
     throw new Error(`Armory extension source for ${suiteId} has a malformed entry`);
   const cached = cachedBytes(source, { home, uid });
-  if (cached) return privateCopy(cached, source.file);
+  if (cached) return privateCopy(cached, source.file, { home, uid });
   const response = await fetchImpl(sourceUrl(catalog.revision, source.file), {
     redirect: "follow",
     signal: AbortSignal.timeout(60_000),
@@ -97,5 +99,5 @@ export async function fetchSuiteExtension({
   if (sha256(bytes) !== source.sha256)
     throw new Error(`Armory extension source for ${suiteId} does not match its pinned hash`);
   cacheBytes(source, bytes, { home, uid, random });
-  return privateCopy(bytes, source.file);
+  return privateCopy(bytes, source.file, { home, uid });
 }

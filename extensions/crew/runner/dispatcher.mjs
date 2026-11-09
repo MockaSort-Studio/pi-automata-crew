@@ -52,6 +52,8 @@ export function createDispatcher({
   const records = createMemberRecords({ scrub, now });
   // One per turn: its job, and the controller whose abort cancels a wait for CI as well as a model call.
   const running = new Map();
+  // A follow-up has reopened its ledger node, but waits here for pump() to reserve a parallel slot.
+  const resumed = new Map();
   let disposed = false;
 
   const setState = (handle, next) => {
@@ -125,6 +127,11 @@ export function createDispatcher({
 
   function pump() {
     if (disposed) return;
+    for (const [handle, prompt] of resumed) {
+      if (running.size >= maxParallel) break;
+      resumed.delete(handle);
+      launch(handle, prompt);
+    }
     for (const handle of ledger.nodes()) {
       if (running.size >= maxParallel) break;
       if (!startable(handle)) continue;
@@ -179,7 +186,10 @@ export function createDispatcher({
       // handed-off member's node stayed blocked, so resuming it never released its dependents in between.
       if (ledger.status(handle) === "blocked") ledger.start(handle);
       else if (ledger.status(handle) === "complete") ledger.reopen(handle);
-      launch(handle, prompt);
+      // Do not launch directly: resumed work consumes the same VM budget as initial work.
+      setState(handle, "queued");
+      resumed.set(handle, prompt);
+      pump();
     },
     // Main acknowledges a member that waits for it, without a turn: the blocker, who owns it and what resumes
     // it are recorded. Only a later message resumes the member; nothing here polls or expires.
@@ -231,8 +241,10 @@ export function createDispatcher({
             pump();
           }
         } else if (!ENDS_CANCEL.has(state.get(target))) {
+          // A queued follow-up has already reopened its ledger node, but has not consumed a parallel slot.
+          if (resumed.delete(target)) ledger.fail(target);
           // Cancelled is failed in the ledger too, so nothing reads it as waiting for input or for a prerequisite.
-          if (["waiting", "ready", "blocked"].includes(ledger.status(target))) ledger.cancel(target);
+          else if (["waiting", "ready", "blocked"].includes(ledger.status(target))) ledger.cancel(target);
           setState(target, "cancelled");
           void pool.release(target);
         }

@@ -72,6 +72,8 @@ test("required CI retains generic, QEMU and extension-load coverage and is the o
   const required = workflow.jobs.test;
   assert.notEqual(required["continue-on-error"], true);
   assert.equal(required.env.HALL_VMM, "qemu");
+  const policy = required.steps.find((step) => step.name === "CI skip policy (not skippable)").run;
+  assert.equal(policy, "node --test tests/crew/ci-backend-policy.test.mjs");
   const command = required.steps.find((step) => step.name?.startsWith("Required tests")).run;
   assert.ok(command.includes('export PATH="$PWD/node_modules/.bin:$PATH"'));
   assert.match(command, /--test-skip-pattern='\^krun: '/);

@@ -91,6 +91,33 @@ for (const [name, ending] of [
   });
 }
 
+// A resumed message consumes the same VM budget as a first turn; it cannot launch around pump().
+test("a message waits for maxParallel before resuming a member", async () => {
+  const runningA = deferred();
+  const runningB = deferred();
+  const c = crew({
+    members: [
+      { handle: A, task: "a" },
+      { handle: B, task: "b" },
+    ],
+    maxParallel: 1,
+    script: {
+      [A]: [result("needs_input"), () => runningA.promise.then(() => result("completed"))],
+      [B]: [() => runningB.promise.then(() => result("completed"))],
+    },
+  });
+  c.d.start();
+  await settle();
+  assert.equal(c.of(B).state, "running", "B owns the only slot after A asks Main");
+  c.d.message(A, "resume");
+  await settle();
+  assert.deepEqual([c.of(A).state, c.prompts[A]], ["queued", ["a"]], "A is queued, not prompted around B");
+  runningB.resolve();
+  await settle();
+  assert.deepEqual(c.prompts[A], ["a", "resume"], "pump starts A after B releases the slot");
+  runningA.resolve();
+});
+
 // 2 MAJOR: a cancel during agent creation starts no model turn and is prompt.
 test("cancelling while the agent is being created starts no turn, releases the agent, and returns at once", async () => {
   const created = deferred();

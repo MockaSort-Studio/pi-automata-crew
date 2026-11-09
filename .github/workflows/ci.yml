@@ -59,6 +59,10 @@ jobs:
             ~/.cache/gondolin
             ~/.pi/agent/cache/gondolin
           key: gondolin-${{ runner.os }}-${{ runner.arch }}-${{ steps.gondolin.outputs.version }}
+      # This policy test must not inherit the krun title skip: otherwise renaming it to krun: would disable the
+      # guard that detects unauthorized skipped tests.
+      - name: CI skip policy (not skippable)
+        run: node --test tests/crew/ci-backend-policy.test.mjs
       # Crew workers run this suite from inside a worker; set their identity variables so every CI
       # run proves the suite does not depend on, or break under, an inherited worker environment.
       - name: Required tests (all except the excluded krun cases)

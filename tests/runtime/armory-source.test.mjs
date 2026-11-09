@@ -75,13 +75,35 @@ test("the bundle is fetched from the URL built from the release and file name, v
 test("the loaded path is a private copy of the verified bytes, discarded once imported", async (t) => {
   const h = home(t);
   const path = await fetchInto(h, []);
-  assert.ok(!path.startsWith(sourceCacheRoot(h)), "the cache path itself is never handed to import");
+  assert.ok(!path.startsWith(dirname(cachedFile(h))), "the cache path itself is never handed to import");
+  assert.ok(
+    path.startsWith(join(h, ".cache", "pi-crew", "armory-imports")),
+    "private imports use a checked cache root",
+  );
   assert.equal(statSync(dirname(path)).mode & 0o777, 0o700);
   assert.equal(statSync(path).uid, process.getuid());
   assert.equal((await loadSuiteModule(path)).marker, "verified");
   assert.equal(existsSync(dirname(path)), false);
   assert.equal(discardPrivateCopy(cachedFile(h)), false, "paths it did not create are never removed");
   assert.equal(existsSync(cachedFile(h)), true);
+});
+
+test("an unsafe TMPDIR cannot become the private import parent", async (t) => {
+  const h = home(t);
+  const unsafe = join(h, "unsafe-tmp");
+  mkdirSync(unsafe, { mode: 0o777 });
+  chmodSync(unsafe, 0o777);
+  const previous = process.env.TMPDIR;
+  process.env.TMPDIR = unsafe;
+  try {
+    const path = await fetchInto(h, []);
+    t.after(() => discardPrivateCopy(path));
+    assert.ok(path.startsWith(join(h, ".cache", "pi-crew", "armory-imports")));
+    assert.ok(!path.startsWith(unsafe));
+  } finally {
+    if (previous === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = previous;
+  }
 });
 
 test("swapping the cached file after it was verified does not change what is imported", async (t) => {
