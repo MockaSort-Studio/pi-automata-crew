@@ -1,7 +1,7 @@
 {
   "suite": "collaboration/pi-github-tools",
-  "revision": "8416f68e04af6827ac9f0127fb80136666b1f2fa",
-  "sourceSha256": "b0c68e2a7f94694e27002d85096cc249ac39b41946aee86e253fa121a726bbe0",
+  "revision": "6d8247ec16fe42050debb68fb17a415f5cc8eef0",
+  "sourceSha256": "801e5b280f1f240b0ab3903fc94d8ba1a332340e8411377372a3f542b11664bf",
   "operations": {
     "github_dependency_add": {
       "fields": {
@@ -376,14 +376,24 @@
     },
     "github_workflow_run_failed_log": {
       "fields": {
+        "artifactId": "integer",
+        "artifactName": "string",
+        "artifactPath": "string",
+        "firstFailure": "boolean",
+        "jobId": "integer",
         "maxChars": "integer",
+        "maxLines": "integer",
         "repo": "string",
-        "runId": "integer"
+        "runId": "integer",
+        "startChar": "integer",
+        "startLine": "integer",
+        "step": "integer"
       },
       "required": ["repo", "runId"]
     },
     "github_workflow_run_view": {
       "fields": {
+        "artifacts": "boolean",
         "repo": "string",
         "runId": "integer"
       },

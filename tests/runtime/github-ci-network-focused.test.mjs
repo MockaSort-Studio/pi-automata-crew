@@ -28,6 +28,23 @@ test("CI metadata policy binds exact repo, methods, endpoints, grants and bounde
   assert.equal(check(base + "/runs", {}, []), false);
 });
 
+test("logs and artifacts stay host-side: no guest grant opens their endpoints", () => {
+  const all = [...grants, "github_workflow_run_failed_log"];
+  for (const path of [
+    "/runs/1/logs",
+    "/jobs/1/logs",
+    "/runs/1/attempts/1/logs",
+    "/runs/1/artifacts",
+    "/artifacts",
+    "/artifacts/1",
+    "/artifacts/1/zip",
+  ])
+    assert.equal(check(base + path, {}, all), false, path);
+  // The failed-log grant is a host-side operation; it adds no guest egress on its own.
+  for (const path of ["/runs", "/runs/1", "/runs/1/jobs", "/jobs/1"])
+    assert.equal(check(base + path, {}, ["github_workflow_run_failed_log"]), false, path);
+});
+
 test("missing or malformed network policy fails closed", () => {
   const request = new Request(base + "/runs");
   for (const policy of [undefined, {}, { repo: "Owner/Repo" }, { repo: "Owner/Repo", operations: null }])
