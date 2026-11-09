@@ -20,9 +20,19 @@ const ciSummary = (check, rounds, checkedAt) => ({
   headDiffersFromPush: check.headDiffersFromPush,
 });
 
+const SALVAGE_REGATES = 2;
+
+// Salvage committed or pushed after the gate: the pull request's head is no longer the one CI verified.
+const movedHead = (salvaged) =>
+  Boolean(salvaged?.commit) &&
+  !salvaged.error &&
+  !salvaged.skipped &&
+  (Boolean(salvaged.committed) || salvaged.upToDate === false);
+
 // A member that opened a pull request completes only when CI says so. Red CI resumes the member's own session.
-// `onCheck(handle, ci)` receives every CI snapshot, red rounds included, so the status can show the latest one.
-export function createCiGate({ setState, scrub, maxCiRounds, now, onCheck }) {
+// `onCheck(handle, ci)` receives every CI snapshot, red rounds included, so the status can show the latest one;
+// `onStale(handle)` marks the latest one as no longer describing the pull request's head.
+export function createCiGate({ setState, scrub, maxCiRounds, now, onCheck, onStale }) {
   // Changes to the files that define the checks, scoped to the pull request and verified head.
   const askedGate = new Map();
   const acknowledgedGate = new Map();
@@ -77,9 +87,26 @@ export function createCiGate({ setState, scrub, maxCiRounds, now, onCheck }) {
           { ...ci, failures: (check.failures ?? []).map(({ name, url }) => ({ name, url })) },
         );
       setState(handle, "running");
-      result = await agent.run.prompt(check.followUp);
+      result = await agent.run.prompt(check.followUp, { signal });
     }
     return result;
+  }
+
+  // The gate again, on the head salvage pushed: what CI verified before is not what the pull request now holds.
+  function regate(handle, agent, result, commit, signal) {
+    onStale(handle);
+    const evidence = { ...result.evidence, pushed: { ...result.evidence?.pushed, commit } };
+    return gate(handle, agent, { ...result, evidence }, signal);
+  }
+
+  // Salvage kept moving the head: Main decides, and nothing reads the last snapshot as current.
+  function unverified(handle, result, commit) {
+    onStale(handle);
+    return needsInput(
+      result,
+      `Salvage pushed ${String(commit).slice(0, 7)} to the pull request after CI was checked; that head is not verified.`,
+      result.ci && { ...result.ci, current: false },
+    );
   }
 
   // Only the exact confirmation for the question that was actually asked accepts its files. Any message ends the
@@ -93,5 +120,23 @@ export function createCiGate({ setState, scrub, maxCiRounds, now, onCheck }) {
     askedGate.delete(handle);
   }
 
-  return { gate, answer };
+  // Salvage after the gate. A head salvage moved is checked again, at most SALVAGE_REGATES times, so dependents
+  // are never released on an unverified head. `stopped()` ends it, with no result, once the member is cancelled;
+  // `attempting(true)` marks a salvage that ran on the work so far, which a cancel then does not repeat.
+  async function salvage(handle, agent, first, signal, { stopped, attempting }) {
+    let result = first;
+    for (let regates = 0; ; regates += 1) {
+      if (stopped()) return undefined;
+      if (signal.aborted) result = { ...result, status: "cancelled" };
+      attempting(true);
+      const salvaged = await agent.salvage?.(result.status);
+      if (salvaged) result = { ...result, salvage: salvaged };
+      if (result.status !== "completed" || !agent.verify || !movedHead(salvaged)) return result;
+      if (regates === SALVAGE_REGATES) return unverified(handle, result, salvaged.commit);
+      attempting(false);
+      result = await regate(handle, agent, result, salvaged.commit, signal);
+    }
+  }
+
+  return { gate, salvage, answer };
 }
