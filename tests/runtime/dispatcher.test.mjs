@@ -440,13 +440,14 @@ test("a completed member that asks a question after a follow-up holds what has n
 
   d.message(A, "one more thing");
   await settle();
+  assert.equal(d.status()[0].state, "queued", "the follow-up waits for the slot C owns");
+  release();
+  await settle();
   assert.deepEqual(
     [d.status()[0].state, d.status()[2].ledger],
     ["needs_input", "blocked"],
-    "B is held while its prerequisite asks",
+    "B is held once the queued follow-up asks Main",
   );
-  release();
-  await settle();
   assert.equal(w.agents[B], undefined, "B never started on a result that was in question");
 
   d.message(A, "the first one");
