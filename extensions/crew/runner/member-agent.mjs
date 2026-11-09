@@ -5,6 +5,8 @@ import { populateRepositoryWorkspace } from "../env-runtime/lib/repository-works
 import { createAgentRun } from "./agent-run.mjs";
 import { verifyPullRequest } from "./ci-verify.mjs";
 import { createEnvironment } from "./environment.mjs";
+import { prepareDependencyMount } from "./dependency-mount.mjs";
+import { verificationFacts } from "./verification-facts.mjs";
 import { githubCiHeadersAllowed, githubCiRequestAllowed } from "./github-ci-network.mjs";
 import { createSuiteOperations, githubSuiteExtension } from "./github-suite.mjs";
 import { routedToolsExtension } from "./routing-extension.mjs";
@@ -18,7 +20,7 @@ const CREATE_PULL_REQUEST = "github_pull_request_create";
 // context: its own VM environment seeded from the repository revision, the routed built-in tools, the GitHub
 // suite on the host if it was granted, and, only if it may write, a host-side rescue of its work.
 // `crew`: { runId, dir, repository?, seedArchive?, github?: { module, token }, modelRuntime, idleMs }
-export async function createMemberAgent({ member, crew, onEvent }) {
+export async function createMemberAgent({ member, crew, onEvent, prepareSources = prepareDependencyMount }) {
   const cwd = join(crew.dir, "agents", member.handle, "cwd");
   mkdirSync(cwd, { recursive: true });
   const policy = crew.repository
@@ -34,7 +36,17 @@ export async function createMemberAgent({ member, crew, onEvent }) {
   const ciAccess =
     github?.token &&
     operations.some((name) => ["github_workflow_runs_list", "github_workflow_run_view"].includes(name));
+  const hasBash = member.tools.includes("bash");
+  let sources;
+  if (hasBash) {
+    try {
+      sources = await prepareSources();
+    } catch {
+      sources = { available: [], failures: ["Verified dependency source mount unavailable"] };
+    }
+  }
   const environment = createEnvironment({
+    dependencySources: sources?.provider,
     localCwd: cwd,
     label: member.handle,
     idleMs: crew.idleMs,
@@ -67,7 +79,7 @@ export async function createMemberAgent({ member, crew, onEvent }) {
     cwd,
     model: member.model,
     thinking: member.thinking,
-    instructions: member.instructions,
+    instructions: `${member.instructions ?? ""}\n\n${verificationFacts(sources, hasBash)}`,
     tools: [...member.tools, ...operations],
     extensionFactories,
     sessionDir: join(crew.dir, "agents", member.handle, "sessions"),

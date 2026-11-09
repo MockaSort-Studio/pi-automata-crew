@@ -28,6 +28,7 @@ function host({ results = {}, deps = {} } = {}) {
         if (model !== "mock/mock-model") throw new Error(`Model "${model}" was not found in Pi's model catalog.`);
       },
       buildSeed: () => Buffer.from("seed"),
+      prepareDependencySources: async () => ({ snapshots: [], failures: [] }),
       resolveArmoryCatalog: async () => ({ revision: "abc" }),
       loadGithubModule: async () => ({ activateSuite() {} }),
       createMemberAgent: async ({ member: m, crew, onEvent }) => {
@@ -159,6 +160,22 @@ test("an unavailable repository revision and a missing credential fail the launc
     /no Crew credential/,
   );
   for (const h of [bad, noToken]) assert.deepEqual(h.created, []);
+});
+
+test("launch reports source prerequisites without exposing source bytes", async () => {
+  const h = host({
+    deps: {
+      prepareDependencySources: async () => ({
+        snapshots: [{ secret: "never-report" }],
+        failures: ["prettier unavailable"],
+      }),
+    },
+  });
+  const result = await h.call("launch", launch({ members: [member(A, { tools: ["bash"] })] }));
+  assert.equal(result.ok, true);
+  assert.match(result.result.warnings.join(" "), /prettier unavailable/);
+  assert.doesNotMatch(JSON.stringify(result.result), /never-report/);
+  await h.core.close();
 });
 
 test("a valid launch starts the crew, forwards results and states tagged with the run, and tracks activity", async () => {
