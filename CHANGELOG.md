@@ -30,7 +30,14 @@ First release in preparation. What the Crew does today:
 - A TUI: a footer line per active crew and a dashboard (`/crew-dashboard`) with live turns, tools, errors,
   tokens, context usage and compactions.
 - `/crew-doctor` checks that a machine can run a Crew (it boots a VM).
-- Skills for dispatching: `engineering-execution`, `engineering-review`.
+- Skills for dispatching and review: `engineering-execution`, `engineering-review`, `post-iteration-review`,
+  `security-boundary-review`.
+- Members granted bash get verified, read-only dependency sources and Prettier at `/opt/crew/dependency-sources`
+  (SRI-checked public npm artifacts) so they can format in the guest.
+- `requiredCapabilities` on a member asserts authorization (suite and operations) before launch.
+- An optional `{ kind: "autonomy", allowedFileClasses, forbiddenFiles }` input gives a member scope guidance, and
+  the Crew contract tells every member what always needs Main's answer. Unknown keys, a kind that only matches
+  `autonomy` case-insensitively, and backticks or control characters in patterns are rejected.
 
 ### Known limits
 

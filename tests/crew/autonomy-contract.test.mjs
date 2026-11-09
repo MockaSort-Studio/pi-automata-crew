@@ -43,14 +43,9 @@ test("the statement is explained in the assembled instructions, not only passed 
   assert.match(section, /Allowed file classes: tests, docs\. A file outside these classes, or one you cannot classify/);
   assert.match(section, /stop and call `request_input`/);
   assert.match(section, /grants no tool, repository or credential authority/);
-  assert.doesNotMatch(section, /No autonomy statement was given/);
-});
-
-test("removing the statement removes the policy: the section differs from the one with a statement", () => {
-  const withStatement = assembleWith([statement]).instructions;
   const without = assembleWith([{ kind: "issue", number: 151 }]).instructions;
-  assert.ok(withStatement.includes("Forbidden files"));
-  assert.ok(!without.includes("Forbidden files"));
+  assert.ok(!without.includes("Forbidden files"), "no statement, no forbidden-file policy");
+  assert.doesNotMatch(section, /No autonomy statement was given/);
 });
 
 test("the statement does not change the role's tools or authority", () => {
@@ -77,6 +72,13 @@ test("malformed or ambiguous statements are rejected at assembly, never silently
     { kind: "autonomy", forbiddenFiles: ["/etc/passwd"] },
     { kind: "autonomy", forbiddenFiles: ["a//b"] },
     { kind: "autonomy", forbiddenFiles: ["a/./b"] },
+    { kind: "autonomy", allowedFileClasses: ["tests"], forbiddenFileClasses: ["ci"] },
+    { kind: "autonomy", forbiddenFiles: ["a"], extra: true },
+    { kind: "Autonomy", forbiddenFiles: ["a"] },
+    { kind: " AUTONOMY ", allowedFileClasses: ["tests"] },
+    { kind: "autonomy", forbiddenFiles: ["src/`x`"] },
+    { kind: "autonomy", forbiddenFiles: ["a\u0007b"] },
+    { kind: "autonomy", forbiddenFiles: ["a\tb"] },
   ];
   for (const input of bad) assert.throws(() => assembleWith([input]), /autonomy/, JSON.stringify(input));
   assert.throws(() => assembleWith([statement, statement]), /ambiguous/);
@@ -107,6 +109,19 @@ test("with no optional context at all, the base prompts still carry the default 
   assert.match(instructions, /Named files are a scope hint/);
   assert.match(instructions, /Stop and ask only for files or classes the assignment forbids/);
   assert.match(instructions, /### Autonomy and escalation/);
+});
+
+test("no role is told to mutate or load skills against its role: read-only reviewers, no skills for workers", () => {
+  for (const role of ["developer", "reviewer"]) {
+    const { instructions } = assembleWith([{ kind: "issue", number: 151 }], role);
+    assert.match(instructions, /Do not search for or load project skills/);
+    assert.doesNotMatch(instructions, /post-iteration-review/);
+    assert.doesNotMatch(instructions, /HALL_SKIP_GONDOLIN_LIVE_TESTS|github-armory-routing|github-pull-reviews/);
+  }
+  const { instructions } = assembleWith([{ kind: "issue", number: 151 }], "reviewer");
+  assert.match(instructions, /If your role may change files and you were granted repository operations/);
+  assert.match(instructions, /A read-only role never edits, commits or pushes/);
+  assert.doesNotMatch(instructions, /When you have repository tools, check out/);
 });
 
 test("the request_input tool separates authority questions from implementation questions, schema unchanged", () => {

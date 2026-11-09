@@ -99,11 +99,18 @@ changes are recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ```bash
 npm ci
-npm test                 # needs a VM; HALL_SKIP_GONDOLIN_LIVE_TESTS=1 skips those, as CI does
+npm test                 # needs a VM; CI boots the QEMU live tests and does not skip them
 npm run format:check
 ```
 
-Live tests run the real host, real VMs and an offline model.
+Live tests run the real host, real VMs and an offline model. `HALL_SKIP_GONDOLIN_LIVE_TESTS=1` skips them on a
+machine without a VM; CI never sets it, and a skip is not a pass.
+
+Assignments accept `deliverTo` (lowercase `main` or a member handle; `Main` is rejected), `requiredCapabilities`
+(`[{ suite, operations }]`: authorization is asserted before launch, but a grant does not guarantee installed tools),
+and an optional `inputs` entry `{ "kind": "autonomy", "allowedFileClasses": [...], "forbiddenFiles": [...] }`
+(only those keys; guidance for the member, not enforced by the runtime). Members granted bash see verified read-only
+dependency sources and Prettier at `/opt/crew/dependency-sources` ([verification](docs/crew/verification.md)).
 
 ## Layout
 
