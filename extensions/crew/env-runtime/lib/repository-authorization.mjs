@@ -48,8 +48,21 @@ const allowedKeysByOperation = {
   github_pull_request_files: new Set(["repo", "pullNumber"]),
   github_pull_request_checks: new Set(["repo", "pullNumber"]),
   github_workflow_runs_list: new Set(["repo", "workflow", "limit"]),
-  github_workflow_run_view: new Set(["repo", "runId"]),
-  github_workflow_run_failed_log: new Set(["repo", "runId", "maxChars"]),
+  github_workflow_run_view: new Set(["repo", "runId", "artifacts"]),
+  github_workflow_run_failed_log: new Set([
+    "repo",
+    "runId",
+    "maxChars",
+    "jobId",
+    "step",
+    "firstFailure",
+    "startLine",
+    "maxLines",
+    "startChar",
+    "artifactId",
+    "artifactName",
+    "artifactPath",
+  ]),
   github_pull_request_review_threads: new Set(["repo", "pullNumber", "includeResolved"]),
   github_pull_request_update: new Set(["repo", "pullNumber", "title", "body", "state"]),
   github_pull_request_add_label: new Set(["repo", "pullNumber", "labels"]),
@@ -83,6 +96,33 @@ const safeWorkspacePath = (path) =>
   !path.startsWith("-") &&
   !/[\0-\x1f\x7f]/.test(path) &&
   !path.split("/").some((part) => part === "..");
+
+const boundedInteger = (value, min, max) => Number.isSafeInteger(value) && value >= min && value <= max;
+
+// A file path inside a downloaded artifact: plain relative segments only. No absolute or drive path,
+// no backslash, no empty, "." or ".." segment, no control characters.
+const safeArtifactPath = (path) =>
+  typeof path === "string" &&
+  path.length > 0 &&
+  path.length <= 1024 &&
+  !/^[A-Za-z]:/.test(path) &&
+  !/[\\\0-\x1f\x7f]/.test(path) &&
+  path.split("/").every((part) => part && part !== "." && part !== "..");
+
+// Optional bounded inputs of the read-only failed-log operation. Armory validates them again; this is
+// Crew's authorization bound, so anything malformed is refused rather than forwarded.
+const failedLogInputChecks = {
+  maxChars: (value) => boundedInteger(value, 1, 12000),
+  jobId: (value) => boundedInteger(value, 1, Number.MAX_SAFE_INTEGER),
+  step: (value) => boundedInteger(value, 1, 1000),
+  firstFailure: (value) => typeof value === "boolean",
+  startLine: (value) => boundedInteger(value, 1, Number.MAX_SAFE_INTEGER),
+  maxLines: (value) => boundedInteger(value, 1, 2000),
+  startChar: (value) => boundedInteger(value, 0, 4194304),
+  artifactId: (value) => boundedInteger(value, 1, Number.MAX_SAFE_INTEGER),
+  artifactName: (value) => typeof value === "string" && value.length > 0 && value.length <= 256,
+  artifactPath: safeArtifactPath,
+};
 
 function assertKnownShape(operation, input) {
   if (!input || typeof input !== "object" || Array.isArray(input))
@@ -144,12 +184,12 @@ export function authorizeRepositoryOperation(operation, input, policy) {
   if (operation === "github_workflow_run_view" || operation === "github_workflow_run_failed_log") {
     if (!Number.isSafeInteger(input.runId) || input.runId <= 0) throw new Error("Invalid runId");
   }
-  if (
-    operation === "github_workflow_run_failed_log" &&
-    "maxChars" in input &&
-    (!Number.isInteger(input.maxChars) || input.maxChars < 1 || input.maxChars > 12000)
-  )
-    throw new Error("Invalid maxChars");
+  if (operation === "github_workflow_run_view" && "artifacts" in input && typeof input.artifacts !== "boolean")
+    throw new Error("Invalid artifacts");
+  if (operation === "github_workflow_run_failed_log") {
+    for (const [key, valid] of Object.entries(failedLogInputChecks))
+      if (key in input && !valid(input[key])) throw new Error(`Invalid ${key}`);
+  }
   if (operation === "github_pull_request_update") {
     if (!["title", "body", "state"].some((key) => key in input))
       throw new Error("Update requires title, body or state");
