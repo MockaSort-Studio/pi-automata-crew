@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { buildDependencyMount } from "../../extensions/crew/runner/dependency-mount.mjs";
 import { createEnvironment } from "../../extensions/crew/runner/environment.mjs";
 import { constants } from "node:os";
+import { readonlyError } from "../../extensions/crew/runner/readonly-snapshot.mjs";
 
 test("denied snapshot mutations carry the same EROFS errno as Gondolin ReadonlyProvider", async () => {
   const { provider } = await buildDependencyMount({
@@ -13,6 +14,13 @@ test("denied snapshot mutations carry the same EROFS errno as Gondolin ReadonlyP
   const reference = await provider.mkdir("/demo/new").catch((error) => error);
   assert.equal(reference.errno, constants.errno.EROFS);
   assert.equal(typeof reference.code, "string");
+  // Deterministic, independent of getSystemErrorName (which rejects a positive errno): Linux EROFS is 30.
+  assert.equal(constants.errno.EROFS, 30);
+  assert.equal(reference.code, "ERRNO_30");
+  assert.deepEqual(
+    { ...readonlyError("open", "/x"), message: readonlyError("open", "/x").message },
+    { code: "ERRNO_30", errno: 30, syscall: "open", path: "/x", message: "ERRNO_30: open '/x'" },
+  );
   const EROFS = { code: reference.code, errno: reference.errno };
   for (const flag of ["r+", "w", "w+", "a", "a+", "wx", "ax"]) {
     const error = await provider.open("/demo/index.js", flag).catch((caught) => caught);
@@ -50,9 +58,13 @@ test("dependency snapshot is readable but refuses mutation", async () => {
   await assert.rejects(provider.symlink("/elsewhere", "/demo/link"));
   await assert.rejects(provider.link("/demo/index.js", "/demo/link"));
   await assert.rejects(provider.chmod("/demo/index.js", 0o600));
-  for (const name of ["truncate", "chown", "utimes"]) {
-    if (typeof provider[name] === "function") await assert.rejects(provider[name]("/demo/index.js", 0));
-  }
+  await assert.rejects(provider.copyFile("/demo/index.js", "/demo/copy"));
+  assert.throws(() => provider.writeFileSync("/demo/index.js", "changed"));
+  assert.throws(() => provider.appendFileSync("/demo/index.js", "changed"));
+  assert.throws(() => provider.copyFileSync("/demo/index.js", "/demo/copy"));
+  // Gondolin 0.14.0's provider has no path-level truncate, chown or utimes: the guest reaches truncation through an
+  // open handle, refused below. Should a later Gondolin add any of them, this fails until it is proven read-only.
+  for (const name of ["truncate", "chown", "utimes"]) assert.equal(provider[name], undefined, name);
   const handle = await provider.open("/demo/index.js", "r");
   await assert.rejects(handle.write(Buffer.from("x"), 0, 1, 0));
   await assert.rejects(handle.truncate(0));

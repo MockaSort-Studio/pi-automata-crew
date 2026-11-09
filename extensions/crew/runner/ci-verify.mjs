@@ -7,9 +7,11 @@ const MAX_LOG_CHARS = 2500;
 export const pullNumberOf = (url) => Number(PULL_URL.exec(String(url ?? ""))?.[1]) || undefined;
 
 // A green CI means nothing if the change weakened the checks. These paths define them (CI workflows, formatter and
-// linter ignore lists and configs, test-runner configs); a pull request that touches one is reported to Main even
-// when CI is green. It is deliberately generic and short: a reviewer still reads the diff.
+// linter ignore lists and configs, test-runner configs, and package.json, whose scripts CI runs, such as
+// `format:check`); a pull request that touches one is reported to Main even when CI is green. It is deliberately
+// generic and short: a reviewer still reads the diff.
 const GATE_FILES = [
+  /(^|\/)package\.json$/,
   /^\.github\/(workflows|actions)\//,
   /(^|\/)\.(prettier|eslint|stylelint|markdownlint)ignore$/,
   /(^|\/)\.(prettier|eslint|stylelint|markdownlint)rc[^/]*$/,
