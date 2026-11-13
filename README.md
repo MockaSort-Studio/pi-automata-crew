@@ -86,7 +86,7 @@ and humans.
 | `crew_doctor` / `/crew-doctor` | Check this machine                                             |
 
 There is no deadline on an agent run. A member that fails or asks a question is
-held, not lost, until you message, hold, hand off or cancel it. Quitting Pi closes every VM; `/reload` leaves running crews alone.
+held, not lost, until you message, hold, hand off or cancel it. Quitting Pi closes every VM; `/reload` leaves running crews alone. See [what to expect from the first beta](docs/crew/beta-expectations.md) for current guarantees and limits.
 
 ## License
 
