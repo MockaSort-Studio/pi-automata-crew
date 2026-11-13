@@ -80,6 +80,7 @@ test("a hold is recorded and visible but starts no turn; only an explicit messag
   assert.equal(status.state, "on_hold");
   assert.equal(status.ledger, "blocked");
   assert.deepEqual(status.hold.refs, { pullRequest: "https://github.com/o/r/pull/9", head: HEAD });
+  assert.equal(status.hold.refsAssertedBy, "main", "refs are Main's own claims, labelled as such");
   assert.equal(status.hold.owner, "developer-bravo-00");
   assert.match(status.hold.at, /^t\d+$/);
   assert.deepEqual(status.lastReport, { status: "needs_input", at: "t1", current: false });

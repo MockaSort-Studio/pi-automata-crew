@@ -29,3 +29,17 @@ test("gate acknowledgement uses the current head and fails closed without a cons
   await assert.rejects(verify([{ filename: ".prettierignore" }]), /head/i);
   assert.equal((await verify([file(sha)], { pullRequest: evidence.pullRequest })).headSha, sha);
 });
+
+test("a package.json change is a gate file, acknowledged only for the exact verified head", async () => {
+  const manifest = (head) => ({
+    filename: "package.json",
+    blob_url: `https://github.com/o/r/blob/${head}/package.json`,
+  });
+  const ordinary = (head) => ({ filename: "docs/a.md", blob_url: `https://github.com/o/r/blob/${head}/docs/a.md` });
+  const green = await verify([ordinary(sha), manifest(sha)]);
+  assert.deepEqual(green.gateFiles, ["package.json"]);
+  assert.equal(green.headSha, sha);
+  assert.deepEqual((await verify([ordinary(sha)])).gateFiles, []);
+  await assert.rejects(verify([manifest(other)]), /head/i);
+  await assert.rejects(verify([ordinary(sha), manifest(other)]), /head/i);
+});

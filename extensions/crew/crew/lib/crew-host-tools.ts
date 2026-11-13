@@ -13,7 +13,7 @@ export function registerCrewHostTools(pi: any, host: (ctx: any) => any) {
     name: "crew_status",
     label: "Crew: status",
     description:
-      "Show each member's one current state (queued, held, running, ci = waiting for its pull request checks, needs_input, failed, on_hold, completed, handed_off, cancelled), its lastReport (the member's latest report with its time; current=false means the member has moved on since), its ci snapshot (state of an exact headSha at checkedAt; only success is green: none and unavailable are not), Main's hold or handoff, and its last activity. completed means the model finished and the CI gate passed or found no checks; it is not review or acceptance. For a deliberate check, not for waiting: reports arrive as messages.",
+      "Show each member's one current state (queued, held, running, ci = waiting for its pull request checks, needs_input, failed, on_hold, completed, handed_off, cancelled), its lastReport (the member's latest report with its time; current=false means the member has moved on since), its ci snapshot (state of an exact headSha at checkedAt; only success is green: none and unavailable are not), Main's hold or handoff (a hold's refs are Main-asserted, refsAssertedBy=main: recorded as given, not verified by the runner), and its last activity. completed means the model finished and the CI gate passed or found no checks; it is not review or acceptance. For a deliberate check, not for waiting: reports arrive as messages.",
     parameters: Type.Object({ runId: Type.Optional(Type.String()) }),
     async execute(_id: string, input: { runId?: string }, _signal: unknown, _update: unknown, ctx: any) {
       const { client, runs } = host(ctx);
@@ -45,7 +45,7 @@ export function registerCrewHostTools(pi: any, host: (ctx: any) => any) {
     name: "crew_hold",
     label: "Crew: hold a member",
     description:
-      "Acknowledge a member that is waiting for you (needs_input, failed or on_hold) without starting a turn: record what blocks it, who owns the blocker, and what will make you resume it, with optional pull request, head SHA or artifact references. The member stays on_hold with its VM and its dependents held. Nothing resumes it automatically: resume it later with crew_message.",
+      "Acknowledge a member that is waiting for you (needs_input, failed or on_hold) without starting a turn: record what blocks it, who owns the blocker, and what will make you resume it, with optional pull request, head SHA or artifact references (Main-asserted: recorded as you give them and labelled refsAssertedBy=main, never verified by the runner). The member stays on_hold with its VM and its dependents held. Nothing resumes it automatically: resume it later with crew_message.",
     parameters: Type.Object({
       runId: Type.String(),
       member: Type.String(),

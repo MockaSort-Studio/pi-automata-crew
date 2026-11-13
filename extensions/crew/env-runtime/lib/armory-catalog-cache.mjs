@@ -16,11 +16,17 @@ import { homedir } from "node:os";
 import { dirname, join, parse } from "node:path";
 
 export const catalogCacheRoot = (home = homedir()) => join(home, ".cache", "pi-crew", "armory-catalog");
-const fileFor = (name, home) => join(catalogCacheRoot(home), `${name}.json`);
+const CATALOG = ["armory-catalog"];
+const CACHE_COMPONENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
+// The canonical path of ~/.cache/pi-crew/<components...>, or false when it cannot be trusted: every ancestor of the
+// canonical home must be a directory owned by root or this account, and the home and every cache component must
+// be a real (not symlinked) directory owned by this account; none may be group- or world-writable.
 // Owned, non-writable ancestors exclude other accounts; same-account races are outside this boundary.
-function safeDirectory(home = homedir(), uid, create = false) {
+export function safeCacheDirectory({ home = homedir(), uid, create = false, components }) {
   if (typeof uid !== "function" || typeof constants.O_NOFOLLOW !== "number") return false;
+  if (!Array.isArray(components) || !components.length || !components.every((part) => CACHE_COMPONENT.test(part)))
+    return false;
   const owner = uid();
   if (!Number.isInteger(owner) || owner < 0) return false;
   const canonicalHome = realpathSync(home);
@@ -32,7 +38,7 @@ function safeDirectory(home = homedir(), uid, create = false) {
     ancestor = dirname(ancestor);
   }
   let path = canonicalHome;
-  for (const component of [undefined, ".cache", "pi-crew", "armory-catalog"]) {
+  for (const component of [undefined, ".cache", "pi-crew", ...components]) {
     if (component) {
       path = join(path, component);
       if (create) {
@@ -46,23 +52,43 @@ function safeDirectory(home = homedir(), uid, create = false) {
     const stat = lstatSync(path);
     if (!stat.isDirectory() || stat.uid !== owner || (stat.mode & 0o022) !== 0) return false;
   }
-  return canonicalHome;
+  return path;
+}
+
+// A regular file this account owns and nobody else can write, opened without following a symlink; its bytes are
+// read from the same descriptor that was checked. Undefined otherwise.
+export function readOwnedFile(path, owner) {
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.uid !== owner || (stat.mode & 0o022) !== 0) return undefined;
+    return readFileSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+// Atomic replace through an unpredictable, exclusively created (never followed) temporary file.
+export function writeOwnedFile(path, body, random = randomBytes) {
+  const temporary = `${path}.${random(16).toString("hex")}.tmp`;
+  writeFileSync(temporary, body, { mode: 0o600, flag: "wx" });
+  try {
+    renameSync(temporary, path);
+  } catch (error) {
+    try {
+      unlinkSync(temporary);
+    } catch {}
+    throw error;
+  }
 }
 
 export function readCachedCatalog(name, { home, validate, uid = process.getuid } = {}) {
   try {
-    const canonicalHome = safeDirectory(home, uid);
-    if (!canonicalHome) return undefined;
-    const fd = openSync(fileFor(name, canonicalHome), constants.O_RDONLY | constants.O_NOFOLLOW);
-    let body;
-    try {
-      const stat = fstatSync(fd);
-      if (!stat.isFile() || stat.uid !== uid() || (stat.mode & 0o022) !== 0) return undefined;
-      body = readFileSync(fd, "utf8");
-    } finally {
-      closeSync(fd);
-    }
-    const { fetchedAt, doc } = JSON.parse(body);
+    const directory = safeCacheDirectory({ home, uid, components: CATALOG });
+    if (!directory) return undefined;
+    const body = readOwnedFile(join(directory, `${name}.json`), uid());
+    if (!body) return undefined;
+    const { fetchedAt, doc } = JSON.parse(body.toString("utf8"));
     const valid = validate(doc);
     if (name !== "latest" && valid.revision !== name) return undefined;
     return { doc: valid, fetchedAt };
@@ -76,28 +102,14 @@ export function writeCachedCatalog(
   doc,
   { home, now = () => new Date(), uid = process.getuid, latest = true, random = randomBytes } = {},
 ) {
-  let temporary;
-  let created = false;
   try {
-    const canonicalHome = safeDirectory(home, uid, true);
-    if (!canonicalHome) return false;
+    const directory = safeCacheDirectory({ home, uid, create: true, components: CATALOG });
+    if (!directory) return false;
     const body = JSON.stringify({ fetchedAt: now().toISOString(), doc });
-    for (const name of latest ? ["latest", doc.revision] : [doc.revision]) {
-      const path = fileFor(name, canonicalHome);
-      temporary = `${path}.${random(16).toString("hex")}.tmp`;
-      writeFileSync(temporary, body, { mode: 0o600, flag: "wx" });
-      created = true;
-      renameSync(temporary, path);
-      created = false;
-      temporary = undefined;
-    }
+    for (const name of latest ? ["latest", doc.revision] : [doc.revision])
+      writeOwnedFile(join(directory, `${name}.json`), body, random);
     return true;
   } catch {
-    if (temporary && created) {
-      try {
-        unlinkSync(temporary);
-      } catch {}
-    }
     return false;
   }
 }

@@ -14,11 +14,24 @@ export function assignmentContext(member) {
 // It is scope guidance for the member, not an access-control list: nothing in the runtime enforces it,
 // and it grants no tool, repository or credential authority. Invalid or ambiguous statements are rejected
 // at assembly so a malformed list can never silently widen scope.
-export function autonomyScope(inputs) {
-  const statements = Array.isArray(inputs) ? inputs.filter((input) => input?.kind === "autonomy") : [];
+function autonomyScope(inputs) {
+  const entries = Array.isArray(inputs) ? inputs : [];
+  const near = entries.find(
+    (input) =>
+      typeof input?.kind === "string" && input.kind !== "autonomy" && input.kind.trim().toLowerCase() === "autonomy",
+  );
+  if (near) throw new Error(`autonomy: input kind ${JSON.stringify(near.kind)} must be exactly "autonomy"`);
+  const statements = entries.filter((input) => input?.kind === "autonomy");
   if (!statements.length) return undefined;
   if (statements.length > 1) throw new Error("autonomy: more than one autonomy statement is ambiguous");
-  const { allowedFileClasses, forbiddenFiles } = statements[0];
+  const { kind, allowedFileClasses, forbiddenFiles, ...unknown } = statements[0];
+  if (Object.keys(unknown).length) {
+    throw new Error(
+      `autonomy: unknown key(s) ${Object.keys(unknown)
+        .map((key) => JSON.stringify(key))
+        .join(", ")}; only allowedFileClasses and forbiddenFiles are accepted`,
+    );
+  }
   if (allowedFileClasses === undefined && forbiddenFiles === undefined) {
     throw new Error("autonomy: statement must list allowedFileClasses and/or forbiddenFiles");
   }
@@ -40,12 +53,13 @@ function fileClass(name, value) {
 }
 
 // Forbidden patterns are repo-relative POSIX paths or globs. Backslashes, absolute paths, and `..` segments
-// are rejected rather than guessed at; a leading `./` is stripped.
+// are rejected rather than guessed at; a leading `./` is stripped. Backticks are rejected because patterns are
+// interpolated into the prompt, where they could close the surrounding markdown.
 function forbiddenPattern(name, value) {
   if (typeof value !== "string") throw new Error(`autonomy: invalid ${name} entry`);
   const pattern = value.replace(/^(\.\/)+/, "");
   const segments = pattern.split("/");
-  if (!pattern || pattern.includes("\\") || pattern.startsWith("/") || /[\0\n\r]/.test(pattern)) {
+  if (!pattern || pattern.includes("\\") || pattern.startsWith("/") || /[\u0000-\u001f\u007f`]/.test(pattern)) {
     throw new Error(`autonomy: invalid ${name} entry ${JSON.stringify(value)}`);
   }
   if (segments.some((segment) => segment === ".." || segment === "." || segment === "")) {

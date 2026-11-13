@@ -38,7 +38,9 @@ it receives the input it asked for (its next delivery reports `running`). A
 dependent blocked only because a predecessor is blocked cannot leave that state
 itself; it returns to `waiting` once no predecessor holds it. A Crew whose
 members are all settled with any `blocked` asks Main for input rather than
-reporting termination, and notifies again if it settles again after resuming.
+reporting termination. It notifies once per settling: a member reporting
+`running` again (or, on the Comm path, any snapshot with an unsettled node)
+re-arms the notice, so settling again after a resume notifies again.
 
 `blocked` requires:
 

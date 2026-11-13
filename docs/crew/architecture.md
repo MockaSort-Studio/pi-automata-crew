@@ -57,7 +57,9 @@ Main decides what happens to a member that waits for it (`needs_input`, `failed`
 
 - **`crew_message`** resumes it with exactly one turn. Every message resumes; the runner never judges prose.
 - **`crew_hold`** records a blocker, its owner, a resume condition and optional PR/head/artifact references.
-  The member becomes `on_hold`, keeps its VM, and starts no turn; nothing polls or expires. A message resumes it.
+  The references are Main-asserted (`refsAssertedBy: "main"`): recorded as Main gave them, never verified by
+  the runner. The member becomes `on_hold`, keeps its VM, and starts no turn; nothing polls or expires. A
+  message resumes it.
 - **`crew_handoff`** ends it as `partial` or `superseded` work with its unmet criteria and saved evidence (pull
   request, pushed head, last CI snapshot, salvage). Its VM is released; its node stays blocked, so dependents
   never start on it. A later message recovers it in a new session given its assignment and the handoff. The
@@ -66,14 +68,24 @@ Main decides what happens to a member that waits for it (`needs_input`, `failed`
   CI snapshot is history, never a green result.
 - **`crew_cancel`** ends it; its node fails and its VM is released. Cancelling the crew also fails the nodes of
   members that never started, even those held behind a prerequisite.
+  A cancel during agent creation starts no model turn; the abort reaches the running prompt and a CI follow-up
+  through their signal.
 
-When every member has settled, Main is told once. It gets a turn only if a member still waits for its answer
-(`needs_input` or `failed`) or the crew finished; a crew whose blocked members are on hold, handed off, cancelled
-or held behind one of those is reported without a turn. The dashboard shows those members as blocked.
+A dependent already running when its completed prerequisite is reopened (a follow-up) started on the earlier
+result: if the prerequisite then fails, asks a question or is cancelled, the dependent keeps running and ends as
+itself.
+
+When every member has settled, Main is told once per settling. A member reporting `running` again (Main's
+answer, a retry, a follow-up) re-arms the notice, so a crew that settles again after a resume is reported again:
+after a "waiting for input" notice, answering until the crew completes brings the terminal notice. Main gets a
+turn only if a member still waits for its answer (`needs_input` or `failed`) or the crew finished; a crew whose
+blocked members are on hold, handed off or held behind one of those is reported without a turn (a cancelled
+member's node is failed, not blocked). The dashboard shows those members as blocked. A run's notice bookkeeping
+is dropped when the run is cleaned up or the host exits.
 
 Holds and handoffs are recorded in the run's `events.jsonl` as `decision` events and are not delivered as
 reports. `crew_status` shows, beside the state, `lastReport` (the latest report's status and time, `current`
-only while the member is still in that state), `ci` (state, `pullNumber`, `headSha`, `checkedAt`, and `current`
+only while the member is still in that state), `ci` (state, `pullNumber`, `headSha`, `checkedAt`, `rounds`, `checks` as name and conclusion pairs, and `current`
 until the member works again; only `success` is green, `none` and `unavailable` are not), and the current `hold`
 or `handoff`. Main's text in a hold or handoff is recorded whole or refused, never shortened.
 
@@ -98,7 +110,9 @@ A member that fails or asks a question is **held** with its dependents, not term
 ends it.
 When a run ends, salvage is best-effort for members granted typed Git commit and push: the runner attempts to
 commit and push uncommitted work to the member's `crew/<run>/<member>` branch. Salvage failure is reported
-beside the result.
+beside the result. Salvage runs after the CI gate; if it commits or pushes on a completed member that is
+held to CI, the gate runs again on the new head before anything depends on it (at most twice; then the member asks
+Main and its CI snapshot is not current). Dependents are never released on an unverified head.
 
 ## Trust and limits
 

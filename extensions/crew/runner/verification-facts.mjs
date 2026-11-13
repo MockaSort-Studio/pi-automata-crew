@@ -10,6 +10,10 @@ export function verificationFacts(sources, bashGranted) {
     available.includes("prettier")
       ? `Guest formatter: node ${root}/prettier/bin/prettier.cjs --write <workspace paths>.`
       : "Guest formatter unavailable; do not substitute a host formatter.",
+    "The guest has no git binary: use the pull request files and diff operations to see changes. Its BusyBox grep lacks --include (use find with grep, or grep -r on a path).",
+    ...(available.some((name) => name === "ws" || name === "typebox")
+      ? ["The ws and typebox mounts are source only: they cannot be imported or run without a workaround."]
+      : []),
     "Source snapshots are not installed project dependencies. Run syntax or focused tests only when their prerequisites are actually present; project dependency-backed tests require hosted CI when absent. Label guest, host, CI, and unperformed evidence separately.",
   ].join("\n");
 }

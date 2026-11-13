@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   armoryCache,
+  MAX_CACHED_CATALOG_AGE_MS,
   fetchArtifactCatalog,
   pinnedReleaseUrl,
   readCatalogSuite,
@@ -220,4 +221,35 @@ test("explicit release downloads do not replace the latest cache", async () => {
   await resolveArmoryCatalog({ home, release: pinnedReleaseUrl(other.revision), fetchImpl: respond(other) });
   const latest = await resolveArmoryCatalog({ home, fetchImpl: respond({}, false, 503) });
   assert.equal(latest.revision, revision);
+});
+
+test("an offline launch refuses a cached latest catalog older than the maximum age", async () => {
+  const home = freshHome();
+  await resolveArmoryCatalog({ home, fetchImpl: respond(document()) });
+  const day = 24 * 60 * 60 * 1000;
+  const offline = (now) => resolveArmoryCatalog({ home, fetchImpl: respond({}, false, 503), now });
+  assert.equal(MAX_CACHED_CATALOG_AGE_MS, 30 * day);
+  assert.equal((await offline(() => Date.now() + 29 * day)).fromCache, true);
+  await assert.rejects(
+    offline(() => Date.now() + 31 * day),
+    (error) => {
+      assert.match(error.message, /HTTP 503/);
+      assert.match(error.message, new RegExp(`cached Armory catalog ${revision} from .* not within the last 30 days`));
+      assert.match(error.message, /reconnect/);
+      return true;
+    },
+  );
+  // A timestamp from the future is not a fresh one.
+  await assert.rejects(
+    offline(() => Date.now() - 2 * day),
+    /not within the last 30 days/,
+  );
+  // A pinned release is immutable: its cached copy is used at any age.
+  const pinned = await resolveArmoryCatalog({
+    home,
+    release: pinnedReleaseUrl(revision),
+    fetchImpl: async () => assert.fail("a cached pinned release fetches nothing"),
+    now: () => Date.now() + 365 * day,
+  });
+  assert.equal(pinned.fromCache, true);
 });

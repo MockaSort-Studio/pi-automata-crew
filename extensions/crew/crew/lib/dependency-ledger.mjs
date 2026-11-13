@@ -111,11 +111,14 @@ export function createDependencyLedger() {
     }
   }
 
+  // Holds what has not started behind a prerequisite that blocked or failed. A running dependent started on the
+  // prerequisite's earlier result (see reopen) and is left alone, so it can still end as itself; what follows it
+  // waits on it as before.
   function propagateBlocked(handle) {
     const stack = [...dependents.get(handle)];
     while (stack.length) {
       const dependent = stack.pop();
-      if (!isSettledStatus(status.get(dependent))) {
+      if (!isSettledStatus(status.get(dependent)) && status.get(dependent) !== "running") {
         moveTo(dependent, "blocked");
         stack.push(...dependents.get(dependent));
       }

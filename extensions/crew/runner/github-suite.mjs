@@ -8,6 +8,7 @@ import {
   authorizeRepositoryOperation,
   ownPullRequestOperations,
 } from "../env-runtime/lib/repository-authorization.mjs";
+import { discardPrivateCopy } from "./armory-source.mjs";
 import { workspaceFs } from "./workspace-fs.mjs";
 
 const run = promisify(execFile);
@@ -52,7 +53,14 @@ export function hostGhTransport({ token, exec = run }) {
   };
 }
 
-export const loadSuiteModule = (path) => import(pathToFileURL(path).href);
+// Imports a suite bundle. A private copy made by `fetchSuiteExtension` is discarded once imported.
+export async function loadSuiteModule(path) {
+  try {
+    return await import(pathToFileURL(path).href);
+  } finally {
+    discardPrivateCopy(path);
+  }
+}
 
 const injection = ({ workspace, token, transport }) => ({
   commandTransport: transport,

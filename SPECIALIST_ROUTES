@@ -32,7 +32,6 @@
 /extensions/crew/crew/lib/crew-message-chrome.mjs @frontenzo @snowball
 /extensions/crew/crew/lib/member-authority.mjs @bollo @snowball
 /extensions/crew/crew/lib/suite-grants.mjs @bollo @snowball
-/extensions/crew/crew/lib/base-tools-profile.mjs @bollo @snowball
 /extensions/crew/crew/prompts/roles.json @bollo @snowball
 
 # Package entry point, project-local Pi extensions, and the package readme.

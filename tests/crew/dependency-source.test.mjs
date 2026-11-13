@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { readFileSync } from "node:fs";
 import { EventEmitter } from "node:events";
@@ -80,6 +80,14 @@ test("facts distinguish missing formatter and project CI", () => {
   assert.doesNotMatch(text, /formatter available/i);
   assert.match(verificationFacts({ available: ["prettier"], failures: [] }, true), /bin\/prettier.cjs/);
   assert.match(verificationFacts(undefined, false), /bash.*not granted/i);
+});
+test("facts state the guest's real limits: no git, BusyBox grep, source-only ws and typebox", () => {
+  const text = verificationFacts({ available: ["ws", "typebox", "prettier"], failures: [] }, true);
+  assert.match(text, /no git binary.*pull request files/i);
+  assert.match(text, /BusyBox grep lacks --include/);
+  assert.match(text, /ws and typebox mounts are source only.*cannot be imported/);
+  assert.doesNotMatch(verificationFacts({ available: ["prettier"], failures: [] }, true), /ws and typebox mounts/);
+  assert.doesNotMatch(text, /skip/i);
 });
 test("source cache retries failures and deduplicates simultaneous preparation", async () => {
   let calls = 0;
@@ -182,4 +190,84 @@ test("verifies full artifact before extraction and manifests actual file bytes",
     () => extractVerifiedPackage(truncated, { name: "demo", version: "1.2.3", integrity: sri(truncated) }),
     /archive/,
   );
+});
+
+// Bounds. Each archive below is otherwise valid, so removing the bound under test makes extraction succeed.
+const MiB = 1024 * 1024;
+const demoPin = (bytes) => ({ name: "demo", version: "1.2.3", integrity: sri(bytes) });
+const tarEntries = (count, name = (i) => `package/d${i}`) =>
+  Buffer.concat(Array.from({ length: count }, (_, i) => gunzipSync(archive(name(i), "", "5")).subarray(0, 512)));
+const terminated = (tar) => gzipSync(Buffer.concat([tar, Buffer.alloc(1024)]));
+
+test("an archive over 32 MiB is refused before it is hashed or unpacked", () => {
+  const big = archive("package/blob", randomBytes(33 * MiB));
+  assert.ok(big.length > 32 * MiB);
+  assert.throws(() => extractVerifiedPackage(big, demoPin(big)), /Invalid dependency integrity/);
+  const small = archive("package/blob", randomBytes(MiB));
+  assert.equal(extractVerifiedPackage(small, demoPin(small)).files.blob.length, MiB);
+});
+
+test("a gzip bomb over 128 MiB unpacked is refused", () => {
+  const bomb = archive("package/zeros", Buffer.alloc(129 * MiB));
+  assert.ok(bomb.length < MiB, "the bomb is small on the wire");
+  assert.throws(() => extractVerifiedPackage(bomb, demoPin(bomb)), /Invalid dependency archive/);
+});
+
+test("an archive with more than 12000 entries is refused", () => {
+  const limit = terminated(tarEntries(12000));
+  assert.equal(Object.keys(extractVerifiedPackage(limit, demoPin(limit)).manifest.files).length, 0);
+  const over = terminated(tarEntries(12001));
+  assert.throws(() => extractVerifiedPackage(over, demoPin(over)), /exceeds bounds/);
+});
+
+const streamingGet = (chunks, seen = []) => {
+  return (options, callback) => {
+    seen.push(options);
+    const request = new EventEmitter();
+    request.destroy = () => {};
+    const response = new EventEmitter();
+    response.statusCode = 200;
+    queueMicrotask(() => {
+      callback(response);
+      for (const chunk of chunks) response.emit("data", chunk);
+      response.emit("end");
+    });
+    return request;
+  };
+};
+
+test("a registry download over 32 MiB is refused; one at the bound is kept", async () => {
+  const chunk = Buffer.alloc(MiB);
+  await assert.rejects(
+    downloadArtifact(DEPENDENCY_PINS[0], { get: streamingGet([...Array(32).fill(chunk), Buffer.alloc(1)]) }),
+    /exceeds bounds/,
+  );
+  const atBound = await downloadArtifact(DEPENDENCY_PINS[0], { get: streamingGet(Array(32).fill(chunk)) });
+  assert.equal(atBound.length, 32 * MiB);
+});
+
+test("only reviewed pins are downloaded, from the fixed registry origin and path", async () => {
+  const seen = [];
+  const get = streamingGet([Buffer.from("x")], seen);
+  const [pin] = DEPENDENCY_PINS;
+  for (const unknown of [
+    { ...pin, integrity: sri(Buffer.from("other")) },
+    { ...pin, version: "0.0.1" },
+    { ...pin, name: "evil" },
+    { name: "evil", version: "1.0.0", integrity: pin.integrity },
+  ])
+    await assert.rejects(downloadArtifact(unknown, { get }), /Unknown dependency pin/);
+  assert.equal(seen.length, 0, "an unknown pin never reaches the network");
+  for (const reviewed of DEPENDENCY_PINS) await downloadArtifact(reviewed, { get });
+  assert.deepEqual(
+    seen,
+    DEPENDENCY_PINS.map((reviewed) => ({
+      hostname: "registry.npmjs.org",
+      path: `/${reviewed.name}/-/${reviewed.name.split("/").at(-1)}-${reviewed.version}.tgz`,
+      headers: { accept: "application/octet-stream" },
+      agent: false,
+    })),
+  );
+  assert.ok(seen.some((options) => options.path === "/@earendil-works/gondolin/-/gondolin-0.14.0.tgz"));
+  assert.ok(seen.some((options) => options.path === "/prettier/-/prettier-3.5.3.tgz"));
 });

@@ -23,7 +23,7 @@ Working rules:
 - Do NOT comment, request changes, approve, merge, or mark the PR ready for review. Respond to feedback by pushing fixes and updating the description; use `request_input` if clarification is needed. Reviewers, Main or a human handle review and readiness.
 - Run the tests relevant to your change while working. Before running the full suite, check that its prerequisites exist (tools, dependencies, VM images). If they are known to be missing, do not retry long guest timeouts or fake a green result: report the exact unperformed checks and rely on the configured CI path for them.
 
-When validating inside a guest without Git or access to Gondolin VM images, run `HALL_SKIP_GONDOLIN_LIVE_TESTS=1 node --test tests/crew/*.test.mjs tests/runtime/*.test.mjs tests/pi/*.test.mjs tests/github-armory-routing.test.mjs tests/github-pull-reviews.test.mjs` once, if its dependencies are present. Git-dependent and live-VM tests report explicit skips; list them in your report.
+When validating inside a guest, run focused tests (`node --test <files>`) only where their prerequisites are present. Do not manufacture skips: a test whose dependency, Git or VM is missing is a hosted-CI check, reported as unperformed in the guest, never as passed or skipped.
 
 If the environment prevents validation, name the exact blocker and unperformed check in your report. Never silently claim validation.
 

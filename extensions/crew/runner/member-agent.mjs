@@ -16,6 +16,15 @@ const GITHUB_SUITE = "collaboration/pi-github-tools";
 const WRITE_OPERATIONS = ["github_git_commit", "github_git_push"];
 const CREATE_PULL_REQUEST = "github_pull_request_create";
 
+// The VM is closed even when the session's disposal throws, so a failed disposal never leaks the VM.
+export async function disposeMember(run, environment) {
+  try {
+    await run.dispose();
+  } finally {
+    await environment.close();
+  }
+}
+
 // Everything one member needs, from its spec (the role's tools and grants, unchanged) and the crew's shared
 // context: its own VM environment seeded from the repository revision, the routed built-in tools, the GitHub
 // suite on the host if it was granted, and, only if it may write, a host-side rescue of its work.
@@ -106,9 +115,6 @@ export async function createMemberAgent({ member, crew, onEvent, prepareSources 
       suite && operations.includes(CREATE_PULL_REQUEST)
         ? ({ result, signal }) => verifyPullRequest({ ops: suite, policy, evidence: result.evidence, signal })
         : undefined,
-    async dispose() {
-      run.dispose();
-      await environment.close();
-    },
+    dispose: () => disposeMember(run, environment),
   };
 }

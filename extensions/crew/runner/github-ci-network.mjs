@@ -10,7 +10,9 @@ export function githubCiHeadersAllowed(headers, placeholder) {
   return true;
 }
 
-// Only metadata endpoints corresponding to the member's explicit Armory grants.
+// Only metadata endpoints corresponding to the member's explicit Armory grants. Log and artifact
+// downloads (including github_workflow_run_failed_log's jobId/step/artifact inputs) are host-side
+// operations: no grant opens /logs or /artifacts paths for guest egress.
 export function githubCiRequestAllowed(request, policy) {
   if (!policy || typeof policy.repo !== "string" || !Array.isArray(policy.operations)) return false;
   const { repo, operations } = policy;
