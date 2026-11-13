@@ -44,7 +44,7 @@ function assertSourceRepository(cwd, repo, execFile) {
     throw new Error("Repository seed source has no origin remote");
   }
   if (!remoteMatchesRepository(origin, repo))
-    throw new Error("Repository seed source does not match the worker authorization");
+    throw new Error(`Repository seed source does not match crew repository: ${repo}`);
 }
 
 // The cache is trusted only while it is private to this user: every resolution, not only
@@ -98,7 +98,9 @@ export function resolveRepositorySeed(
   if (exists(path)) {
     assertPrivate(path, lstat, uid);
     if (archiveRevision(readFileSync(path)) !== authorization.revision.toLowerCase())
-      throw new Error("Repository seed cache does not match its authorized revision");
+      throw new Error(
+        `Repository seed cache does not match crew repository revision: ${authorization.repo}@${authorization.revision}`,
+      );
     try {
       const now = new Date();
       utimesSync(path, now, now); // recently used: pruning keeps what is in use
@@ -110,12 +112,18 @@ export function resolveRepositorySeed(
   try {
     archive = build({ cwd, repo: authorization.repo, revision: authorization.revision });
   } catch {
-    throw new Error("Authorized repository revision is unavailable for the worker workspace");
+    throw new Error(
+      `Crew repository revision ${authorization.repo}@${authorization.revision} is unavailable for the worker workspace`,
+    );
   }
   if (!Buffer.isBuffer(archive) || archive.length < BLOCK || archive.length % BLOCK)
-    throw new Error("Authorized repository revision produced an invalid workspace seed");
+    throw new Error(
+      `Crew repository revision ${authorization.repo}@${authorization.revision} produced an invalid workspace seed`,
+    );
   if (archiveRevision(archive) !== authorization.revision.toLowerCase())
-    throw new Error("Authorized repository revision produced a seed for a different commit");
+    throw new Error(
+      `Crew repository revision ${authorization.repo}@${authorization.revision} produced a seed for a different commit`,
+    );
   mkdirSync(root, { recursive: true, mode: 0o700 });
   assertPrivate(root, lstat, uid);
   const temporary = `${path}.${process.pid}.tmp`;

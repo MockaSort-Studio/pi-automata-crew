@@ -5,6 +5,10 @@ host paths. Git actions are typed operations from the Armory that the developer'
 
 ## Seeded workspace
 
+A crew workspace is seeded from the host session's current repository, whose
+origin remote must match the crew's repository. One session can therefore run
+crews only for the repository it was started in.
+
 Before a worker starts, the host builds a shallow, detached checkout of the
 crew's `revision` (`repository-seed-archive.mjs: buildShallowCheckout`),
 isolated from the operator's Git config, hooks and credential helpers. The
