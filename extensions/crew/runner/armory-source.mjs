@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { MAX_SOURCE_BYTES } from "../env-runtime/lib/armory-artifacts.mjs";
@@ -19,9 +19,24 @@ let cleanupRegistered = false;
 // private directory (mkdtemp, 0700) with an exclusive create. Its parent is under the same checked owner-only
 // cache hierarchy, not TMPDIR, so another account cannot replace the directory before import. This account (or
 // root) can, which is outside this boundary: code running as the user can already replace the extension itself.
+// A copy lives only for the instant of an import; one older than this was left by a crashed host.
+const STALE_IMPORT_MS = 60 * 60 * 1000;
+function reclaimStaleImports(parent, owner, now = Date.now()) {
+  try {
+    for (const name of readdirSync(parent)) {
+      if (!name.startsWith("import-")) continue;
+      const path = join(parent, name);
+      const stat = lstatSync(path);
+      if (stat.isDirectory() && stat.uid === owner && now - stat.mtimeMs > STALE_IMPORT_MS)
+        rmSync(path, { recursive: true, force: true });
+    }
+  } catch {}
+}
+
 function privateCopy(bytes, file, { home, uid }) {
   const parent = safeCacheDirectory({ home, uid, create: true, components: ["armory-imports"] });
   if (!parent) throw new Error("Crew's private Armory import directory is unsafe");
+  reclaimStaleImports(parent, uid());
   const directory = mkdtempSync(join(parent, "import-"));
   privateCopies.add(directory);
   if (!cleanupRegistered) {

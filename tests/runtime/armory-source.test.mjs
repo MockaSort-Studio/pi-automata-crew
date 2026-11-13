@@ -9,6 +9,7 @@ import {
   rmSync,
   statSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
@@ -104,6 +105,21 @@ test("an unsafe TMPDIR cannot become the private import parent", async (t) => {
     if (previous === undefined) delete process.env.TMPDIR;
     else process.env.TMPDIR = previous;
   }
+});
+
+test("import directories left by a crashed host are reclaimed, recent ones are not", async (t) => {
+  const h = home(t);
+  const imports = join(h, ".cache", "pi-crew", "armory-imports");
+  discardPrivateCopy(await fetchInto(h, []));
+  const stale = join(imports, "import-stale");
+  const fresh = join(imports, "import-fresh");
+  for (const dir of [stale, fresh]) mkdirSync(dir, { mode: 0o700 });
+  const old = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  utimesSync(stale, old, old);
+  const path = await fetchInto(h, []);
+  t.after(() => discardPrivateCopy(path));
+  assert.equal(existsSync(stale), false, "a crashed host's leftover is removed");
+  assert.equal(existsSync(fresh), true, "a possibly live import is left alone");
 });
 
 test("swapping the cached file after it was verified does not change what is imported", async (t) => {
