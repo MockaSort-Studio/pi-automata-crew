@@ -53,16 +53,23 @@ const injection = ({ workspace, token, transport }) => ({
 // The suite's operations as plain calls, for the runner's own use (salvage). Same code and injection as an
 // agent's tools, but independent of any session. Policy is the caller's responsibility here: the runner
 // only ever acts on the branch and revision it derived itself.
-export function createSuiteOperations({ module, workspace, token, transport = hostGhTransport({ token }) }) {
+export function createSuiteOperations({
+  module,
+  workspace,
+  token,
+  operations,
+  transport = hostGhTransport({ token }),
+}) {
   const registry = new Map();
+  const granted = new Set(operations);
   module.activateSuite(
-    { registerTool: (tool) => registry.set(tool.name, tool), on() {} },
+    { registerTool: (tool) => granted.has(tool.name) && registry.set(tool.name, tool), on() {} },
     injection({ workspace, token, transport }),
   );
   return {
     async call(name, input, { signal } = {}) {
       const tool = registry.get(name);
-      if (!tool) throw new Error(`The suite has no operation ${name}`);
+      if (!tool) throw new Error(`The member was not granted operation ${name}`);
       const result = await tool.execute(`runner-${name}`, input, signal);
       const text = (result?.content ?? []).map((part) => part.text ?? "").join("");
       try {

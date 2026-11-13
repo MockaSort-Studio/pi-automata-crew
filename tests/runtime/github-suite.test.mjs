@@ -11,7 +11,11 @@ import { repositoryContext } from "../../extensions/crew/env-runtime/lib/reposit
 import { populateRepositoryWorkspace } from "../../extensions/crew/env-runtime/lib/repository-workspace.mjs";
 import { buildShallowCheckout } from "../../extensions/crew/env-runtime/lib/repository-seed-archive.mjs";
 import { MemoryProvider } from "@earendil-works/gondolin";
-import { githubSuiteExtension, hostGhTransport } from "../../extensions/crew/runner/github-suite.mjs";
+import {
+  createSuiteOperations,
+  githubSuiteExtension,
+  hostGhTransport,
+} from "../../extensions/crew/runner/github-suite.mjs";
 import { workspaceFs } from "../../extensions/crew/runner/workspace-fs.mjs";
 
 const context = repositoryContext({
@@ -158,4 +162,21 @@ test("a host-side tool call waits for the workspace to be seeded, and fails clos
   });
   const blocked = await failing.handlers.get("tool_call")({ toolName: "github_issue_view", input: {} });
   assert.match(blocked.reason, /could not be prepared: seed failed/);
+});
+
+test("the runner's own suite operations are limited to the granted ones", async () => {
+  const executed = [];
+  const suite = createSuiteOperations({
+    module: fakeModule(executed),
+    workspace: new MemoryProvider(),
+    token: "t",
+    operations: ["github_git_push"],
+    transport: { run: async () => "" },
+  });
+  await suite.call("github_git_push", { repo: "o/r" });
+  assert.deepEqual(
+    [...executed].map((call) => call.name),
+    ["github_git_push"],
+  );
+  await assert.rejects(suite.call("github_issue_view", { repo: "o/r" }), /not granted operation github_issue_view/);
 });

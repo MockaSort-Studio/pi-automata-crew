@@ -17,7 +17,14 @@ const repository = { repo: "o/r", revision: "a".repeat(40), base: "main" };
 const fakeSuite = (calls) => ({
   activateSuite(pi, options) {
     calls.push({ options });
-    for (const name of ["github_git_status", "github_git_commit", "github_git_push", "github_issue_view"])
+    for (const name of [
+      "github_git_status",
+      "github_workspace_checkout",
+      "github_git_stage",
+      "github_git_commit",
+      "github_git_push",
+      "github_issue_view",
+    ])
       pi.registerTool({
         name,
         label: name,
@@ -139,7 +146,14 @@ test(
     const grants = [
       {
         suite: "collaboration/pi-github-tools",
-        operations: ["github_git_status", "github_git_commit", "github_git_push", "github_issue_view"],
+        operations: [
+          "github_git_status",
+          "github_workspace_checkout",
+          "github_git_stage",
+          "github_git_commit",
+          "github_git_push",
+          "github_issue_view",
+        ],
       },
     ];
     const agent = await build(
@@ -182,6 +196,28 @@ test(
 );
 
 test(
+  "the runner acts for a member only with operations it was granted: a narrowed grant gets no salvage",
+  { timeout: 120_000 },
+  async (t) => {
+    if (skipLiveGondolin(t)) return;
+    const calls = [];
+    const { build } = await setup(t, () => ({ text: "ok" }));
+    const narrowed = [{ suite: "collaboration/pi-github-tools", operations: ["github_git_commit", "github_git_push"] }];
+    const agent = await build(
+      { suiteGrants: narrowed },
+      { repository, github: { module: fakeSuite(calls), token: "t" } },
+    );
+    assert.equal(agent.salvage, undefined, "commit and push alone do not license status, checkout and stage");
+    assert.equal(agent.verify, undefined);
+    assert.deepEqual(
+      calls.filter((c) => c.name),
+      [],
+      "no ungranted operation was called",
+    );
+  },
+);
+
+test(
   "salvage on a member that wrote nothing is a no-op, and dispose closes the environment",
   { timeout: 120_000 },
   async (t) => {
@@ -191,7 +227,13 @@ test(
     const grants = [
       {
         suite: "collaboration/pi-github-tools",
-        operations: ["github_git_status", "github_git_commit", "github_git_push"],
+        operations: [
+          "github_git_status",
+          "github_workspace_checkout",
+          "github_git_stage",
+          "github_git_commit",
+          "github_git_push",
+        ],
       },
     ];
     const agent = await build(

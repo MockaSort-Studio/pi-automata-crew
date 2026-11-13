@@ -35,8 +35,6 @@ verification act on that branch.
 
 ## What this does not bound
 
-Crew constrains which operations a member has, not what a call reaches. A worker
-with `bash` can run its own code, and the guest's `GITHUB_TOKEN` placeholder is
-substituted for any request to the suite's allowed GitHub hosts. The hard limits
-are therefore the token's own scope (grant a fine-grained token only the
-repositories and permissions the Crew needs) and the host allowlist.
+Crew constrains which operations a member has, not what a call reaches. The host token never enters the VM,
+and a worker's VM has no GitHub network access; the hard limit on what a host-side call can reach is the
+token's own scope (grant a fine-grained token only the repositories and permissions the Crew needs).

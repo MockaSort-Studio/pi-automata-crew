@@ -7,14 +7,21 @@ import { verifyPullRequest } from "./ci-verify.mjs";
 import { createEnvironment } from "./environment.mjs";
 import { prepareDependencyMount } from "./dependency-mount.mjs";
 import { verificationFacts } from "./verification-facts.mjs";
-import { githubCiHeadersAllowed, githubCiRequestAllowed } from "./github-ci-network.mjs";
 import { createSuiteOperations, githubSuiteExtension } from "./github-suite.mjs";
 import { routedToolsExtension } from "./routing-extension.mjs";
 import { salvage } from "./salvage.mjs";
 
 const GITHUB_SUITE = "collaboration/pi-github-tools";
-const WRITE_OPERATIONS = ["github_git_commit", "github_git_push"];
-const CREATE_PULL_REQUEST = "github_pull_request_create";
+// The runner acts for a member only with operations the member was granted: salvage needs all of the first
+// set, and holding a pull request to green CI needs the second.
+const SALVAGE_OPERATIONS = [
+  "github_git_status",
+  "github_workspace_checkout",
+  "github_git_stage",
+  "github_git_commit",
+  "github_git_push",
+];
+const VERIFY_OPERATIONS = ["github_pull_request_create", "github_pull_request_view", "github_pull_request_files"];
 
 // The VM is closed even when the session's disposal throws, so a failed disposal never leaks the VM.
 export async function disposeMember(run, environment) {
@@ -42,9 +49,6 @@ export async function createMemberAgent({ member, crew, onEvent, prepareSources 
   if (granted && !repository)
     throw new Error(`${member.handle} is granted the GitHub suite but the crew has no repository context`);
   const operations = granted?.operations ?? [];
-  const ciAccess =
-    github?.token &&
-    operations.some((name) => ["github_workflow_runs_list", "github_workflow_run_view"].includes(name));
   const hasBash = member.tools.includes("bash");
   let sources;
   if (hasBash) {
@@ -59,17 +63,6 @@ export async function createMemberAgent({ member, crew, onEvent, prepareSources 
     localCwd: cwd,
     label: member.handle,
     idleMs: crew.idleMs,
-    ...(ciAccess
-      ? {
-          allowedHosts: ["api.github.com"],
-          secrets: { GH_TOKEN: { value: github.token, hosts: ["api.github.com"] } },
-          onRequest: (request, env) =>
-            githubCiHeadersAllowed(request.headers, env.GH_TOKEN) &&
-            githubCiRequestAllowed(request, { repo: repository.repo, operations })
-              ? undefined
-              : new Response("blocked", { status: 403 }),
-        }
-      : {}),
     seed: crew.seedArchive ? (workspace) => populateRepositoryWorkspace(workspace, crew.seedArchive) : undefined,
   });
   const extensionFactories = [routedToolsExtension(environment)];
@@ -99,20 +92,23 @@ export async function createMemberAgent({ member, crew, onEvent, prepareSources 
     await environment.close();
     throw error;
   });
-  const canWrite = github && WRITE_OPERATIONS.every((name) => operations.includes(name));
+  const holds = (needed) => needed.every((name) => operations.includes(name));
   const suite =
-    canWrite && createSuiteOperations({ module: github.module, workspace: environment.workspace, token: github.token });
+    github &&
+    (holds(SALVAGE_OPERATIONS) || holds(VERIFY_OPERATIONS)) &&
+    createSuiteOperations({ module: github.module, workspace: environment.workspace, token: github.token, operations });
   return {
     run,
     environment,
     repository,
-    salvage: suite
-      ? (status) =>
-          environment.ready().then(() => salvage({ ops: suite, repository, member: member.handle, reason: status }))
-      : undefined,
+    salvage:
+      suite && holds(SALVAGE_OPERATIONS)
+        ? (status) =>
+            environment.ready().then(() => salvage({ ops: suite, repository, member: member.handle, reason: status }))
+        : undefined,
     // A member that can open pull requests is held to a green CI on the one it opened (see ci-verify.mjs).
     verify:
-      suite && operations.includes(CREATE_PULL_REQUEST)
+      suite && holds(VERIFY_OPERATIONS)
         ? ({ result, signal }) => verifyPullRequest({ ops: suite, repository, evidence: result.evidence, signal })
         : undefined,
     dispose: () => disposeMember(run, environment),
