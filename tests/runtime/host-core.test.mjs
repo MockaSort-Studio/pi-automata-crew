@@ -154,7 +154,7 @@ test("an unavailable repository revision and a missing credential fail the launc
   assert.match(
     (await bad.call("launch", launch({ repository: { repo: "o/r", revision: "a".repeat(40), base: "main" } }))).error
       .message,
-    /revision is unavailable/,
+    /Crew repository revision o\/r@a{40} is unavailable/,
   );
   const noToken = host({ deps: { env: {} } });
   assert.match(
