@@ -1,7 +1,7 @@
 # Pi Packaging
 
 This repository installs as a [Pi package](https://pi.dev/packages). This doc describes the
-manifest in `package.json` and how to cut an alpha release.
+manifest in `package.json` and how a release is cut.
 
 ## The manifest
 
@@ -22,9 +22,7 @@ manifest in `package.json` and how to cut an alpha release.
 - `skills` points at root `skills/`, which Pi auto-discovers recursively for `SKILL.md` directories
   (currently `engineering-execution`, `engineering-review`, `post-iteration-review`, and
   `security-boundary-review`).
-- `package.json` keeps `"private": true`. That only blocks `npm publish` to a registry; it does not
-  block `pi install` by git URL or local path, which is how this package is distributed during the
-  alpha.
+- `package.json` is publishable (`engines.node` is `>=24`). A release is a pushed tag; see [releasing](release.md).
 
 ### Keeping the manifest honest
 
@@ -39,8 +37,8 @@ added, renamed, or removed.
 ## Installing
 
 ```bash
-# From git (pin a tag once alpha releases exist)
-pi install git:github.com/<org>/pi-automata-crew@v0.1.0-alpha.1
+# From git (pin a release tag)
+pi install git:github.com/MockaSort-Studio/pi-automata-crew@v0.1.0-beta.0
 
 # From a local checkout
 pi install /path/to/pi-automata-crew
@@ -54,8 +52,5 @@ into `.pi/settings.json` instead.
 
 ## Release procedure
 
-1. Land changes on `main` and confirm CI is green (`npm test`, `npm run format:check`).
-2. Tag the commit on `main`: `vX.Y.Z-alpha.N` (for example `v0.1.0-alpha.1`). Alpha releases only
-   increment the `-alpha.N` suffix until the package is ready to drop the pre-release tag.
-3. Push the tag. Consumers pin to it with `pi install git:github.com/<org>/pi-automata-crew@vX.Y.Z-alpha.N`.
-4. Do not publish to the npm registry while `"private": true` is set in `package.json`.
+See [releasing](release.md): a release is a pushed tag `vX.Y.Z` (for example `v0.1.0-beta.0`); the Release workflow verifies
+the package, stages it on npm for a human to approve, and creates the GitHub release from the changelog.

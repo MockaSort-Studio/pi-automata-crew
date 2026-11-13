@@ -6,7 +6,9 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
-First release in preparation. What the Crew does today:
+## [0.1.0-beta.0] - 2026-11-13
+
+First beta. What the Crew does:
 
 ### Added
 
@@ -40,6 +42,8 @@ First release in preparation. What the Crew does today:
   `autonomy` case-insensitively, and backticks or control characters in patterns are rejected.
 
 ### Known limits
+
+See [what to expect from the beta](docs/crew/beta-expectations.md).
 
 - A crew does not survive its host process; pushed branches do.
 - One host per Pi. Supported hosts follow Gondolin: macOS arm64 and Linux x64 (QEMU elsewhere).
