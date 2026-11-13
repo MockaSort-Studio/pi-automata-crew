@@ -6,7 +6,6 @@
 /package-lock.json @mergio @bollo
 
 /extensions/crew/env-runtime/** @bollo @snowball
-/extensions/crew/crew-runtime/** @snowball @tomashco @bollo
 /extensions/crew/crew/prompts/** @snowball
 /skills/** @snowball
 /extensions/crew/crew/** @snowball

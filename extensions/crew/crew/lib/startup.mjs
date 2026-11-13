@@ -1,12 +1,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { runtimeFor } from "../../crew-runtime/lib/shared-runtime.mjs";
-import { crewEnvironment } from "../../crew-runtime/lib/crew-environment.mjs";
+import { crewEnvironment } from "./crew-environment.mjs";
 import { assemble } from "./assembly.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
 import { kickoffPayload } from "./kickoff-payload.mjs";
 import { writeLaunchFiles } from "./launch-files.mjs";
-import { resolveLaunchEnvironment } from "./launch-environment.mjs";
 export function crewPaths(configDir, runId) {
   const root = join(configDir, "runtime", "crew-launch");
   return {
@@ -154,61 +152,4 @@ export async function prepareCrew(pi, input, ctx, configDir) {
     },
   });
   return { runId, topic, rosterFile: paths.roster, configFile: paths.config, selectedCrewFile: paths.selected, agents };
-}
-export async function launchPreparedCrew(cwd, prepared, dependencies = {}) {
-  const configPath = join(cwd, prepared.configFile);
-  const config = JSON.parse(readFileSync(configPath, "utf8"));
-  const rosterPath = join(cwd, prepared.rosterFile);
-  let roster = JSON.parse(readFileSync(rosterPath, "utf8"));
-  if (roster.status !== "queued") return { runId: roster.runId, topic: roster.topic, status: roster.status };
-  roster.status = "launching";
-  writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
-  try {
-    const { resolution, agents, credentials } = await resolveLaunchEnvironment(config, { ...dependencies, cwd });
-    config.agents = agents;
-    config.environmentResolution = {
-      ...resolution,
-      ...(Object.keys(credentials.status).length ? { credentials: credentials.status } : {}),
-      ...(credentials.warnings.length ? { warnings: credentials.warnings } : {}),
-    };
-    roster.environmentResolution = config.environmentResolution;
-    writeFileSync(configPath, JSON.stringify(config, null, 2));
-    writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
-    const runtime = (dependencies.runtimeFor ?? runtimeFor)(cwd);
-    const namespace = config.agents[0]?.namespace;
-    const launched = await runtime.launchCrew(config.agents, config.adapters, {
-      namespace,
-      members: config.plan ?? [],
-    });
-    if (config.kickoff) await runtime.broadcast(config.agents[0].namespace, config.kickoff);
-    const lead = launched.agents.find(
-      (agent) => config.agents.find((item) => item.actorId === agent.id)?.role === "lead",
-    );
-    roster = JSON.parse(readFileSync(rosterPath, "utf8"));
-    Object.assign(roster, {
-      status: "started",
-      comm: launched.comm,
-      lead: lead && { name: lead.name, actorId: lead.id },
-      members: launched.agents.map((agent, index) => ({
-        name: agent.name,
-        actorId: agent.id,
-        role: config.agents[index].role,
-      })),
-    });
-    writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
-    return {
-      runId: roster.runId,
-      topic: roster.topic,
-      status: "started",
-      leadId: lead?.id,
-      memberIds: launched.agents.map((agent) => agent.id),
-      comm: launched.comm,
-      ...(credentials.warnings.length ? { warnings: credentials.warnings } : {}),
-    };
-  } catch (error) {
-    roster.status = "done";
-    roster.launchError = String(error);
-    writeFileSync(rosterPath, JSON.stringify(roster, null, 2));
-    throw error;
-  }
 }

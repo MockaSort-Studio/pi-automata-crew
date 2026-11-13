@@ -63,13 +63,6 @@ test("crew extension registers a Markdown renderer for incoming crew-message del
   assert.match(source, /registerCrewMessageRenderer\(pi\)/);
 });
 
-test("earlier runtime (kept, not loaded): roster tools module still exports its registration function", () => {
-  const rosterTools = readFileSync(new URL("../../extensions/crew/crew/lib/roster-tools.ts", import.meta.url), "utf8");
-  assert.match(rosterTools, /export function registerRosterTools/);
-  assert.match(rosterTools, /name: "crew_register"/);
-  assert.match(rosterTools, /name: "crew_finish_close"/);
-});
-
 test("Main keeps its footer and dashboard, fed by the crew host", () => {
   assert.match(source, /import.*registerHostMonitor.*from.*host-monitor/);
   assert.match(source, /monitor\.activate\(ctx\)/);

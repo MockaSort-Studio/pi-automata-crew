@@ -1,7 +1,7 @@
 # Crew Operational Follow-ups
 
 Updated: 2026-09-30. This is the current backlog; the SDK runtime structure is
-canonical in [runtime-structure.md](runtime-structure.md). Active work is
+canonical in [runtime-structure.md](../history/runtime-structure.md). Active work is
 canonicalized in [implementation-plan.md](implementation-plan.md); unchecked items
 below are historical notes, not a second backlog.
 

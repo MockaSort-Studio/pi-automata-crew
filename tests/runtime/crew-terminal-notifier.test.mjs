@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { createCrewTerminalNotifier } from "../../extensions/crew/crew-runtime/lib/crew-terminal-notifier.mjs";
+import { createCrewTerminalNotifier } from "../../extensions/crew/crew/lib/crew-terminal-notifier.mjs";
 
 const snap = (namespace, statuses) => ({
   namespace,

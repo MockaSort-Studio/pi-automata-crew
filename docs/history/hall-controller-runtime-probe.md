@@ -3,7 +3,7 @@
 > **Historical — Hall CLI.** This probe compares Fabric vs. SDK runtimes from the prior
 > `hall-of-automata-cli` repository and retains historical Armory references (including
 > `armory/collaboration/github/...`) that do not exist in this repository. Current,
-> canonical runtime design lives in [runtime-structure.md](../crew/runtime-structure.md).
+> canonical runtime design lives in [runtime-structure.md](runtime-structure.md).
 > Kept for provenance only.
 
 ## Token ledger

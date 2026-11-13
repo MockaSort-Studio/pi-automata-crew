@@ -28,14 +28,13 @@ Before the skipped suite, CI runs this separate, unskippable command:
 node --test tests/crew/ci-backend-policy.test.mjs
 ```
 
-That test locks the skip to exactly four paired backend cases:
+That test locks the skip to exactly three paired backend cases:
 
 1. a VM does not outlive a SIGKILLed owner, and a closed VM leaves nothing
    behind;
-2. an idle worker releases its VM and boots a fresh one on the next tool call;
-3. an owner killed while its VM is still booting leaks nothing; and
-4. the registered Gondolin worker extension routes Pi's built-in bash through
-   the guest.
+2. an idle environment releases its VM and boots a fresh one on the next use;
+   and
+3. an owner killed while its VM is still booting leaks nothing.
 
 For every listed case, the guard requires both a `krun: ` title and a required
 `qemu: ` twin. It enumerates the test titles actually registered by every Node
@@ -59,5 +58,5 @@ the remaining governance control; the in-repository test cannot protect against
 a coordinated change to its own rules.
 
 Remove the skip only when krun has Linux CI coverage and the work tracked by
-#160 is complete. At that point, make those four krun cases required rather
+#160 is complete. At that point, make those three krun cases required rather
 than title-excluded.

@@ -1,6 +1,6 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createCrewTerminalNotifier } from "../../crew-runtime/lib/crew-terminal-notifier.mjs";
+import { createCrewTerminalNotifier } from "./crew-terminal-notifier.mjs";
 import { createHostClient } from "../../runner/host-client.mjs";
 import { crewReportMessage, hostExitMessage, plainReportMessage } from "./crew-reports.mjs";
 

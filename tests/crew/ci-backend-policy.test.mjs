@@ -11,9 +11,8 @@ const workflow = parse(readFileSync(new URL("../../.github/workflows/ci.yml", im
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const PAIRED_CASES = [
   "a VM does not outlive a SIGKILLed owner, and a closed VM leaves nothing behind",
-  "an idle worker releases its VM and boots a fresh one on the next tool call",
+  "an idle environment releases its VM and boots a fresh one on the next use",
   "an owner killed while its VM is still booting leaks nothing",
-  "the registered Gondolin worker extension routes Pi's built-in bash through the guest",
 ];
 // Every test file the required CI command runs (its globs are asserted below).
 const requiredTestFiles = () => [
@@ -24,7 +23,7 @@ const requiredTestFiles = () => [
   ),
 ];
 
-test("the krun-named cases excluded from required CI are exactly the four paired backend cases", () => {
+test("the krun-named cases excluded from required CI are exactly the three paired backend cases", () => {
   const runtime = new URL("../runtime/", import.meta.url);
   const names = [];
   for (const file of readdirSync(runtime).filter((name) => name.endsWith(".test.mjs"))) {
@@ -41,7 +40,7 @@ test("the krun-named cases excluded from required CI are exactly the four paired
 // Required CI skips every test whose title starts with "krun: ", so renaming a failing test that way would turn
 // CI green without anyone being asked. The titles are taken from the files themselves, as registered, not from
 // how their source spells them; a string literal starting "krun: " anywhere else (a subtest) is refused too.
-test("the only test titles required CI skips are the four paired krun cases", () => {
+test("the only test titles required CI skips are the three paired krun cases", () => {
   const files = requiredTestFiles();
   const dir = mkdtempSync(join(tmpdir(), "crew-titles-"));
   const out = join(dir, "titles.json");

@@ -17,9 +17,9 @@ one responsibility. Explain why in comments; make names explain what.
 ## Boundaries
 
 - `extensions/crew/crew/` owns public tools, policy, roles, composition, and TUI.
-- `extensions/crew/crew-runtime/` owns Comm, Lifecycle, workers, worktrees, events, and cleanup.
 - `extensions/crew/env-runtime/` owns Gondolin, Nix/Armory acquisition, guest proxies, and credentials.
-- Dependencies flow only downward: `crew → crew-runtime → env-runtime`.
+- `extensions/crew/runner/` owns the crew host: dispatching, member agents, routed tools, and host-side suites.
+- Dependencies flow downward: `crew → runner → env-runtime`.
 - Specialist routing for these paths lives in root `SPECIALIST_ROUTES`, read by `crew_route`.
 - Do not add broad shell, network, or credential access for convenience. Grants must be explicit,
   role-scoped, and testable.
