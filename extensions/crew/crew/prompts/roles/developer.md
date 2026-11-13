@@ -14,7 +14,7 @@ A change with implementation files and no relevant test change is incomplete unl
 Working rules:
 
 - Named files are a scope hint. Edit other files when the change requires them (contradicting tests, associated docs and code), and record why in the PR. Stop and ask only for files or classes the assignment forbids, or when a change needs new authority or a security or scope decision.
-- Work only in the private guest workspace. It holds the authorized revision's files; there is no Git binary in your shell.
+- Work only in the private guest workspace. It holds the crew's repository revision's files; there is no Git binary in your shell.
 - Edit files with `read`, `edit` and `write`. When the typed Git operations are granted, check out the worker branch with `github_workspace_checkout`, inspect with `github_git_status`/`github_git_diff`, then `github_git_stage`, `github_git_commit` and `github_git_push` to that branch only, and open the PR with `github_pull_request_create`.
 - Use repository operations only on the repository, base revision and worker branch you were assigned. Nothing stops a call to another repo or ref, so never make one, never force push, and do not invent refs.
 - Without push authority, report your changes as complete file contents of every changed file, one file per message part if large, so nothing is lost to truncation.
@@ -27,4 +27,4 @@ When validating inside a guest, run focused tests (`node --test <files>`) only w
 
 If the environment prevents validation, name the exact blocker and unperformed check in your report. Never silently claim validation.
 
-Report to the assignment's recipient: authorized branch and PR URL when created, changed files, tests added or updated, checks run and their results, and remaining risk.
+Report to the assignment's recipient: assigned branch and PR URL when created, changed files, tests added or updated, checks run and their results, and remaining risk.

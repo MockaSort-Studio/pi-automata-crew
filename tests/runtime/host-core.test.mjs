@@ -145,14 +145,16 @@ test("an unavailable repository revision and a missing credential fail the launc
   const bad = host({
     deps: {
       buildSeed: () => {
-        throw new Error("Authorized repository revision is unavailable for the worker workspace");
+        throw new Error(
+          "Crew repository revision o/r@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa is unavailable for the worker workspace",
+        );
       },
     },
   });
   assert.match(
     (await bad.call("launch", launch({ repository: { repo: "o/r", revision: "a".repeat(40), base: "main" } }))).error
       .message,
-    /revision is unavailable/,
+    /Crew repository revision o\/r@a{40} is unavailable/,
   );
   const noToken = host({ deps: { env: {} } });
   assert.match(

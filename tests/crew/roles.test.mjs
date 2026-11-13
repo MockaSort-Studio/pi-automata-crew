@@ -87,7 +87,7 @@ test("the developer prompt carries the Crew working rules and no stale Lead or D
   const { instructions } = roleModule({ role: "developer", override: {} });
   assert.match(instructions, /private guest workspace/);
   assert.match(instructions, /no Git binary in your shell/);
-  assert.match(instructions, /authorized branch and PR URL/);
+  assert.match(instructions, /assigned branch and PR URL/);
   assert.doesNotMatch(instructions, /Lead|Discussion/);
 });
 

@@ -103,7 +103,7 @@ test("a cached seed naming another revision is rejected, not served", () =>
     writeFileSync(cached, archive(globalHeader("b".repeat(40)), header("value", "poisoned")), { mode: 0o600 });
     assert.throws(
       () => resolveRepositorySeed(authorization, { cwd: "/unused", home, execFile: noGit }),
-      /does not match its authorized revision/,
+      /does not match crew repository revision/,
     );
   }));
 
@@ -119,7 +119,7 @@ test("a group/other-writable or foreign-owned cache is rejected on every resolut
     );
   }));
 
-test("only GitHub remotes for exactly the authorized repository are accepted", () => {
+test("only GitHub remotes for exactly the crew repository are accepted", () => {
   for (const remote of [
     "https://github.com/MockaSort-Studio/pi-automata-crew.git",
     "https://github.com/mockasort-studio/pi-automata-crew",
@@ -152,11 +152,11 @@ test("a cache miss builds only from a matching origin and an available revision"
           execFile: origin("https://evil.example/x/y"),
           build: () => assert.fail("must not build"),
         }),
-      /does not match the worker authorization/,
+      /does not match crew repository: MockaSort-Studio\/pi-automata-crew/,
     );
     assert.throws(
       () => resolveRepositorySeed(authorization, { cwd: "/repo", home, execFile: good, build: fail }),
-      /revision is unavailable/,
+      /Crew repository revision MockaSort-Studio\/pi-automata-crew@a{40} is unavailable/,
     );
     assert.throws(
       () =>

@@ -1,5 +1,5 @@
 // Work must not be lost when a run ends early. After any run the runner itself, not the model, commits what
-// is left uncommitted in the agent's workspace and pushes it to the agent's own authorized branch. Every
+// is left uncommitted in the agent's workspace and pushes it to the agent's own assigned branch. Every
 // step is an idempotent suite operation, so salvaging twice, or after the agent already pushed, is a no-op.
 const CHUNK = 500;
 

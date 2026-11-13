@@ -50,7 +50,7 @@ function entry(name, options, data = Buffer.alloc(0)) {
 }
 
 // A ustar archive of one directory, led by the same pax global `comment=<revision>` record
-// `git archive` writes, so a cached seed can be checked against its authorized revision.
+// `git archive` writes, so a cached seed can be checked against its crew repository revision.
 export function writeSeedArchive(root, revision) {
   const comment = Buffer.from(paxRecord("comment", revision));
   const parts = [header("pax_global_header", { size: comment.length, type: "g" }), padded(comment)];
@@ -101,7 +101,7 @@ export function buildShallowCheckout({ cwd, repo, revision, execFile = execFileS
     ]);
     isolatedGit(execFile, ["-C", directory, "remote", "add", "origin", `https://github.com/${repo}.git`]);
     if (String(isolatedGit(execFile, ["-C", directory, "rev-parse", "HEAD"])).trim() !== revision.toLowerCase())
-      throw new Error("Repository seed checkout is not at the authorized revision");
+      throw new Error("Repository seed checkout is not at the crew repository revision");
     for (const leak of ["hooks", "logs", "FETCH_HEAD", "description"])
       rmSync(join(directory, ".git", leak), { recursive: true, force: true });
     return writeSeedArchive(directory, revision.toLowerCase());
