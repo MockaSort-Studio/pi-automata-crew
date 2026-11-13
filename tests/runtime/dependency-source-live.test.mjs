@@ -23,12 +23,17 @@ const recordedArtifact = async (pin) => {
   try {
     return readFileSync(path);
   } catch (error) {
-    throw new Error(`no recorded ${pin.name}@${pin.version} archive at ${path}: run npm ci first`, { cause: error });
+    throw new Error(
+      `no recorded ${pin.name}@${pin.version} archive at ${path}: run npm ci, or npm cache add ${pin.name}@${pin.version}, first`,
+      { cause: error },
+    );
   }
 };
 const verifiedSources = async () => {
   if (process.env.HALL_LIVE_REGISTRY_TESTS === "1") return prepareDependencyMount();
   const pins = DEPENDENCY_PINS.filter((pin) => pin.name === "prettier");
+  // Say so plainly when npm's cache lacks the archive: prepareSources reports any read failure as an invalid archive.
+  for (const pin of pins) await recordedArtifact(pin);
   const recorded = await prepareSources(pins, recordedArtifact);
   assert.deepEqual(recorded.failures, [], "the recorded archive must verify against the reviewed pin");
   return buildDependencyMount(recorded);
