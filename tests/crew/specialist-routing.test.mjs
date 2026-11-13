@@ -39,11 +39,11 @@ test("routing reports unmatched paths without changing matches", () => {
 });
 
 test("last specialist-route rule selects the sensitive runtime specialists with evidence", () => {
-  const result = routeSpecialists(["extensions/crew/crew-runtime/lib/lifecycle-log.mjs"], routes);
+  const result = routeSpecialists(["extensions/crew/crew/lib/lifecycle-state.mjs"], routes);
   assert.deepEqual(result.specialists, ["tomashco", "bollo"]);
   assert.deepEqual(
     result.matches.map(({ path, rule, specialists }) => [path, rule.pattern, specialists]),
-    [["extensions/crew/crew-runtime/lib/lifecycle-log.mjs", "/**/lifecycle-*.mjs", ["tomashco", "bollo"]]],
+    [["extensions/crew/crew/lib/lifecycle-state.mjs", "/**/lifecycle-*.mjs", ["tomashco", "bollo"]]],
   );
 });
 

@@ -19,7 +19,7 @@ a failed launch does this itself (`preserveEvidence`).
        Main explicitly delivers its first task through Comm. Remove duplicated
        automatic kickoff/direct-prompt paths and apply the contract in the `engineering-execution` skill,
        worker startup, terminal follow-ups, and tests. See
-       [dispatch-control-plane-design.md](dispatch-control-plane-design.md).
+       [dispatch-control-plane-design.md](../history/dispatch-control-plane-design.md).
 2. [x] **Support leadless control.** Provide Main-to-member/all delivery and
        correlated request replies without requiring a Lead. Keep agent all-recipient
        broadcast Lead-only and fail closed with typed capability errors.
@@ -48,7 +48,7 @@ Current local baseline: 449 tests, 446 pass, 3 skipped, 0 fail in about 16 s. CI
 suite and the format check; its first remote run remains to be verified. No live Crew or VM state
 remains. Runtime tools are exposed by
 `extensions/crew/crew-runtime/index.ts`; design in
-[dispatch-control-plane-design.md](dispatch-control-plane-design.md).
+[dispatch-control-plane-design.md](../history/dispatch-control-plane-design.md).
 
 ## 2. Lifecycle state redesign
 

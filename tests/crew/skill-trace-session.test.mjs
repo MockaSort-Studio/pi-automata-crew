@@ -85,7 +85,12 @@ test(
         )
         .map((line) => JSON.parse(line));
       const used = lines.filter((entry) => entry.customType === "skill-used").map((entry) => entry.data);
-      assert.deepEqual(used.map((item) => `${item.skill}:${item.via}`).sort(), ["demo:command", "demo:read"]);
+      // The prompt is re-sent every second until the session finishes (Pi's RPC has no readiness signal), so a slow
+      // machine can record the command trace twice: what matters is which traces exist, not how often.
+      assert.deepEqual([...new Set(used.map((item) => `${item.skill}:${item.via}`))].sort(), [
+        "demo:command",
+        "demo:read",
+      ]);
       assert.ok(
         model.requests.every((body) => !body.includes("skill-used")),
         "the trace entry reached the model",

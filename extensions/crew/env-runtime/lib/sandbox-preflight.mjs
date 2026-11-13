@@ -2,7 +2,6 @@ import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { chooseVmm } from "./guest-vmm.mjs";
-import { nixBinary } from "./armory-nix.mjs";
 
 const gondolinPackage = "@earendil-works/gondolin";
 const piCacheHome = () => join(homedir(), ".pi", "agent", "cache");
@@ -29,14 +28,6 @@ function verifyQemuImage(binary = "qemu-img") {
   throw new Error(`Gondolin sandbox requires ${binary}; install QEMU first (macOS: brew install qemu).`);
 }
 
-// Armory guest suites are Nix flake outputs, so a Gondolin worker needs Nix.
-// Missing Nix makes `auto` fall back to the host; explicit `gondolin` reports it.
-function verifyNix(binary = nixBinary()) {
-  const result = spawnSync(binary, ["--version"], { stdio: "ignore" });
-  if (!result.error && result.status === 0) return;
-  throw new Error("Gondolin sandbox requires Nix and the Armory cache for guest suites; configure them first.");
-}
-
 // The checks spawn several processes (about 110 ms) and a Crew spawns its workers one
 // after another, so a recent success is reused. Callers that inject their own checks
 // (tests) are never memoized.
@@ -55,7 +46,6 @@ export async function preflightWorkerSandbox(config, dependencies = {}) {
     (dependencies.verifyQemu ?? verifyQemu)(requiredQemuBinary());
     (dependencies.verifyQemuImage ?? verifyQemuImage)();
   }
-  (dependencies.verifyNix ?? verifyNix)();
   try {
     const gondolin = dependencies.gondolin ?? (await import(gondolinPackage));
     await gondolin.ensureGuestAssets();

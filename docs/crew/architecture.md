@@ -1,8 +1,7 @@
 # Architecture
 
-How a Crew runs today. The earlier Comm/Lifecycle runtime (`extensions/crew/crew-runtime/`) is kept for the
-backend scale-up. Its extension entry point is not loaded, but some modules are still used, including
-`lib/crew-terminal-notifier.mjs`; its design notes are elsewhere in this directory.
+How a Crew runs today. The earlier Comm/Lifecycle runtime was removed; its design notes are kept in
+`docs/history/`.
 
 ## Shape
 

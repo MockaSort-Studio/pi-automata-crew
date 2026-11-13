@@ -1,5 +1,7 @@
 # Serial vs parallel Crew benchmark
 
+> History: this describes the earlier Comm/Lifecycle runtime, which was removed from the repository. It is kept only as a record.
+
 ## Controlled task
 
 All runs use the same three evidence requests:

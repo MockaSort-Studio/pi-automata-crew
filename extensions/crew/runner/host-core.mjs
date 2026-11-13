@@ -8,6 +8,7 @@ import { prepareDependencySources } from "./dependency-mount.mjs";
 import { loadSuiteModule } from "./github-suite.mjs";
 import { createMemberAgent } from "./member-agent.mjs";
 import { resolveModel } from "./model.mjs";
+import { preflightWorkerSandbox } from "../env-runtime/lib/sandbox-preflight.mjs";
 import { NATIVE_TOOLS, validateRequiredCapabilities } from "../crew/lib/required-capabilities.mjs";
 
 const GITHUB_SUITE = "collaboration/pi-github-tools";
@@ -55,6 +56,7 @@ const defaults = {
   },
   createMemberAgent,
   prepareDependencySources,
+  preflight: () => preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }),
 };
 
 // The crew host's brain: the commands Main can send and what they do, independent of how messages travel.
@@ -120,6 +122,15 @@ export function createHostCore({ send, deps = {} }) {
         tools: member.tools,
         suiteGrants: member.suiteGrants,
       });
+    // Every native tool acts in the member's VM: if this machine cannot run one, the launch fails now, with the
+    // reason, instead of each member failing when it first touches a tool.
+    if (members.some((member) => member.tools?.length)) {
+      try {
+        await d.preflight();
+      } catch (error) {
+        throw new Error(`Crew workers need a Gondolin VM: ${error.message}`);
+      }
+    }
     const activity = new Map();
     // Running totals per member, for Main's footer: they grow while a member works, not only when it reports.
     const live = new Map(members.map((member) => [member.handle, emptyLive()]));

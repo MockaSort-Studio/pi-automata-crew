@@ -1,5 +1,7 @@
 # Dispatch control-plane design
 
+> History: this describes the earlier Comm/Lifecycle runtime, which was removed from the repository. It is kept only as a record.
+
 Status: implemented (unit/integration level). Manifest kickoff, authenticated
 `comm.ready` readiness barrier (30 s), broker-enforced Lead-only broadcast,
 recipient-only replies, Main send/send-all/request/reply/acknowledge, one-shot

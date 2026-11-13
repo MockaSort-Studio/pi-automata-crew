@@ -1,5 +1,7 @@
 # Comm-native kickoff and dependency design
 
+> History: this describes the earlier Comm/Lifecycle runtime, which was removed from the repository. It is kept only as a record.
+
 ## Implemented flow
 
 The Lead sends one `comm_kickoff` broadcast to Crew actors only. It contains a

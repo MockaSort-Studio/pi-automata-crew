@@ -115,8 +115,6 @@ dependency sources and Prettier at `/opt/crew/dependency-sources` ([verification
 - `extensions/crew/runner/` — the crew host: dispatcher, member agents, routed tools, host-side suites.
 - `extensions/crew/crew/` — assembly, roles, the TUI, and the Pi tools.
 - `extensions/crew/env-runtime/` — Gondolin VMs, workspaces, guest network, credentials, doctor.
-- `extensions/crew/crew-runtime/` — the earlier Comm/Lifecycle runtime, kept for the backend scale-up. Its
-  extension entry point is not loaded; some modules are still used, including `lib/crew-terminal-notifier.mjs`.
 - `skills/` and root `SPECIALIST_ROUTES` — Crew procedures and routing policy.
 - `tests/crew/`, `tests/runtime/` — behavior tests; live ones use real VMs.
 - `docs/crew/` — design notes and history. See [architecture](docs/crew/architecture.md).
