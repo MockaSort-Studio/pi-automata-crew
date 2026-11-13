@@ -25,7 +25,6 @@ export default function runtimeExtension(pi: any): void {
           ),
           tools: Type.Optional(Type.Array(Type.String())),
           extensionPaths: Type.Optional(Type.Array(Type.String())),
-          bundles: Type.Optional(Type.Array(Type.String())),
           resident: Type.Optional(Type.Boolean()),
         }),
       ),
@@ -49,7 +48,6 @@ export default function runtimeExtension(pi: any): void {
       ),
       tools: Type.Optional(Type.Array(Type.String())),
       extensionPaths: Type.Optional(Type.Array(Type.String())),
-      bundles: Type.Optional(Type.Array(Type.String())),
       resident: Type.Optional(Type.Boolean()),
     }),
     async execute(_id, input) {

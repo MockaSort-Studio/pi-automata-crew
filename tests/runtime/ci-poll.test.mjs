@@ -2,10 +2,10 @@ import { strict as assert } from "node:assert";
 import test from "node:test";
 import { summarizeChecks, verifyPullRequest } from "../../extensions/crew/runner/ci-verify.mjs";
 
-const policy = { repo: "o/r" };
+const repository = { repo: "o/r" };
 const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: "a".repeat(40) } };
 const run = (call, options = {}) =>
-  verifyPullRequest({ ops: { call }, policy, evidence, pollIntervalMs: 1, ...options });
+  verifyPullRequest({ ops: { call }, repository, evidence, pollIntervalMs: 1, ...options });
 const file = (sha) => [{ filename: "src/a", blob_url: `https://github.com/o/r/blob/${sha}/src/a` }];
 const check = (status, conclusion) => ({
   __typename: "CheckRun",

@@ -74,7 +74,7 @@ test("retained launch intersects shared suite resolution with each member's gran
       agent.armory,
       expected.length ? { catalog: { release: catalog.release }, requests: suites } : undefined,
     );
-    assert.deepEqual(agent.repositoryAuthorization, {
+    assert.deepEqual(agent.repositoryContext, {
       repo: "org/repo",
       revision: "rev",
       base: "main",
@@ -126,7 +126,7 @@ test("Crew derives one worker-private branch authorization from immutable reposi
       resolveArmoryToolSuites: async () => [],
       runtimeFor: () => runtime(capture),
     });
-    assert.deepEqual(capture.agents[0].repositoryAuthorization, {
+    assert.deepEqual(capture.agents[0].repositoryContext, {
       repo: "MockaSort-Studio/pi-automata-crew",
       revision,
       base: "main",

@@ -4,7 +4,6 @@ import { test } from "node:test";
 import { assemble } from "../../extensions/crew/crew/lib/assembly.mjs";
 import { validateMemberAuthority } from "../../extensions/crew/crew/lib/member-authority.mjs";
 import { AUTOMATA } from "../../extensions/crew/crew/lib/roster.mjs";
-import { authorizeRepositoryOperation } from "../../extensions/crew/env-runtime/lib/repository-authorization.mjs";
 
 const github = "collaboration/pi-github-tools";
 const expected = {
@@ -62,7 +61,7 @@ test("personas declare exactly their read-only recognized domain tools", () => {
   }
 });
 
-test("deferred operations are withheld from persona grants", () => {
+test("persona domain tools do not include workflow or project reads", () => {
   const deferred = [
     "github_project_fields",
     "github_project_item_find",
@@ -72,16 +71,6 @@ test("deferred operations are withheld from persona grants", () => {
   ];
   for (const [name, automaton] of Object.entries(AUTOMATA)) {
     for (const tool of deferred) assert.ok(!automaton.tools.includes(tool), `${name}: ${tool}`);
-  }
-});
-
-test("persona PR reads reject cross-repository calls and missing authorization", () => {
-  const policy = { repo: "owner/repo", revision: "a".repeat(40), base: "main", branch: "crew/test" };
-  for (const operation of ["github_pull_request_view", "github_pull_request_files", "github_pull_request_checks"]) {
-    const input = { repo: policy.repo, pullNumber: 1 };
-    assert.doesNotThrow(() => authorizeRepositoryOperation(operation, input, policy));
-    assert.throws(() => authorizeRepositoryOperation(operation, { ...input, repo: "other/repo" }, policy), /outside/);
-    assert.throws(() => authorizeRepositoryOperation(operation, input), /authorization is required/);
   }
 });
 

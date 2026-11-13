@@ -16,7 +16,7 @@ test("worker Armory config exposes only exact mount paths and grants", () => {
   );
 });
 
-test("worker config keeps only a validated repository authorization projection", () => {
+test("worker config keeps only a validated repository context projection", () => {
   const authorization = {
     repo: "MockaSort-Studio/pi-automata-crew",
     revision: "a".repeat(40),
@@ -24,21 +24,17 @@ test("worker config keeps only a validated repository authorization projection",
     branch: "crew/run/actor",
   };
   assert.deepEqual(
-    workerArmoryConfig({ armory: { nixPaths: [], suites: [] }, repositoryAuthorization: authorization })
-      .repositoryAuthorization,
+    workerArmoryConfig({ armory: { nixPaths: [], suites: [] }, repositoryContext: authorization }).repositoryContext,
     authorization,
   );
-  assert.deepEqual(
-    workerArmoryConfig({ repositoryAuthorization: authorization }).repositoryAuthorization,
-    authorization,
-  );
+  assert.deepEqual(workerArmoryConfig({ repositoryContext: authorization }).repositoryContext, authorization);
   assert.throws(
     () =>
       workerArmoryConfig({
         armory: { nixPaths: [], suites: [] },
-        repositoryAuthorization: { ...authorization, revision: "main" },
+        repositoryContext: { ...authorization, revision: "main" },
       }),
-    /repository authorization/,
+    /repository context/,
   );
 });
 

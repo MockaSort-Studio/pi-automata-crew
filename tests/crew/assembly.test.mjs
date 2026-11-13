@@ -93,11 +93,11 @@ test("evidence and PR assertions distinguish missing grants from unsupported ope
   }
   assert.throws(
     () => assemble("snowball", "developer", "", { requiredCapabilities: [{ suite, operations: ["github_not_real"] }] }),
-    /github_not_real.*unsupported/,
+    /github_not_real.*(role.ceiling|missing grant)/,
   );
   assert.throws(
     () => assemble("snowball", "developer", "", { requiredCapabilities: [{ suite: "unknown", operations: ["x"] }] }),
-    /unknown.*x.*unsupported/,
+    /unknown.*x.*(role.ceiling|missing grant)/,
   );
   assert.throws(
     () => assemble("snowball", "developer", "", { requiredCapabilities: "read" }),
@@ -105,18 +105,8 @@ test("evidence and PR assertions distinguish missing grants from unsupported ope
   );
 });
 
-test("deferred operations, ceilings, reviewer opt-in, and malformed assertions are distinct", () => {
+test("ceilings, reviewer opt-in, and malformed assertions are distinct", () => {
   const suite = "collaboration/pi-github-tools";
-  for (const operation of [
-    "github_project_field_set",
-    "github_project_fields",
-    "github_project_item_add",
-    "github_project_item_find",
-  ])
-    assert.throws(
-      () => assemble("snowball", "developer", "", { requiredCapabilities: [{ suite, operations: [operation] }] }),
-      new RegExp(`${operation}.*unsupported`),
-    );
   for (const operation of ["github_pull_request_merge", "github_pull_request_review", "github_pull_request_comment"])
     assert.throws(
       () => assemble("snowball", "integrator", "", { requiredCapabilities: [{ suite, operations: [operation] }] }),

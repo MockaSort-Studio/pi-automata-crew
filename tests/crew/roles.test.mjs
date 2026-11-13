@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { roleModule } from "../../extensions/crew/crew/lib/automaton-body/lib/modules/role.mjs";
 import { assemble } from "../../extensions/crew/crew/lib/assembly.mjs";
-import { GITHUB_BASE_TOOLS } from "../../extensions/crew/crew/lib/github-base-tools.mjs";
 import { validateMemberAuthority } from "../../extensions/crew/crew/lib/member-authority.mjs";
 import { AUTOMATA } from "../../extensions/crew/crew/lib/roster.mjs";
 
@@ -23,14 +22,8 @@ test("roles provide bounded native capabilities", () => {
   }
 });
 
-test("GitHub base catalog declares bounded workflow inspection operations", () => {
-  for (const operation of ["github_workflow_runs_list", "github_workflow_run_view", "github_workflow_run_failed_log"])
-    assert.ok(GITHUB_BASE_TOOLS.includes(operation));
-});
-
 test("checks wait is recognized and explicit requests can narrow it away", () => {
   const operation = "github_pull_request_checks_wait";
-  assert.ok(GITHUB_BASE_TOOLS.includes(operation));
   const automaton = { ...AUTOMATA.snowball, tools: ["github_pull_request_checks", operation] };
   assert.deepEqual(
     validateMemberAuthority(automaton, "advisor", [

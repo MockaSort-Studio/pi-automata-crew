@@ -3,8 +3,8 @@
 // step is an idempotent suite operation, so salvaging twice, or after the agent already pushed, is a no-op.
 const CHUNK = 500;
 
-export async function salvage({ ops, policy, member, reason }) {
-  const { repo, revision, branch } = policy;
+export async function salvage({ ops, repository, member, reason }) {
+  const { repo, revision, branch } = repository;
   try {
     const status = await ops.call("github_git_status", { repo });
     const paths = (status.files ?? []).map((file) => file.path).filter((path) => !path.split("/").includes(".git"));

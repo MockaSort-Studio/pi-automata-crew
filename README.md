@@ -18,9 +18,8 @@ You ◄────────── messages ◄──────────
   its own [Gondolin](https://github.com/earendil-works/gondolin) VM with a private workspace and no
   network. There is no fallback to your host: if a VM cannot start, the launch fails and says why.
 - **Credentials stay out of the VM.** GitHub tools (typed Git operations and pull requests, from the
-  [Armory](https://github.com/MockaSort-Studio/hall-armory)) run on your host, against the exact repository,
-  revision and `crew/<run>/<member>` branch the crew is authorized for. Pushing elsewhere, force pushes and
-  other refs are refused.
+  [Armory](https://github.com/MockaSort-Studio/hall-armory)) run on your host with a Crew token. A member can call
+  exactly the operations its role and roster entry declare, and nothing else.
 - **Deterministic outcomes.** The runner, not the model, decides whether an agent completed, needs input
   or failed. A rate-limited or empty model turn is a failure with a category, never a silent success.
 - **Done means green CI.** A member that opens a pull request completes only when CI is green on the commit it
@@ -61,9 +60,9 @@ It boots a VM and checks everything a crew depends on, and says what to fix. For
 `HALL_GITHUB_TOKEN` (and have the `gh` CLI installed); crews that do not use GitHub run without it.
 
 Use a fine-grained token limited to the one repository the crew works on, with read and write on contents, pull
-requests and issues (plus metadata read). The token stays on your host and never enters a VM, and Crew policy only
-lets a member use it on the authorized repository, its own branch and its own pull request, but the token's own scope
-is the outer bound: keep it as narrow as the work needs.
+requests and issues (plus metadata read). The token stays on your host and never enters a VM. Crew does not inspect a member's tool calls:
+a member's declared tools decide what it may call, and the token's own scope decides what a call can reach, so keep it
+as narrow as the work needs.
 
 ## Use
 
@@ -71,10 +70,9 @@ Ask Pi to start a crew (it uses `start_crew`; `crew_route` picks specialists for
 `provider/id` and, for repository work, pin `environment.repository.revision` to a full commit SHA that exists
 on the remote. Everything that can be checked is checked before any VM starts.
 
-Developers own their pull requests, which Crew opens as drafts. They can list and read pull requests in the
-authorized repository, including files, checks and review threads, and update only their own PR's title, body,
-open/closed state and labels. They cannot comment, request changes, approve, merge or mark a PR ready; review
-and landing belong to reviewers, Main and humans.
+Developer roles declare pull request tools to create, list, read (files, checks, review threads) and update
+pull requests, and not to comment, request changes, approve or merge; review and landing belong to reviewers, Main
+and humans.
 
 | Tool                           | Use                                                            |
 | ------------------------------ | -------------------------------------------------------------- |

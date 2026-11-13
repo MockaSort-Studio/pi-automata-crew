@@ -172,6 +172,12 @@
     ],
     "thinking": "medium",
     "commTools": ["comm_notify", "comm_request", "comm_reply"],
-    "discipline": "Independently verify bounded work, report evidence to the assigned recipient, and submit review findings only when authorized."
+    "discipline": "Independently verify bounded work, report evidence to the assigned recipient, and submit review findings only when authorized.",
+    "optionalTools": [
+      "github_pull_request_comment",
+      "github_pull_request_review_start",
+      "github_pull_request_review_inline_comment",
+      "github_pull_request_review_submit"
+    ]
   }
 }

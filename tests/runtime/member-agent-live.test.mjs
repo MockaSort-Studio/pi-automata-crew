@@ -17,7 +17,14 @@ const repository = { repo: "o/r", revision: "a".repeat(40), base: "main" };
 const fakeSuite = (calls) => ({
   activateSuite(pi, options) {
     calls.push({ options });
-    for (const name of ["github_git_status", "github_git_commit", "github_git_push", "github_issue_view"])
+    for (const name of [
+      "github_git_status",
+      "github_workspace_checkout",
+      "github_git_stage",
+      "github_git_commit",
+      "github_git_push",
+      "github_issue_view",
+    ])
       pi.registerTool({
         name,
         label: name,
@@ -139,7 +146,14 @@ test(
     const grants = [
       {
         suite: "collaboration/pi-github-tools",
-        operations: ["github_git_status", "github_git_commit", "github_git_push", "github_issue_view"],
+        operations: [
+          "github_git_status",
+          "github_workspace_checkout",
+          "github_git_stage",
+          "github_git_commit",
+          "github_git_push",
+          "github_issue_view",
+        ],
       },
     ];
     const agent = await build(
@@ -149,7 +163,7 @@ test(
     assert.equal((await agent.run.prompt("go")).status, "completed");
     assert.ok(offeredTools(server).includes("github_git_push"));
     assert.equal(
-      agent.policy.branch,
+      agent.repository.branch,
       "crew/run1/developer-snowball-00",
       "the branch is derived by the runner, never chosen by the agent",
     );
@@ -176,7 +190,29 @@ test(
     );
     await assert.rejects(
       build({ handle: "reviewer-y-00", suiteGrants: readOnly }, { github: { module: fakeSuite([]), token: "t" } }),
-      /no repository authorization/,
+      /no repository context/,
+    );
+  },
+);
+
+test(
+  "the runner acts for a member only with operations it was granted: a narrowed grant gets no salvage",
+  { timeout: 120_000 },
+  async (t) => {
+    if (skipLiveGondolin(t)) return;
+    const calls = [];
+    const { build } = await setup(t, () => ({ text: "ok" }));
+    const narrowed = [{ suite: "collaboration/pi-github-tools", operations: ["github_git_commit", "github_git_push"] }];
+    const agent = await build(
+      { suiteGrants: narrowed },
+      { repository, github: { module: fakeSuite(calls), token: "t" } },
+    );
+    assert.equal(agent.salvage, undefined, "commit and push alone do not license status, checkout and stage");
+    assert.equal(agent.verify, undefined);
+    assert.deepEqual(
+      calls.filter((c) => c.name),
+      [],
+      "no ungranted operation was called",
     );
   },
 );
@@ -191,7 +227,13 @@ test(
     const grants = [
       {
         suite: "collaboration/pi-github-tools",
-        operations: ["github_git_status", "github_git_commit", "github_git_push"],
+        operations: [
+          "github_git_status",
+          "github_workspace_checkout",
+          "github_git_stage",
+          "github_git_commit",
+          "github_git_push",
+        ],
       },
     ];
     const agent = await build(

@@ -1,57 +1,16 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
 import { verifyPullRequest } from "../../extensions/crew/runner/ci-verify.mjs";
-import { hostGhTransport, createSuiteOperations } from "../../extensions/crew/runner/github-suite.mjs";
 
 const a = "a".repeat(40),
   b = "b".repeat(40);
 const evidence = { pullRequest: "https://github.com/o/r/pull/1", pushed: { commit: a } };
 const run = (call, extra = {}) =>
-  verifyPullRequest({ ops: { call }, policy: { repo: "o/r" }, evidence, pollIntervalMs: 1, ...extra });
+  verifyPullRequest({ ops: { call }, repository: { repo: "o/r" }, evidence, pollIntervalMs: 1, ...extra });
 const view = (head, rollup) => ({ state: "OPEN", headRefOid: head, statusCheckRollup: rollup });
 const success = [{ __typename: "CheckRun", status: "COMPLETED", conclusion: "SUCCESS", name: "test" }];
 const pending = [{ __typename: "CheckRun", status: "QUEUED", name: "test" }];
 const files = (head, filename = "src/a") => [{ filename, blob_url: `https://github.com/o/r/blob/${head}/${filename}` }];
-
-test("host transport enriches only PR view rollup queries and suite passes the field through", async () => {
-  const seen = [];
-  const transport = hostGhTransport({
-    token: "t",
-    exec: async (_cmd, args) => {
-      seen.push(args);
-      return { stdout: JSON.stringify(view(a, success)) };
-    },
-  });
-  const query = [
-    "pr",
-    "view",
-    "1",
-    "-R",
-    "o/r",
-    "--json",
-    "number,title,body,state,isDraft,author,headRefName,baseRefName,labels,reviews,statusCheckRollup,url",
-  ];
-  const module = {
-    activateSuite(pi, { commandTransport }) {
-      pi.registerTool({
-        name: "github_pull_request_view",
-        execute: async () => ({ content: [{ text: await commandTransport.run(query) }] }),
-      });
-    },
-  };
-  const result = await createSuiteOperations({ module, workspace: {}, token: "t", transport }).call(
-    "github_pull_request_view",
-    {},
-  );
-  assert.equal(result.headRefOid, a);
-  assert.equal(seen[0][6], `${query[6]},headRefOid`);
-  assert.ok(!query[6].includes("headRefOid"));
-  const ownership = ["pr", "view", "1", "--repo", "o/r", "--json", "headRefName,baseRefName,isCrossRepository"];
-  await transport.run(ownership);
-  await transport.run(["api", "repos/o/r"]);
-  assert.deepEqual(seen[1], ownership);
-  assert.deepEqual(seen[2], ["api", "repos/o/r"]);
-});
 
 test("uses each snapshot's checks and never borrows an ABA result", async () => {
   const snapshots = [view(a, pending), view(b, pending), view(a, success)];

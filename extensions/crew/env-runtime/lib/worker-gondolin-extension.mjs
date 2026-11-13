@@ -87,12 +87,10 @@ async function withVm(localCwd, use) {
 async function startVm(localCwd) {
   const armory = readWorkerArmoryConfig();
   if (!workspaceSeed)
-    workspaceSeed = seedRepositoryWorkspace(workspace, armory.repositoryAuthorization, { cwd: localCwd }).catch(
-      (error) => {
-        workspaceSeed = undefined;
-        throw error;
-      },
-    );
+    workspaceSeed = seedRepositoryWorkspace(workspace, armory.repositoryContext, { cwd: localCwd }).catch((error) => {
+      workspaceSeed = undefined;
+      throw error;
+    });
   await workspaceSeed;
   const secrets = Object.fromEntries(
     (armory.network?.credentials ?? [])

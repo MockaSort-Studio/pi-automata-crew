@@ -61,29 +61,6 @@ test("developer PR authority permits ownership operations but not review or merg
   }
 });
 
-test("developer and integrator personas cannot grant review, comment, or merge authority", () => {
-  const prohibited = [
-    "github_pull_request_comment",
-    "github_pull_request_review",
-    "github_pull_request_review_start",
-    "github_pull_request_review_inline_comment",
-    "github_pull_request_review_submit",
-    "github_pull_request_merge",
-  ];
-  const persona = { tools: [...prohibited, "github_pull_request_review_threads"] };
-  for (const role of ["developer", "integrator"]) {
-    const defaults = validateMemberAuthority(persona, role).suiteGrants[0].tools;
-    for (const operation of prohibited) {
-      assert.ok(!defaults.includes(operation));
-      assert.throws(() => validateMemberAuthority(persona, role, grants(github, operation)), /outside/);
-    }
-    assert.ok(defaults.includes("github_pull_request_review_threads"));
-  }
-  for (const operation of prohibited.slice(2, 5)) {
-    assert.doesNotThrow(() => validateMemberAuthority(persona, "reviewer", grants(github, operation)));
-  }
-});
-
 test("persona capabilities union with role policy without widening other personas", () => {
   const domain = { tools: ["github_pull_request_review_threads"] };
   assert.deepEqual(validateMemberAuthority(domain, "advisor", grants(github, "github_pull_request_review_threads")), {
@@ -94,25 +71,17 @@ test("persona capabilities union with role policy without widening other persona
     () => validateMemberAuthority({ tools: [] }, "advisor", grants(github, "github_pull_request_review_threads")),
     /outside/,
   );
-  assert.throws(
-    () => validateMemberAuthority({ tools: ["github_not_real"] }, "advisor", grants(github, "github_not_real")),
-    /Unknown/,
-  );
 });
 
-test("personas cannot add mutations but can add audited reads", () => {
-  const persona = { tools: ["edit", "write", "bash", "github_issue_create", "github_workflow_run_failed_log"] };
-  for (const role of ["advisor", "reviewer"]) {
-    const defaults = validateMemberAuthority(persona, role);
-    for (const tool of ["edit", "write"]) {
-      assert.ok(!defaults.tools.includes(tool));
-      assert.throws(() => validateMemberAuthority(persona, role, grants("system", tool)), /outside/);
-    }
-    assert.throws(() => validateMemberAuthority(persona, role, grants(github, "github_issue_create")), /outside/);
-    assert.ok(!defaults.suiteGrants[0].tools.includes("github_issue_create"));
-    assert.ok(defaults.suiteGrants[0].tools.includes("github_workflow_run_failed_log"));
-  }
-  assert.throws(() => validateMemberAuthority(persona, "advisor", grants("system", "bash")), /outside/);
+test("a persona's declared tools join its role's declarations", () => {
+  const defaults = validateMemberAuthority({ tools: ["github_workflow_run_failed_log"] }, "advisor").suiteGrants[0]
+    .tools;
+  assert.ok(defaults.includes("github_workflow_run_failed_log"));
+  assert.ok(defaults.includes("github_issue_view"));
+  assert.throws(
+    () => validateMemberAuthority({ tools: [] }, "advisor", grants(github, "github_issue_create")),
+    /outside/,
+  );
 });
 
 test("restored operations enter through defaults and explicit requests", () => {
@@ -151,19 +120,15 @@ test("restored operations enter through defaults and explicit requests", () => {
   }
 });
 
-test("lead defaults defer project operations", () => {
-  const deferred = [
+test("lead gets the project operations its role declares", () => {
+  const defaults = validateMemberAuthority({ tools: [] }, "lead").suiteGrants[0].tools;
+  for (const tool of [
     "github_project_fields",
     "github_project_item_add",
     "github_project_item_find",
     "github_project_field_set",
-  ];
-  const defaults = validateMemberAuthority({ tools: ["github_project_fields"] }, "lead").suiteGrants[0].tools;
-  for (const tool of deferred) {
-    assert.ok(!defaults.includes(tool), tool);
-    assert.throws(() => validateMemberAuthority({ tools: [tool] }, "lead", grants(github, tool)), /outside/);
-  }
-  assert.ok(defaults.includes("github_issue_view"));
+  ])
+    assert.ok(defaults.includes(tool), tool);
 });
 
 test("assembly and prepareCrew reject identical invalid grants before writing launch files", async () => {

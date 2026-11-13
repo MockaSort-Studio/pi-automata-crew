@@ -14,8 +14,8 @@ First release in preparation. What the Crew does today:
   [Gondolin](https://github.com/earendil-works/gondolin) VM; there is no fallback to the host.
 - GitHub tools (typed Git operations and pull requests) come from the
   [Armory](https://github.com/MockaSort-Studio/hall-armory) and run on the host: the credential never enters a VM.
-  A member may push only to its own `crew/<run>/<member>` branch and change only its own pull request; pull
-  requests are always opened as drafts.
+  A member can call exactly the operations its role and roster entry declare; Crew keeps no per-operation
+  tables and inspects no tool input.
 - The runner decides outcomes (`completed`, `needs_input`, `failed`, `cancelled`), not the model. A member that
   opened a pull request completes only when CI is green on the commit it pushed; red CI resumes the same session
   with the failing checks, and changes to the files that define the checks are reported to Main.

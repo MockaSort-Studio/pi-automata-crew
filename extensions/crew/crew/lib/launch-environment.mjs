@@ -9,7 +9,7 @@ import { checkLaunchCredentials } from "../../env-runtime/lib/credentials.mjs";
 import { compileActorProfile } from "./actor-profile.mjs";
 import { realizeOrFallback } from "./armory-fallback.mjs";
 
-const repositoryAuthorizationFor = (repository, runId, handle) =>
+const repositoryContextFor = (repository, runId, handle) =>
   repository && {
     repo: repository.repo,
     revision: repository.revision,
@@ -61,13 +61,9 @@ export async function resolveLaunchEnvironment(config, dependencies = {}) {
             },
           }
         : {}),
-      ...(repositoryAuthorizationFor(config.environment.repository, config.runId, agent.name)
+      ...(repositoryContextFor(config.environment.repository, config.runId, agent.name)
         ? {
-            repositoryAuthorization: repositoryAuthorizationFor(
-              config.environment.repository,
-              config.runId,
-              agent.name,
-            ),
+            repositoryContext: repositoryContextFor(config.environment.repository, config.runId, agent.name),
           }
         : {}),
       ...(resolution.sandbox ? { sandbox: resolution.sandbox } : {}),

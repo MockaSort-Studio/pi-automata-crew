@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { resolveBundles } from "./tool-bundles.mjs";
 import { connectLifecycle } from "./lifecycle-client.mjs";
 import { reapOrphans, recordOwner, removeOwner } from "./lifecycle-registry.mjs";
 import { preserveEvidence, waitReadyOrExit } from "./crew-launch.mjs";
@@ -132,7 +131,6 @@ export class Runtime extends MainComm {
     actorId,
     tools = defaultTools,
     extensionPaths = [],
-    bundles = [],
     comm,
     thinking = "off",
     resident = false,
@@ -140,7 +138,6 @@ export class Runtime extends MainComm {
     ...agent
   }) {
     await this.#ensureLifecycle();
-    const bundle = resolveBundles(this.cwd, bundles);
     const id = actorId ?? randomUUID();
     // Each actor gets its own token, minted once and reused for this process's
     // lifetime -- never the shared commAuthToken, which only ever authenticates Main.
@@ -153,8 +150,8 @@ export class Runtime extends MainComm {
       thinking,
       resident,
       initialTurn,
-      tools: [...new Set([...tools, ...bundle.tools])],
-      extensionPaths: [...new Set([...extensionPaths, ...bundle.extensionPaths])],
+      tools: [...new Set(tools)],
+      extensionPaths: [...new Set(extensionPaths)],
       comm:
         comm ??
         (this.commUrl ? { url: this.commUrl, actorId: id, namespace: agent.namespace, authToken: token } : undefined),
