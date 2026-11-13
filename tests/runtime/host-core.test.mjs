@@ -29,6 +29,7 @@ function host({ results = {}, deps = {} } = {}) {
       },
       buildSeed: () => Buffer.from("seed"),
       prepareDependencySources: async () => ({ snapshots: [], failures: [] }),
+      preflight: async () => {},
       resolveArmoryCatalog: async () => ({ revision: "abc" }),
       loadGithubModule: async () => ({ activateSuite() {} }),
       createMemberAgent: async ({ member: m, crew, onEvent }) => {
@@ -162,6 +163,31 @@ test("an unavailable repository revision and a missing credential fail the launc
     /no Crew credential/,
   );
   for (const h of [bad, noToken]) assert.deepEqual(h.created, []);
+});
+
+test("a machine that cannot run the VMs fails the launch with the reason, before any model runtime or agent", async () => {
+  let modelRuntimes = 0;
+  const broken = host({
+    deps: {
+      createModelRuntime: async () => (modelRuntimes++, {}),
+      preflight: async () => {
+        throw new Error(
+          "Gondolin sandbox requires qemu-system-aarch64; install QEMU first (macOS: brew install qemu).",
+        );
+      },
+    },
+  });
+  const response = await broken.call("launch", launch());
+  assert.equal(response.ok, false);
+  assert.match(
+    response.error.message,
+    /Crew workers need a Gondolin VM: Gondolin sandbox requires qemu-system-aarch64/,
+  );
+  assert.equal(modelRuntimes, 0);
+  assert.deepEqual(broken.created, []);
+  // A crew whose members have no tools never boots a VM, so there is nothing to check.
+  const toolless = host({ deps: { preflight: async () => assert.fail("no VM is needed") } });
+  assert.equal((await toolless.call("launch", launch({ members: [member(A, { tools: [] })] }))).ok, true);
 });
 
 test("launch reports source prerequisites without exposing source bytes", async () => {

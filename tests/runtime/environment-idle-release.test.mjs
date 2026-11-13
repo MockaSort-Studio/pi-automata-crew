@@ -8,6 +8,7 @@ import { requiredQemuBinary } from "../../extensions/crew/env-runtime/lib/sandbo
 import { chooseVmm } from "../../extensions/crew/env-runtime/lib/guest-vmm.mjs";
 import { listProcesses, vmmChildrenOf } from "../../extensions/crew/env-runtime/lib/vm-processes.mjs";
 import { createEnvironment } from "../../extensions/crew/runner/environment.mjs";
+import { routedToolsExtension } from "../../extensions/crew/runner/routing-extension.mjs";
 import { skipLiveGondolin } from "./live-gondolin.mjs";
 
 const available = {
@@ -15,7 +16,24 @@ const available = {
   krun: () => chooseVmm({ env: {} }) === "krun",
 };
 const vmms = () => vmmChildrenOf(process.pid, listProcesses()).length;
-const echo = (environment) => environment.withVm(async (vm) => (await vm.exec("echo hello-from-guest")).stdout);
+// Through Pi's events and the routed bash tool, as an agent drives it: agent_start cancels the idle timer,
+// agent_settled arms it.
+function agent(environment) {
+  const tools = new Map();
+  const handlers = new Map();
+  routedToolsExtension(environment)({
+    registerTool: (tool) => tools.set(tool.name, tool),
+    on: (name, handler) => handlers.set(name, handler),
+  });
+  return {
+    async turn() {
+      await handlers.get("agent_start")();
+      const result = await tools.get("bash").execute("call", { command: "echo hello-from-guest" });
+      await handlers.get("agent_settled")();
+      return JSON.stringify(result.content);
+    },
+  };
+}
 
 for (const vmm of ["krun", "qemu"]) {
   test(
@@ -30,14 +48,14 @@ for (const vmm of ["krun", "qemu"]) {
         await environment.close();
         rmSync(cwd, { recursive: true, force: true });
       });
-      assert.match(await echo(environment), /hello-from-guest/);
+      const member = agent(environment);
+      assert.match(await member.turn(), /hello-from-guest/);
       assert.equal(environment.isRunning(), true);
       assert.equal(vmms(), 1, "one VM while in use");
-      environment.armIdle();
       await new Promise((resolve) => setTimeout(resolve, 2500));
       assert.equal(environment.isRunning(), false, "released after idling");
       assert.equal(vmms(), 0, "no VM process remains after the release");
-      assert.match(await echo(environment), /hello-from-guest/, "the next use boots a fresh VM");
+      assert.match(await member.turn(), /hello-from-guest/, "the next turn boots a fresh VM");
       assert.equal(vmms(), 1);
       await environment.close();
       assert.equal(vmms(), 0, "closing leaves nothing behind");

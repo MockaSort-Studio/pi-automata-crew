@@ -7,6 +7,7 @@ import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 // Hermetic: the host's real dependency-source preparation downloads from the npm registry when its cache is cold.
 export default {
   prepareDependencySources: async () => ({ failures: [] }),
+  preflight: async () => {},
   async createModelRuntime() {
     const dir = mkdtempSync(join(tmpdir(), "host-deps-"));
     const runtime = await ModelRuntime.create({

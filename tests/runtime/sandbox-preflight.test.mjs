@@ -1,6 +1,5 @@
 import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
-import { nixBinary } from "../../extensions/crew/env-runtime/lib/armory-nix.mjs";
 import test from "node:test";
 import {
   gondolinCacheHome,
@@ -28,12 +27,11 @@ test("preflight verifies QEMU then downloads verified guest assets into the chos
       vmm: "qemu",
       verifyQemu: (binary) => calls.push(binary),
       verifyQemuImage: () => calls.push("qemu-img"),
-      verifyNix: () => calls.push("nix"),
       gondolin: { ensureGuestAssets: async () => calls.push("assets") },
     },
   );
   assert.match(environment.XDG_CACHE_HOME, /\.pi\/agent\/cache$/);
-  assert.deepEqual(calls, [requiredQemuBinary(), "qemu-img", "nix", "assets"]);
+  assert.deepEqual(calls, [requiredQemuBinary(), "qemu-img", "assets"]);
 });
 
 test("preflight does not download assets if QEMU is unavailable", async () => {
@@ -53,23 +51,6 @@ test("preflight does not download assets if QEMU is unavailable", async () => {
   );
 });
 
-test("preflight rejects with an install hint, before downloading assets, when Nix is absent", async () => {
-  await assert.rejects(
-    preflightWorkerSandbox(
-      { sandbox: { kind: "gondolin" } },
-      {
-        verifyQemu: () => {},
-        verifyQemuImage: () => {},
-        verifyNix: () => {
-          throw new Error("Gondolin sandbox requires Nix");
-        },
-        gondolin: { ensureGuestAssets: async () => assert.fail("should not download") },
-      },
-    ),
-    /requires Nix/,
-  );
-});
-
 test("a Crew's later workers reuse a recent successful preflight instead of re-spawning the checks", async () => {
   const calls = [];
   const dependencies = {
@@ -78,12 +59,11 @@ test("a Crew's later workers reuse a recent successful preflight instead of re-s
     vmm: "qemu",
     verifyQemu: () => calls.push("qemu"),
     verifyQemuImage: () => calls.push("image"),
-    verifyNix: () => calls.push("nix"),
     gondolin: { ensureGuestAssets: async () => calls.push("assets") },
   };
   await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
   await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
-  assert.deepEqual(calls, ["qemu", "image", "nix", "assets"]);
+  assert.deepEqual(calls, ["qemu", "image", "assets"]);
 });
 
 test("an expired preflight is checked again", async () => {
@@ -92,13 +72,12 @@ test("an expired preflight is checked again", async () => {
     memo: {},
     environment: {},
     vmm: "krun",
-    verifyNix: () => calls.push("nix"),
     gondolin: { ensureGuestAssets: async () => calls.push("assets") },
   };
   await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
   dependencies.memo.verifiedAt = Date.now() - 30_001;
   await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } }, dependencies);
-  assert.deepEqual(calls, ["nix", "assets", "nix", "assets"]);
+  assert.deepEqual(calls, ["assets", "assets"]);
 });
 
 test("a failed preflight is retried rather than memoized", async () => {
@@ -108,7 +87,6 @@ test("a failed preflight is retried rather than memoized", async () => {
     memo: {},
     environment: {},
     vmm: "krun",
-    verifyNix: () => calls.push("nix"),
     gondolin: {
       ensureGuestAssets: async () => {
         calls.push("assets");
@@ -121,12 +99,10 @@ test("a failed preflight is retried rather than memoized", async () => {
   fail = false;
   await preflightWorkerSandbox(config, dependencies);
   await preflightWorkerSandbox(config, dependencies);
-  assert.deepEqual(calls, ["nix", "assets", "nix", "assets"]);
+  assert.deepEqual(calls, ["assets", "assets"]);
 });
 
-test("real preflight reuses a recent success", async (t) => {
-  const nix = spawnSync(nixBinary(), ["--version"], { stdio: "ignore" });
-  if (nix.error?.code === "ENOENT") return t.skip("Nix is unavailable here");
+test("real preflight reuses a recent success", async () => {
   await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } });
   const started = performance.now();
   await preflightWorkerSandbox({ sandbox: { kind: "gondolin" } });
@@ -142,9 +118,8 @@ test("libkrun needs no QEMU: its absence is never checked", async () => {
       vmm: "krun",
       verifyQemu: () => assert.fail("QEMU must not be required for libkrun"),
       verifyQemuImage: () => assert.fail("qemu-img must not be required for libkrun"),
-      verifyNix: () => calls.push("nix"),
       gondolin: { ensureGuestAssets: async () => calls.push("assets") },
     },
   );
-  assert.deepEqual(calls, ["nix", "assets"]);
+  assert.deepEqual(calls, ["assets"]);
 });
