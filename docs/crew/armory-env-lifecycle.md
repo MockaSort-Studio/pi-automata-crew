@@ -38,7 +38,7 @@ handle; every call enters the guest.
 
 `pi.registerTool()` is local to one worker subprocess. The generic proxy
 registers only descriptors that are both supplied by the guest suite and
-allowed by that worker authorization profile.
+granted to that worker.
 
 ```text
 reviewer session: github_pull_request_view
