@@ -70,5 +70,9 @@
     "typebox": {
       "optional": true
     }
+  },
+  "publishConfig": {
+    "tag": "beta",
+    "access": "public"
   }
 }
