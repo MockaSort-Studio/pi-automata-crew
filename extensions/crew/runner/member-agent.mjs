@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { repositoryAuthorization } from "../env-runtime/lib/repository-authorization.mjs";
+import { repositoryContext } from "../env-runtime/lib/repository-context.mjs";
 import { populateRepositoryWorkspace } from "../env-runtime/lib/repository-workspace.mjs";
 import { createAgentRun } from "./agent-run.mjs";
 import { verifyPullRequest } from "./ci-verify.mjs";
@@ -32,15 +32,15 @@ export async function disposeMember(run, environment) {
 export async function createMemberAgent({ member, crew, onEvent, prepareSources = prepareDependencyMount }) {
   const cwd = join(crew.dir, "agents", member.handle, "cwd");
   mkdirSync(cwd, { recursive: true });
-  const policy = crew.repository
-    ? repositoryAuthorization({ ...crew.repository, branch: `crew/${crew.runId}/${member.handle}` })
+  const repository = crew.repository
+    ? repositoryContext({ ...crew.repository, branch: `crew/${crew.runId}/${member.handle}` })
     : undefined;
   const granted = member.suiteGrants?.find((grant) => grant.suite === GITHUB_SUITE);
   const github = granted && crew.github;
   if (granted && !github)
     throw new Error(`${member.handle} is granted the GitHub suite but none is available to this crew`);
-  if (granted && !policy)
-    throw new Error(`${member.handle} is granted the GitHub suite but the crew has no repository authorization`);
+  if (granted && !repository)
+    throw new Error(`${member.handle} is granted the GitHub suite but the crew has no repository context`);
   const operations = granted?.operations ?? [];
   const ciAccess =
     github?.token &&
@@ -65,7 +65,7 @@ export async function createMemberAgent({ member, crew, onEvent, prepareSources 
           secrets: { GH_TOKEN: { value: github.token, hosts: ["api.github.com"] } },
           onRequest: (request, env) =>
             githubCiHeadersAllowed(request.headers, env.GH_TOKEN) &&
-            githubCiRequestAllowed(request, { repo: policy.repo, operations })
+            githubCiRequestAllowed(request, { repo: repository.repo, operations })
               ? undefined
               : new Response("blocked", { status: 403 }),
         }
@@ -79,7 +79,7 @@ export async function createMemberAgent({ member, crew, onEvent, prepareSources 
         module: github.module,
         workspace: environment.workspace,
         token: github.token,
-        policy,
+        operations,
         ready: environment.ready,
       }),
     );
@@ -105,15 +105,15 @@ export async function createMemberAgent({ member, crew, onEvent, prepareSources 
   return {
     run,
     environment,
-    policy,
+    repository,
     salvage: suite
       ? (status) =>
-          environment.ready().then(() => salvage({ ops: suite, policy, member: member.handle, reason: status }))
+          environment.ready().then(() => salvage({ ops: suite, repository, member: member.handle, reason: status }))
       : undefined,
     // A member that can open pull requests is held to a green CI on the one it opened (see ci-verify.mjs).
     verify:
       suite && operations.includes(CREATE_PULL_REQUEST)
-        ? ({ result, signal }) => verifyPullRequest({ ops: suite, policy, evidence: result.evidence, signal })
+        ? ({ result, signal }) => verifyPullRequest({ ops: suite, repository, evidence: result.evidence, signal })
         : undefined,
     dispose: () => disposeMember(run, environment),
   };

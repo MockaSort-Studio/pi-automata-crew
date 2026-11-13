@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import test from "node:test";
 import { ciFollowUp, gateFilesOf, pullNumberOf, verifyPullRequest } from "../../extensions/crew/runner/ci-verify.mjs";
 
-const policy = { repo: "o/r", revision: "a".repeat(40), base: "main", branch: "crew/run/dev" };
+const repository = { repo: "o/r", revision: "a".repeat(40), base: "main", branch: "crew/run/dev" };
 
 test("the pull request number comes from the URL the member's evidence recorded", () => {
   assert.equal(pullNumberOf("https://github.com/o/r/pull/42"), 42);
@@ -13,7 +13,7 @@ test("the pull request number comes from the URL the member's evidence recorded"
 
 test("no pull request in the evidence means there is nothing to gate", async () => {
   const ops = { call: async () => assert.fail("must not call GitHub without a pull request") };
-  assert.equal(await verifyPullRequest({ ops, policy, evidence: { commits: [] } }), null);
+  assert.equal(await verifyPullRequest({ ops, repository, evidence: { commits: [] } }), null);
 });
 
 test("it checks the current pull request with the supplied signal", async () => {
@@ -32,7 +32,7 @@ test("it checks the current pull request with the supplied signal", async () => 
     },
   };
   const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: "f".repeat(40) } };
-  const result = await verifyPullRequest({ ops, policy, evidence, signal: controller.signal });
+  const result = await verifyPullRequest({ ops, repository, evidence, signal: controller.signal });
   assert.deepEqual(calls[0], [
     "github_pull_request_view",
     { repo: "o/r", pullNumber: 9 },
@@ -65,7 +65,7 @@ test("a red result carries a bounded follow-up naming each failing check with it
     },
   };
   const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: "abcdef0123456789" } };
-  const { followUp } = await verifyPullRequest({ ops, policy, evidence });
+  const { followUp } = await verifyPullRequest({ ops, repository, evidence });
   assert.match(followUp, /CI is red on your pull request #9 \(commit abcdef0\)/);
   assert.match(followUp, /### CI \/ test/);
   assert.match(followUp, /AssertionError: expected 1 to equal 2/, "the end of the log is what matters and is kept");
@@ -138,7 +138,7 @@ test("a green result reports whether the pull request changed the files that def
           ],
   };
   const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: "f".repeat(40) } };
-  const check = await verifyPullRequest({ ops, policy, evidence });
+  const check = await verifyPullRequest({ ops, repository, evidence });
   assert.deepEqual(check.gateFiles, [".prettierignore"]);
   // A red result goes back to the member before gate acknowledgement.
   const red = {
@@ -151,7 +151,7 @@ test("a green result reports whether the pull request changed the files that def
           }
         : assert.fail(name),
   };
-  assert.equal((await verifyPullRequest({ ops: red, policy, evidence })).state, "failure");
+  assert.equal((await verifyPullRequest({ ops: red, repository, evidence })).state, "failure");
 });
 
 test("closed pull requests are reported even with gate files and missing or stale evidence", async () => {
@@ -161,7 +161,7 @@ test("closed pull requests are reported even with gate files and missing or stal
         name === "github_pull_request_view" ? { state: "MERGED" } : assert.fail("closed PR must not be polled"),
     };
     const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit } };
-    const check = await verifyPullRequest({ ops, policy, evidence });
+    const check = await verifyPullRequest({ ops, repository, evidence });
     assert.equal(check.state, "closed");
     assert.equal(check.prState, "MERGED");
   }

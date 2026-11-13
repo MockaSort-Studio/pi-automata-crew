@@ -4,7 +4,7 @@ import { verifyPullRequest } from "../../extensions/crew/runner/ci-verify.mjs";
 
 const sha = "a".repeat(40);
 const other = "b".repeat(40);
-const policy = { repo: "o/r" };
+const repository = { repo: "o/r" };
 const evidence = { pullRequest: "https://github.com/o/r/pull/9", pushed: { commit: sha } };
 const file = (head) => ({
   filename: ".prettierignore",
@@ -12,7 +12,7 @@ const file = (head) => ({
 });
 const verify = (files, ev = evidence) =>
   verifyPullRequest({
-    policy,
+    repository,
     evidence: ev,
     ops: {
       call: async (name) =>

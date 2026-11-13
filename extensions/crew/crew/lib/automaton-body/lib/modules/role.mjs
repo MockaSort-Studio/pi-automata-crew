@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { GITHUB_BASE_TOOLS, GITHUB_BASE_TOOL_SET } from "../../../github-base-tools.mjs";
+import { NATIVE_TOOLS } from "../../../required-capabilities.mjs";
 const ROOT = new URL("../../../../", import.meta.url);
 const catalog = JSON.parse(readFileSync(new URL("prompts/roles.json", ROOT), "utf8"));
 const THINKING = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
@@ -12,6 +12,11 @@ for (const [name, role] of Object.entries(catalog)) {
     !role.tools.every((tool) => typeof tool === "string")
   )
     throw new Error(`Invalid role tools: ${name}`);
+  if (
+    role.optionalTools !== undefined &&
+    (!Array.isArray(role.optionalTools) || !role.optionalTools.every((tool) => role.tools.includes(tool)))
+  )
+    throw new Error(`Invalid role optional tools: ${name}`);
   if (!THINKING.has(role.thinking)) throw new Error(`Invalid role thinking: ${name}`);
   if (
     role.extensionPaths !== undefined &&
@@ -33,9 +38,7 @@ export function validateRoleTools(availableTools, roleName) {
   const entries = roleName ? [[roleName, catalog[roleName]]] : Object.entries(catalog);
   for (const [name, role] of entries) {
     if (!role) throw new Error(`Role "${name}" not defined`);
-    const missing = [...role.tools, ...GITHUB_BASE_TOOLS].filter(
-      (tool) => !available.has(tool) && !GITHUB_BASE_TOOL_SET.has(tool),
-    );
+    const missing = role.tools.filter((tool) => NATIVE_TOOLS.has(tool) && !available.has(tool));
     if (missing.length) throw new Error(`Role ${name} requires unavailable tools: ${missing.join(", ")}`);
   }
 }
@@ -44,9 +47,9 @@ export function roleModule(ctx) {
   if (!role) throw new Error(`Role "${ctx.role}" not defined. Available: ${Object.keys(catalog).join(", ")}`);
   return {
     instructions: readFileSync(new URL(`prompts/roles/${role.prompt}`, ROOT), "utf8").trim(),
-    // GitHub operations are role capabilities, not implicit grants. Assembly
+    // Armory operations are role capabilities, not implicit grants. Assembly
     // projects them only when an assignment's generic allowlist requests one.
-    tools: role.tools.filter((tool) => !GITHUB_BASE_TOOL_SET.has(tool)),
+    tools: role.tools.filter((tool) => NATIVE_TOOLS.has(tool)),
     commTools: role.commTools,
     thinking: ctx.override?.thinking ?? role.thinking,
     ...(ctx.override?.model ? { model: ctx.override.model } : {}),

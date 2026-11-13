@@ -67,7 +67,7 @@ test("Lifecycle preserves the trusted repository authorization in worker config"
   if (skipWithoutGit(t)) return;
   const cwd = gitRepo();
   const controller = new LifecycleController({ cwd, workerModule: stubWorker });
-  const repositoryAuthorization = {
+  const repositoryContext = {
     repo: "MockaSort-Studio/pi-automata-crew",
     revision: "a".repeat(40),
     base: "main",
@@ -78,10 +78,10 @@ test("Lifecycle preserves the trusted repository authorization in worker config"
       actorId: "repository-auth",
       name: "repository-auth",
       task: "SLEEP",
-      repositoryAuthorization,
+      repositoryContext,
     });
     const config = JSON.parse(readFileSync(join(cwd, ".pi", "runtime", "runs", agent.id, "worker.json"), "utf8"));
-    assert.deepEqual(config.repositoryAuthorization, repositoryAuthorization);
+    assert.deepEqual(config.repositoryContext, repositoryContext);
     await controller.remove(agent.id);
   } finally {
     rmSync(cwd, { recursive: true, force: true });

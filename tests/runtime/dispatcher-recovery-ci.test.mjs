@@ -47,7 +47,13 @@ function world(sessions) {
       verify:
         handle === A
           ? ({ result, signal }) =>
-              verifyPullRequest({ ops, policy: { repo: "o/r" }, evidence: result.evidence, signal, pollIntervalMs: 1 })
+              verifyPullRequest({
+                ops,
+                repository: { repo: "o/r" },
+                evidence: result.evidence,
+                signal,
+                pollIntervalMs: 1,
+              })
           : undefined,
       dispose: async () => {},
     };

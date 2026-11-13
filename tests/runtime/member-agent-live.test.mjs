@@ -149,7 +149,7 @@ test(
     assert.equal((await agent.run.prompt("go")).status, "completed");
     assert.ok(offeredTools(server).includes("github_git_push"));
     assert.equal(
-      agent.policy.branch,
+      agent.repository.branch,
       "crew/run1/developer-snowball-00",
       "the branch is derived by the runner, never chosen by the agent",
     );
@@ -176,7 +176,7 @@ test(
     );
     await assert.rejects(
       build({ handle: "reviewer-y-00", suiteGrants: readOnly }, { github: { module: fakeSuite([]), token: "t" } }),
-      /no repository authorization/,
+      /no repository context/,
     );
   },
 );

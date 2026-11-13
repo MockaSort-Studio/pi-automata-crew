@@ -1,13 +1,10 @@
 import { strict as assert } from "node:assert";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { validateMemberAuthority } from "../../extensions/crew/crew/lib/member-authority.mjs";
-import { authorizeRepositoryOperation } from "../../extensions/crew/env-runtime/lib/repository-authorization.mjs";
-import { repositoryTargets } from "../../extensions/crew/env-runtime/lib/repository-targets.mjs";
 
 const github = "collaboration/pi-github-tools";
-const snapshot = JSON.parse(readFileSync(new URL("../fixtures/armory-operations.json", import.meta.url)));
-const policy = { repo: "Owner/Repo", revision: "a".repeat(40), base: "main", branch: "worker" };
+const granted = (role, requested, tools = []) =>
+  validateMemberAuthority({ tools }, role, requested).suiteGrants.flatMap((grant) => grant.tools);
 const restored = {
   lead: [
     "github_issues_list",
@@ -21,6 +18,7 @@ const restored = {
     "github_issue_remove_label",
     "github_subissue_add",
     "github_dependency_add",
+    "github_project_fields",
   ],
   architect: [
     "github_discussion_comments",
@@ -31,53 +29,25 @@ const restored = {
   reviewer: ["github_pull_request_checks_wait"],
 };
 
-test("restored role grants are confined for every released operation", () => {
+test("a role is granted what its declarations list, by default or on request", () => {
   for (const [role, operations] of Object.entries(restored)) {
     for (const operation of operations) {
-      const target = repositoryTargets[operation];
-      assert.ok(["repo", "ownerRepo"].includes(target), operation);
-      const schema = snapshot.operations[operation];
-      const input = Object.fromEntries(schema.required.map((key) => [key, schema.fields[key] === "integer" ? 1 : "x"]));
-      input.repo = target === "ownerRepo" ? "Repo" : policy.repo;
-      if (target === "ownerRepo") input.owner = "Owner";
-      assert.ok(
-        validateMemberAuthority({ tools: [] }, role)
-          .suiteGrants.flatMap((grant) => grant.tools)
-          .includes(operation),
-      );
-      assert.doesNotThrow(() =>
-        validateMemberAuthority({ tools: [] }, role, [{ suite: github, operations: [operation] }]),
-      );
-      assert.doesNotThrow(() => authorizeRepositoryOperation(operation, input, policy));
-      assert.throws(() => authorizeRepositoryOperation(operation, { ...input, repo: "Other" }, policy));
-      if (target === "ownerRepo")
-        assert.throws(() => authorizeRepositoryOperation(operation, { ...input, owner: "Other" }, policy));
-      assert.throws(() => authorizeRepositoryOperation(operation, input), /authorization/);
+      assert.ok(granted(role).includes(operation), `${role} default ${operation}`);
+      assert.deepEqual(granted(role, [{ suite: github, operations: [operation] }]), [operation]);
     }
   }
 });
 
-test("inventory deferred operations cannot be granted", () => {
-  const projects = [
-    "github_project_field_set",
-    "github_project_fields",
-    "github_project_item_add",
-    "github_project_item_find",
-  ];
-  for (const operation of projects) assert.equal(repositoryTargets[operation], "deferred", operation);
-  for (const operation of new Set([
-    ...projects,
-    ...Object.keys(repositoryTargets).filter((name) => repositoryTargets[name] === "deferred"),
-  ])) {
-    for (const role of ["lead", "architect", "advisor", "developer", "integrator", "reviewer"]) {
-      assert.ok(
-        !validateMemberAuthority({ tools: [operation] }, role)
-          .suiteGrants.flatMap((grant) => grant.tools)
-          .includes(operation),
-      );
-      assert.throws(() =>
-        validateMemberAuthority({ tools: [operation] }, role, [{ suite: github, operations: [operation] }]),
-      );
-    }
-  }
+test("an operation no declaration lists cannot be granted, whatever it is", () => {
+  for (const [role, operation] of [
+    ["developer", "github_pull_request_merge"],
+    ["developer", "github_pull_request_review_submit"],
+    ["advisor", "github_git_push"],
+    ["reviewer", "github_issue_create"],
+  ])
+    assert.throws(
+      () => validateMemberAuthority({ tools: [] }, role, [{ suite: github, operations: [operation] }]),
+      /outside/,
+      `${role} ${operation}`,
+    );
 });

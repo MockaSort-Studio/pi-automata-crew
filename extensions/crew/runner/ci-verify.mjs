@@ -92,7 +92,7 @@ const headOf = (files) => {
 
 export async function verifyPullRequest({
   ops,
-  policy,
+  repository,
   evidence,
   signal,
   pollIntervalMs = 15000,
@@ -101,7 +101,7 @@ export async function verifyPullRequest({
   const pullNumber = pullNumberOf(evidence?.pullRequest);
   if (!pullNumber) return null;
   const sha = evidence?.pushed?.commit;
-  const input = { repo: policy.repo, pullNumber };
+  const input = { repo: repository.repo, pullNumber };
   const call = (name, args = input) => {
     if (signal?.aborted) return Promise.reject(signal.reason ?? new Error("Aborted"));
     return abortable(
@@ -153,7 +153,7 @@ export async function verifyPullRequest({
         if (runId) {
           try {
             const log = await call("github_workflow_run_failed_log", {
-              repo: policy.repo,
+              repo: repository.repo,
               runId,
               maxChars: MAX_LOG_CHARS,
             });
