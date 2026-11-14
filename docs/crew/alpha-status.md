@@ -6,7 +6,7 @@ code and live runs. Active work is tracked in [implementation-plan.md](implement
 [gondolin-benchmark.md](gondolin-benchmark.md).
 
 Verdict: the runtime core is solid for a first beta. The three gaps most likely to bite in real use are
-in-memory lifecycle state, incomplete failure-path evidence, and deferred backend coverage. The
+in-memory lifecycle state, incomplete failure-path evidence, and missing Linux krun CI coverage. The
 product focus is runtime and tooling; Claude Code skill migration is out of scope.
 
 ## Complete
@@ -53,7 +53,6 @@ product focus is runtime and tooling; Claude Code skill migration is out of scop
 | Suites             | The npm suite lives in hall-armory as `coding/npm` and is still unpublished; CI inspection, workflow lint, `act`, `dev/tasks`, prettier, `yq`, and `jq` remain deferred. |
 | Network and `bash` | Default-deny egress, denied-host logging, `bash` telemetry, a `bash`-less `reviewer`.                                                                                    |
 | Armory release     | Lead-time measurement, suite scaffold, local harness, launch-time catalog check.                                                                                         |
-| Backend            | Backend scale-up is deferred in #54; the queued-message feature is also deferred.                                                                                        |
 | Platforms          | Linux and Windows validation. Terraform suite and VM snapshots are deferred.                                                                                             |
 
 ## Measured this cycle
