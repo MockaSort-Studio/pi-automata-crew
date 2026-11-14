@@ -127,5 +127,5 @@ Main and its CI snapshot is not current). Dependents are never released on an un
 ## Known limits
 
 - A crew does not survive its host: if the host dies, running members are gone (their pushed branches are
-  not). Durable recovery is part of the backend stage.
+  not).
 - One host per Pi. Several Pis on one machine each run their own.
